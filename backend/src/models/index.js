@@ -1,0 +1,19 @@
+// Central export for all models
+module.exports = {
+  Role: require('./Role'),
+  User: require('./User'),
+  Patient: require('./Patient'),
+  Doctor: require('./Doctor'),
+  Staff: require('./Staff'),
+  Department: require('./Department'),
+  Doctor_Schedule: require('./Doctor_Schedule'),
+  Appointment: require('./Appointment'),
+  Medicine: require('./Medicine'),
+  Medical_Record: require('./Medical_Record'),
+  Prescription: require('./Prescription'),
+  Invoice: require('./Invoice'),
+  Invoice_Detail: require('./Invoice_Detail'),
+  QuickBooking: require('./QuickBooking'),
+  Post: require('./Post'),
+  Contact_Inquiry: require('./Contact_Inquiry'),
+};
