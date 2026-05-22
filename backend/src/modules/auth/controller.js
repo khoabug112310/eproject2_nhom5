@@ -15,11 +15,11 @@ const login = async (req, res) => {
     if (!user) return fail(res, 'Invalid credentials', 401);
     const valid = await user.comparePassword(password);
     if (!valid) return fail(res, 'Invalid credentials', 401);
-    const payload = { id: user._id, roleId: user.roleId };
-    const token = jwt.sign(payload, config.JWT_SECRET, { expiresIn: '7d' });
-    // Fetch role name for frontend convenience
+    // Fetch role name for payload & frontend convenience
     const role = await Role.findById(user.roleId);
     const roleName = role ? role.roleName : null;
+    const payload = { id: user._id, roleId: user.roleId, role: roleName };
+    const token = jwt.sign(payload, config.JWT_SECRET, { expiresIn: '7d' });
     let displayName = user.username;
     if (roleName === 'doctor') {
       const doctor = await Doctor.findOne({ userId: user._id });

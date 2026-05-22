@@ -34,6 +34,9 @@ export const profilesAPI = {
   getUser: (id) => apiClient.get(`/profiles/users/${id}`),
   updateUser: (id, data) =>
     apiClient.put(`/profiles/profile/${id}`, data),
+  getPatients: () => apiClient.get('/profiles/patients'),
+  createUser: (data) => apiClient.post('/profiles/users', data),
+  getAdminStats: () => apiClient.get('/profiles/admin/stats'),
 };
 
 // Scheduling API
@@ -46,6 +49,8 @@ export const schedulingAPI = {
     apiClient.post('/scheduling/appointments', data),
   getAppointments: () =>
     apiClient.get('/scheduling/appointments'),
+  updateAppointment: (id, data) =>
+    apiClient.put(`/scheduling/appointments/${id}`, data),
 };
 
 // Clinical API
@@ -54,10 +59,14 @@ export const clinicalAPI = {
     apiClient.get('/clinical/medicines'),
   getDoctors: () =>
     apiClient.get('/clinical/doctors'),
-  getMedicalRecords: () =>
-    apiClient.get('/clinical/medical-records'),
+  getMedicalRecords: (params) =>
+    apiClient.get('/clinical/medical-records', { params }),
+  createMedicalRecord: (data) =>
+    apiClient.post('/clinical/medical-records', data),
   createPrescription: (data) =>
     apiClient.post('/clinical/prescriptions', data),
+  getPrescriptions: (recordId) =>
+    apiClient.get('/clinical/prescriptions', { params: { recordId } }),
 };
 
 // Billing API
@@ -68,6 +77,8 @@ export const billingAPI = {
     apiClient.post('/billing/invoices', data),
   processPayment: (invoiceId) =>
     apiClient.post(`/billing/invoices/${invoiceId}/pay`),
+  payInvoice: (invoiceId) =>
+    apiClient.post(`/billing/invoices/${invoiceId}/pay`),
 };
 
 // CMS API
@@ -76,6 +87,10 @@ export const cmsAPI = {
     apiClient.get('/cms/posts'),
   createPost: (data) =>
     apiClient.post('/cms/posts', data),
+  updatePost: (id, data) =>
+    apiClient.put(`/cms/posts/${id}`, data),
+  deletePost: (id) =>
+    apiClient.delete(`/cms/posts/${id}`),
   submitContactInquiry: (data) =>
     apiClient.post('/cms/contact-inquiries', data),
 };

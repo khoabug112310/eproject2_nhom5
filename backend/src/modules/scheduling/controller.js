@@ -119,8 +119,30 @@ const bookAppointment = async (req, res) => {
 
 const getAppointments = async (req, res) => {
   try {
-    // Simple listing: admins/staff/doctor/patient filtering can be added
-    const items = await Appointment.find().populate('patientId doctorId departmentId scheduleId').lean();
+    let q = {};
+    if (req.user) {
+      if (req.user.role === 'patient') {
+        const patient = await Patient.findOne({ userId: req.user.id });
+        if (!patient) {
+          const { success: ok } = require('../../utils/response');
+          return ok(res, [], 'Lấy danh sách lịch khám');
+        }
+        q.patientId = patient._id;
+      } else if (req.user.role === 'doctor') {
+        const doc = await Doctor.findOne({ userId: req.user.id });
+        if (!doc) {
+          const { success: ok } = require('../../utils/response');
+          return ok(res, [], 'Lấy danh sách lịch khám');
+        }
+        q.doctorId = doc._id;
+      }
+    }
+
+    const items = await Appointment.find(q)
+      .populate('patientId doctorId departmentId scheduleId')
+      .sort({ requestedDate: -1, requestedTime: -1 })
+      .lean();
+
     const { success: ok } = require('../../utils/response');
     return ok(res, items, 'Lấy danh sách lịch khám');
   } catch (err) {
@@ -140,7 +162,7 @@ const updateAppointmentStatus = async (req, res) => {
     if (!appt) return res.status(404).json({ success: false, message: 'Appointment not found' });
 
     const oldStatus = appt.status;
-    const { APPOINTMENT_STATUS } = require('../../constants/enums');
+    const { APPOINTMENT_STATUS, INVOICE_TYPE, INVOICE_STATUS } = require('../../constants/enums');
 
     // If confirming, ensure schedule capacity
     if (oldStatus !== APPOINTMENT_STATUS.CONFIRMED && status === APPOINTMENT_STATUS.CONFIRMED) {
@@ -157,6 +179,31 @@ const updateAppointmentStatus = async (req, res) => {
         }
         schedule.currentBooked = (schedule.currentBooked || 0) + 1;
         await schedule.save();
+      }
+
+      // Auto-create Consultation Invoice (Unpaid) if it doesn't exist
+      const Invoice = require('../../models/Invoice');
+      const existingConsultationInvoice = await Invoice.findOne({
+        appointmentId: appt._id,
+        invoiceType: INVOICE_TYPE.CONSULTATION,
+      });
+
+      if (!existingConsultationInvoice) {
+        let fee = 150000; // default fee
+        if (appt.doctorId) {
+          const doc = await Doctor.findById(appt.doctorId);
+          if (doc && typeof doc.baseFee === 'number') {
+            fee = doc.baseFee;
+          }
+        }
+        await Invoice.create({
+          appointmentId: appt._id,
+          patientId: appt.patientId,
+          invoiceType: INVOICE_TYPE.CONSULTATION,
+          totalAmount: fee,
+          status: INVOICE_STATUS.UNPAID,
+          issuedAt: new Date(),
+        });
       }
     }
 
