@@ -9,10 +9,18 @@ export default function RegisterModal({ show, onClose }) {
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [gender, setGender] = useState('');
   const [message, setMessage] = useState('');
+  const [isError, setIsError] = useState(false);
 
   useEffect(() => {
     if (show) {
-      setStep(1); setPhone(''); setPassword(''); setFullName(''); setDateOfBirth(''); setGender(''); setMessage('');
+      setStep(1); 
+      setPhone(''); 
+      setPassword(''); 
+      setFullName(''); 
+      setDateOfBirth(''); 
+      setGender(''); 
+      setMessage('');
+      setIsError(false);
     }
   }, [show]);
 
@@ -20,99 +28,227 @@ export default function RegisterModal({ show, onClose }) {
 
   const handleCheckPhone = async (e) => {
     e.preventDefault();
+    setMessage('');
+    setIsError(false);
     try {
-      // Call register with only phone to see backend response
+      // Call register with only phone to check status
       await authAPI.register({ phone });
-      // If it succeeds (unlikely without password) move to next
+      // If it succeeds (which is rare without other info), go to info step
       setStep(3);
     } catch (err) {
       const status = err?.response?.status;
       const msg = err?.response?.data?.message || err.message;
       if (status === 409) {
-        // Account exists -> ask for password to activate
-        setMessage('Tài khoản đã tồn tại. Vui lòng nhập mật khẩu để kích hoạt.');
+        // Account exists in profiles but is not active
+        setMessage('Số điện thoại này đã tồn tại trong danh sách bệnh nhân. Vui lòng nhập mật khẩu mới để kích hoạt tài khoản khám trực tuyến.');
         setStep(2);
       } else if (status === 400) {
-        // New registration requires full info + password
+        // New registration required
         setStep(3);
       } else {
         setMessage(msg);
+        setIsError(true);
       }
     }
   };
 
   const handleActivate = async (e) => {
     e.preventDefault();
+    setMessage('');
+    setIsError(false);
     try {
       const res = await authAPI.register({ phone, password, fullName, dateOfBirth, gender });
-      setMessage('Đăng ký thành công.');
-      // Optionally auto-login
+      setMessage('Đăng ký tài khoản thành công.');
+      // Auto login after registration
       const lg = await authAPI.login(phone, password);
       const { token, role, username, displayName } = lg.data.data;
       localStorage.setItem('token', token);
       localStorage.setItem('userRole', role || '');
       localStorage.setItem('userName', username || phone || '');
       localStorage.setItem('userDisplayName', displayName || username || phone || '');
-      if (role) {
-        onClose();
-        // redirect by role
-        if (role === 'admin') window.location.href = '/admin/dashboard';
-        else if (role === 'doctor') window.location.href = '/doctor/schedule';
-        else if (role === 'staff') window.location.href = '/staff/dashboard';
-        else if (role === 'accountant') window.location.href = '/accountant/dashboard';
-        else window.location.href = '/patient/dashboard';
-      }
+      
+      onClose();
+      // redirect by role
+      if (role === 'admin') window.location.href = '/admin/dashboard';
+      else if (role === 'doctor') window.location.href = '/doctor/schedule';
+      else if (role === 'staff') window.location.href = '/staff/dashboard';
+      else if (role === 'accountant') window.location.href = '/accountant/dashboard';
+      else window.location.href = '/patient/dashboard';
     } catch (err) {
       setMessage(err?.response?.data?.message || err.message);
+      setIsError(true);
     }
   };
 
   return (
-    <div style={overlayStyle} onMouseDown={onClose} role="dialog" aria-modal="true">
-      <div style={modalStyle} onMouseDown={(e) => e.stopPropagation()}>
-        <h3 style={{marginTop:0}}>Đăng ký</h3>
-        {message && <div style={{color:'red',marginBottom:8}}>{message}</div>}
+    <div className="modal-overlay" onMouseDown={onClose} role="dialog" aria-modal="true">
+      <div className="modal-card" onMouseDown={(e) => e.stopPropagation()}>
+        
+        {/* Close Button */}
+        <button 
+          type="button" 
+          onClick={onClose} 
+          style={{
+            position: 'absolute',
+            top: '16px',
+            right: '16px',
+            background: 'none',
+            border: 'none',
+            fontSize: '20px',
+            cursor: 'pointer',
+            color: 'var(--color-text-muted)',
+            lineHeight: 1
+          }}
+          aria-label="Đóng"
+        >
+          ×
+        </button>
 
+        <div className="modal-header">
+          <div className="modal-logo">🏥</div>
+          <div className="modal-title">Đăng ký tài khoản</div>
+          <div className="modal-subtitle">Đăng ký để đặt lịch hẹn và theo dõi hồ sơ bệnh án</div>
+        </div>
+
+        {/* Stepper Progress bar */}
+        <div className="register-stepper">
+          <div className={`step-indicator ${step >= 1 ? 'active' : ''} ${step > 1 ? 'completed' : ''}`}>
+            {step > 1 ? '✓' : '1'}
+          </div>
+          <div className={`step-indicator ${step >= 2 ? 'active' : ''} ${step > 2 ? 'completed' : ''}`}>
+            {step > 2 ? '✓' : '2'}
+          </div>
+          <div className={`step-indicator ${step === 3 ? 'active' : ''}`}>
+            3
+          </div>
+        </div>
+
+        {message && (
+          <div className={`inline-alert ${isError ? '' : 'success'}`}>
+            <span>{isError ? '⚠️' : '✓'}</span> {message}
+          </div>
+        )}
+
+        {/* STEP 1: Phone number validation */}
         {step === 1 && (
           <form onSubmit={handleCheckPhone}>
-            <label>Số điện thoại</label>
-            <input style={inputStyle} value={phone} onChange={(e)=>setPhone(e.target.value)} required />
-            <div style={{display:'flex',justifyContent:'flex-end',gap:8,marginTop:12}}>
-              <button type="button" className="btn" onClick={onClose}>Hủy</button>
-              <button type="submit" className="btn btn-primary">Tiếp tục</button>
+            <div className="form-group-outline">
+              <label htmlFor="reg-phone">Số điện thoại</label>
+              <input 
+                id="reg-phone"
+                type="tel"
+                placeholder="Nhập số điện thoại để tiếp tục" 
+                value={phone} 
+                onChange={(e) => setPhone(e.target.value)} 
+                required 
+              />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '20px' }}>
+              <button type="button" className="btn btn-ghost" onClick={onClose} style={{ fontSize: '13px', padding: '8px 12px' }}>
+                Hủy
+              </button>
+              <button type="submit" className="btn btn-primary" style={{ fontSize: '13px', padding: '8px 16px' }}>
+                Tiếp tục
+              </button>
             </div>
           </form>
         )}
 
+        {/* STEP 2: Activation of existing records */}
         {step === 2 && (
           <form onSubmit={handleActivate}>
-            <label>Mật khẩu</label>
-            <input style={inputStyle} type="password" value={password} onChange={(e)=>setPassword(e.target.value)} required />
-            <div style={{display:'flex',justifyContent:'flex-end',gap:8,marginTop:12}}>
-              <button type="button" className="btn" onClick={onClose}>Hủy</button>
-              <button type="submit" className="btn btn-primary">Kích hoạt</button>
+            <div className="form-group-outline">
+              <label htmlFor="reg-activate-password">Mật khẩu mới</label>
+              <input 
+                id="reg-activate-password"
+                type="password" 
+                placeholder="Đặt mật khẩu của bạn"
+                value={password} 
+                onChange={(e) => setPassword(e.target.value)} 
+                required 
+              />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '20px' }}>
+              <button 
+                type="button" 
+                className="btn btn-ghost" 
+                onClick={() => setStep(1)} 
+                style={{ fontSize: '13px', padding: '8px 12px' }}
+              >
+                Quay lại
+              </button>
+              <button type="submit" className="btn btn-primary" style={{ fontSize: '13px', padding: '8px 16px' }}>
+                Kích hoạt tài khoản
+              </button>
             </div>
           </form>
         )}
 
+        {/* STEP 3: Complete Registration */}
         {step === 3 && (
           <form onSubmit={handleActivate}>
-            <label>Họ và tên</label>
-            <input style={inputStyle} value={fullName} onChange={(e)=>setFullName(e.target.value)} required />
-            <label>Ngày sinh</label>
-            <input style={inputStyle} type="date" value={dateOfBirth} onChange={(e)=>setDateOfBirth(e.target.value)} />
-            <label>Giới tính</label>
-            <select style={inputStyle} value={gender} onChange={(e)=>setGender(e.target.value)}>
-              <option value="">Không chọn</option>
-              <option value="Nam">Nam</option>
-              <option value="Nữ">Nữ</option>
-              <option value="Khác">Khác</option>
-            </select>
-            <label>Mật khẩu</label>
-            <input style={inputStyle} type="password" value={password} onChange={(e)=>setPassword(e.target.value)} required />
-            <div style={{display:'flex',justifyContent:'flex-end',gap:8,marginTop:12}}>
-              <button type="button" className="btn" onClick={onClose}>Hủy</button>
-              <button type="submit" className="btn btn-primary">Hoàn tất đăng ký</button>
+            <div className="form-group-outline">
+              <label htmlFor="reg-name">Họ và tên</label>
+              <input 
+                id="reg-name"
+                type="text"
+                placeholder="Nguyễn Văn A"
+                value={fullName} 
+                onChange={(e) => setFullName(e.target.value)} 
+                required 
+              />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div className="form-group-outline">
+                <label htmlFor="reg-dob">Ngày sinh</label>
+                <input 
+                  id="reg-dob"
+                  type="date" 
+                  value={dateOfBirth} 
+                  onChange={(e) => setDateOfBirth(e.target.value)} 
+                />
+              </div>
+
+              <div className="form-group-outline">
+                <label htmlFor="reg-gender">Giới tính</label>
+                <select 
+                  id="reg-gender"
+                  value={gender} 
+                  onChange={(e) => setGender(e.target.value)}
+                >
+                  <option value="">Không chọn</option>
+                  <option value="Nam">Nam</option>
+                  <option value="Nữ">Nữ</option>
+                  <option value="Khác">Khác</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="form-group-outline">
+              <label htmlFor="reg-password">Mật khẩu</label>
+              <input 
+                id="reg-password"
+                type="password" 
+                placeholder="Đặt mật khẩu truy cập"
+                value={password} 
+                onChange={(e) => setPassword(e.target.value)} 
+                required 
+              />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '20px' }}>
+              <button 
+                type="button" 
+                className="btn btn-ghost" 
+                onClick={() => setStep(1)} 
+                style={{ fontSize: '13px', padding: '8px 12px' }}
+              >
+                Quay lại
+              </button>
+              <button type="submit" className="btn btn-primary" style={{ fontSize: '13px', padding: '8px 16px' }}>
+                Hoàn tất đăng ký
+              </button>
             </div>
           </form>
         )}
@@ -120,7 +256,3 @@ export default function RegisterModal({ show, onClose }) {
     </div>
   );
 }
-
-const overlayStyle = { position:'fixed',top:0,left:0,right:0,bottom:0,background:'rgba(0,0,0,0.4)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:9999 };
-const modalStyle = { background:'#fff',padding:20,borderRadius:8,width:420,maxWidth:'95%',boxShadow:'0 6px 24px rgba(0,0,0,0.25)' };
-const inputStyle = { width:'100%',padding:'8px 10px',marginTop:6,marginBottom:8,boxSizing:'border-box' };

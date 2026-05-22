@@ -4,6 +4,7 @@
 const Department = require('../../models/Department');
 const Doctor = require('../../models/Doctor');
 const Appointment = require('../../models/Appointment');
+const Patient = require('../../models/Patient');
 const { APPOINTMENT_STATUS } = require('../../constants/enums');
 
 const getDepartments = async (req, res) => {
@@ -67,8 +68,16 @@ const bookAppointment = async (req, res) => {
       return res.status(400).json({ success: false, message: 'requestedDate, requestedTime và departmentId là bắt buộc' });
     }
 
-    // Determine patientId from authenticated user
-    const patientId = req.user && (req.user.id || req.user._id) ? (req.user.id || req.user._id) : req.body.patientId;
+    // Determine patientId from authenticated user (User ID mapped to Patient ID)
+    let patientId = req.body.patientId;
+    if (req.user && (req.user.id || req.user._id)) {
+      const uId = req.user.id || req.user._id;
+      const patient = await Patient.findOne({ userId: uId });
+      if (!patient) {
+        return res.status(404).json({ success: false, message: 'Hồ sơ bệnh nhân không tồn tại.' });
+      }
+      patientId = patient._id;
+    }
     if (!patientId) return res.status(400).json({ success: false, message: 'Patient identity required' });
 
     // Normalize date (strip time) for day-based matching

@@ -76,6 +76,8 @@ export const cmsAPI = {
     apiClient.get('/cms/posts'),
   createPost: (data) =>
     apiClient.post('/cms/posts', data),
+  submitContactInquiry: (data) =>
+    apiClient.post('/cms/contact-inquiries', data),
 };
 
 export default apiClient;

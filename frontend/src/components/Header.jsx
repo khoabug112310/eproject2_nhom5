@@ -8,7 +8,7 @@ export default function Header(){
         <a href="/departments">KHOA</a>
         <a href="/specialists">BÁC SĨ</a>
         <a href="/services">DỊCH VỤ</a>
-        <a href="/posts">TIN TỨC</a>
+        <a href="/news">TIN TỨC</a>
         <a href="/contact">LIÊN HỆ</a>
       </nav>
     </header>
