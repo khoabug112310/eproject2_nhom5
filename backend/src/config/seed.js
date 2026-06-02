@@ -119,6 +119,111 @@ async function seedDatabase() {
     const departments = await Department.insertMany(departmentsData);
     console.log('✓ Created 9 departments');
 
+   // 3b. Định nghĩa Schema cho Service Package
+    const servicePackageSchema = new mongoose.Schema({
+      id: { type: String, required: true, unique: true },
+      icon: { type: String, required: true },
+      title: { type: String, required: true },
+      desc: { type: String, required: true },
+      price: { type: String, required: true },
+      period: { type: String, required: true },
+      featured: { type: Boolean, default: false },
+      badge: { type: String },
+      benefits: { type: [String], required: true },
+      deptKeyword: { type: String, required: true }
+    }, {
+      timestamps: true
+    });
+
+    // Tạo Model từ Schema
+    const ServicePackage = mongoose.model('ServicePackage', servicePackageSchema);
+
+    // Dữ liệu gói dịch vụ
+    const servicePackages = [
+      {
+        id: 'basic',
+        icon: '🩺',
+        title: 'Gói Khám Sức Khỏe Cơ Bản',
+        desc: 'Đánh giá tổng quát tình trạng sức khỏe hệ hô hấp, tuần hoàn, gan, thận và xét nghiệm máu cơ bản.',
+        price: '750.000đ',
+        period: 'mỗi lần khám',
+        featured: false,
+        benefits: [
+          'Khám lâm sàng nội tổng quát',
+          'Đo chỉ số sinh hiệu (Huyết áp, tim mạch)',
+          'Công thức máu & đường huyết đói',
+          'Đánh giá chức năng gan (AST, ALT)',
+          'Đánh giá chức năng thận (Ure, Creatinin)',
+          'Tư vấn kết quả cùng bác sĩ chuyên gia'
+        ],
+        deptKeyword: 'nội'
+      },
+      {
+        id: 'screening',
+        icon: '𫠀',
+        title: 'Gói Tầm Soát Tim Mạch & Bệnh Lý',
+        desc: 'Tầm soát chuyên sâu bệnh lý mạch vành, cao huyết áp, mỡ máu và chỉ số tầm soát dấu ấn ung thư sớm.',
+        price: '2.500.000đ',
+        period: 'mỗi lần khám',
+        featured: true,
+        badge: 'Bán chạy',
+        benefits: [
+          'Tất cả dịch vụ của gói cơ bản',
+          'Siêu âm tim màu doppler nâng cao',
+          'Đo điện tâm đồ (ECG) phát hiện rối loạn nhịp',
+          'Xét nghiệm mỡ máu toàn phần (Cholesterol, LDL, HDL)',
+          'Tầm soát dấu ấn ung thư gan, phổi, dạ dày',
+          'Chụp X-Quang phổi thẳng kỹ thuật số'
+        ],
+        deptKeyword: 'tim'
+      },
+      {
+        id: 'pediatric',
+        icon: '👶',
+        title: 'Gói Khám Nhi Khoa Toàn Diện',
+        desc: 'Khám sức khỏe định kỳ cho trẻ, theo dõi cột mốc phát triển, kiểm tra dinh dưỡng và tư vấn tiêm chủng.',
+        price: '400.000đ',
+        period: 'mỗi lần khám',
+        featured: false,
+        benefits: [
+          'Khám sức khỏe tổng quát nhi khoa',
+          'Đánh giá các cột mốc phát triển thể chất',
+          'Kiểm tra và tư vấn chế độ dinh dưỡng',
+          'Sàng lọc các bệnh lý nhi khoa phổ biến',
+          'Hỗ trợ lên phác đồ tiêm chủng chuẩn y khoa',
+          'Tặng sổ tay theo dõi sức khỏe cho bé'
+        ],
+        deptKeyword: 'nhi'
+      },
+      {
+        id: 'vip',
+        icon: '💎',
+        title: 'Gói Chăm Sóc Sức Khỏe VIP',
+        desc: 'Khám ưu tiên không chờ đợi, bác sĩ Trưởng khoa tư vấn riêng biệt, phòng chờ hạng thương gia đẳng cấp.',
+        price: '1.800.000đ',
+        period: 'mỗi lần khám',
+        featured: false,
+        benefits: [
+          'Ưu tiên khám nhanh không xếp hàng',
+          'Khám trực tiếp cùng Trưởng/Phó khoa lâm sàng',
+          'Sử dụng phòng chờ VIP Lounge tiện ích',
+          'Phục vụ trà, cà phê & ăn nhẹ miễn phí',
+          'Thời gian bác sĩ tư vấn chuyên sâu kéo dài',
+          'Nhận kết quả nhanh chóng & trả tận nơi'
+        ],
+        deptKeyword: 'vip'
+      }
+    ];
+
+    // Tiến hành insert thẳng, đồng bộ với mạch code của seed script
+    const insertedPackages = await ServicePackage.insertMany(servicePackages);
+    console.log(`✓ Created ${insertedPackages.length} service packages`);
+
+    // ==========================================
+
+    // Chạy hàm import
+    importData();
+
     // 4. Create Doctor Users & Doctors (9 Doctors)
     const doctorRole = roles.find(r => r.roleName === 'doctor');
     const doctorPasswordHash = await bcrypt.hash('doctor123', 10);
@@ -474,7 +579,7 @@ async function seedDatabase() {
     const patientDoc = await Patient.findOne({ phoneNumber: '0914444444' });
     const firstDoctor = doctors[0];
     const firstSchedule = createdSchedules.find(s => s.doctorId.toString() === firstDoctor._id.toString() && s.startTime === '08:00');
-    
+
     const appointment = await Appointment.create({
       patientId: patientDoc._id,
       requestedDate: today,

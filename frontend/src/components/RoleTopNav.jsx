@@ -11,7 +11,7 @@ const roleLabels = {
 const navByRole = {
   patient: [
     { label: 'Dashboard', href: '/patient/dashboard' },
-    { label: 'Đặt lịch nhanh', href: '/booking' },
+    { label: 'Trang Chủ', href: '/booking' },
   ],
   doctor: [
     { label: 'Dashboard', href: '/doctor/schedule' },
