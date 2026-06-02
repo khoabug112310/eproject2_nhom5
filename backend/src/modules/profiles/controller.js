@@ -263,12 +263,199 @@ const getAdminStats = async (req, res) => {
       if (item._id === 'Pharmacy') breakdownData.pharmacy = item.total;
     });
 
+    // === CALCULATE TIME SERIES DATA FOR CHARTS ===
+    // 1. WEEK CHART (Monday to Sunday of the current week)
+    const weekLabels = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+    const weekRevenue = [];
+    const weekTraffic = [];
+
+    const mondayOffset = day === 0 ? -6 : 1 - day;
+    const monday = new Date(now);
+    monday.setDate(now.getDate() + mondayOffset);
+    monday.setHours(0, 0, 0, 0);
+
+    for (let i = 0; i < 7; i++) {
+      const dStart = new Date(monday);
+      dStart.setDate(monday.getDate() + i);
+      const dEnd = new Date(dStart);
+      dEnd.setHours(23, 59, 59, 999);
+
+      const dailyRevRes = await Invoice.aggregate([
+        { $match: { status: 'Paid', paidAt: { $gte: dStart, $lte: dEnd } } },
+        { $group: { _id: null, total: { $sum: '$totalAmount' } } }
+      ]);
+      const dailyRev = dailyRevRes.length > 0 ? dailyRevRes[0].total : 0;
+      weekRevenue.push(dailyRev);
+
+      const dailyPatients = await Appointment.countDocuments({
+        requestedDate: { $gte: dStart, $lte: dEnd }
+      });
+      weekTraffic.push(dailyPatients);
+    }
+
+    // 2. MONTH CHART (4 weeks of the current month)
+    const monthLabels = ['Tuần 1', 'Tuần 2', 'Tuần 3', 'Tuần 4'];
+    const monthRevenue = [];
+    const monthTraffic = [];
+
+    for (let w = 1; w <= 4; w++) {
+      const wStart = new Date(now.getFullYear(), now.getMonth(), (w - 1) * 7 + 1, 0, 0, 0, 0);
+      let wEnd;
+      if (w === 4) {
+        wEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+      } else {
+        wEnd = new Date(now.getFullYear(), now.getMonth(), w * 7, 23, 59, 59, 999);
+      }
+
+      const weeklyRevRes = await Invoice.aggregate([
+        { $match: { status: 'Paid', paidAt: { $gte: wStart, $lte: wEnd } } },
+        { $group: { _id: null, total: { $sum: '$totalAmount' } } }
+      ]);
+      const weeklyRev = weeklyRevRes.length > 0 ? weeklyRevRes[0].total : 0;
+      monthRevenue.push(weeklyRev);
+
+      const weeklyPatients = await Appointment.countDocuments({
+        requestedDate: { $gte: wStart, $lte: wEnd }
+      });
+      monthTraffic.push(weeklyPatients);
+    }
+
+    // 3. YEAR CHART (12 months of the current year)
+    const yearLabels = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10', 'T11', 'T12'];
+    const yearRevenue = [];
+    const yearTraffic = [];
+
+    for (let m = 0; m < 12; m++) {
+      const mStart = new Date(now.getFullYear(), m, 1, 0, 0, 0, 0);
+      const mEnd = new Date(now.getFullYear(), m + 1, 0, 23, 59, 59, 999);
+
+      const monthlyRevRes = await Invoice.aggregate([
+        { $match: { status: 'Paid', paidAt: { $gte: mStart, $lte: mEnd } } },
+        { $group: { _id: null, total: { $sum: '$totalAmount' } } }
+      ]);
+      const monthlyRev = monthlyRevRes.length > 0 ? monthlyRevRes[0].total : 0;
+      yearRevenue.push(monthlyRev);
+
+      const monthlyPatients = await Appointment.countDocuments({
+        requestedDate: { $gte: mStart, $lte: mEnd }
+      });
+      yearTraffic.push(monthlyPatients);
+    }
+
+    // === CALCULATE QUALITY METRICS ===
+    const Doctor = require('../../models/Doctor');
+    const Staff = require('../../models/Staff');
+    const User = require('../../models/User');
+
+    const confirmedAppts = await Appointment.find({
+      status: { $in: ['Confirmed', 'Completed'] },
+      confirmedBy: { $exists: true }
+    }).select('createdAt updatedAt');
+    
+    let totalMinutes = 0;
+    let count = 0;
+    confirmedAppts.forEach(appt => {
+      const diffMs = appt.updatedAt - appt.createdAt;
+      if (diffMs > 0) {
+        totalMinutes += diffMs / 1000 / 60;
+        count++;
+      }
+    });
+    const avgConfirmationTime = count > 0 ? Math.round(totalMinutes / count) : 15;
+
+    // Rates: Success vs Canceled
+    const successCount = await Appointment.countDocuments({ status: { $in: ['Confirmed', 'Completed'] } });
+    const canceledCount = await Appointment.countDocuments({ status: 'Canceled' });
+    const pendingCount = await Appointment.countDocuments({ status: 'Pending' });
+    const totalAppts = successCount + canceledCount + pendingCount;
+    
+    const successRate = totalAppts > 0 ? Math.round((successCount / totalAppts) * 100) : 100;
+    const cancellationRate = totalAppts > 0 ? Math.round((canceledCount / totalAppts) * 100) : 0;
+    const pendingRate = totalAppts > 0 ? Math.round((pendingCount / totalAppts) * 100) : 0;
+
+    // Peak Hours
+    const timeSlots = await Appointment.aggregate([
+      { $match: { status: { $ne: 'Canceled' } } },
+      { $group: { _id: '$requestedTime', count: { $sum: 1 } } },
+      { $sort: { count: -1 } }
+    ]);
+    const peakHours = timeSlots.slice(0, 3).map(slot => ({
+      time: slot._id || 'Chưa xếp giờ',
+      count: slot.count
+    }));
+
+    // Performance comparison
+    const doctorStats = await Appointment.aggregate([
+      { $match: { status: 'Completed', doctorId: { $ne: null } } },
+      { $group: { _id: '$doctorId', count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+      { $limit: 5 }
+    ]);
+
+    const doctorsPerformance = [];
+    for (const docStat of doctorStats) {
+      const doc = await Doctor.findById(docStat._id).select('fullName');
+      if (doc) {
+        doctorsPerformance.push({
+          name: doc.fullName,
+          count: docStat.count
+        });
+      }
+    }
+
+    const cskhStats = await Appointment.aggregate([
+      { $match: { status: { $in: ['Confirmed', 'Completed'] }, confirmedBy: { $ne: null } } },
+      { $group: { _id: '$confirmedBy', count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+      { $limit: 5 }
+    ]);
+
+    const cskhPerformance = [];
+    for (const staffStat of cskhStats) {
+      const staff = await Staff.findOne({ userId: staffStat._id }).select('fullName');
+      if (staff) {
+        cskhPerformance.push({
+          name: staff.fullName,
+          count: staffStat.count
+        });
+      } else {
+        const usr = await User.findById(staffStat._id).select('username');
+        cskhPerformance.push({
+          name: usr ? usr.username : `NV #${staffStat._id.toString().substring(18)}`,
+          count: staffStat.count
+        });
+      }
+    }
+
     const { success: ok } = require('../../utils/response');
     return ok(res, {
       registrations: { day: regToday, week: regThisWeek, month: regThisMonth },
       examinations: { day: examToday, week: examThisWeek, month: examThisMonth },
       revenue: { day: revToday, week: revThisWeek, month: revThisMonth },
-      breakdown: breakdownData
+      breakdown: breakdownData,
+      qualityMetrics: {
+        avgConfirmationTime,
+        rates: {
+          success: successRate,
+          canceled: cancellationRate,
+          pending: pendingRate,
+          counts: {
+            success: successCount,
+            canceled: canceledCount,
+            pending: pendingCount
+          }
+        },
+        peakHours,
+        performance: {
+          doctors: doctorsPerformance,
+          cskh: cskhPerformance
+        }
+      },
+      charts: {
+        week: { labels: weekLabels, revenue: weekRevenue, traffic: weekTraffic },
+        month: { labels: monthLabels, revenue: monthRevenue, traffic: monthTraffic },
+        year: { labels: yearLabels, revenue: yearRevenue, traffic: yearTraffic }
+      }
     }, 'Lấy số liệu thống kê thành công');
   } catch (err) {
     console.error('getAdminStats error', err);
@@ -277,4 +464,157 @@ const getAdminStats = async (req, res) => {
   }
 };
 
-module.exports = { getAllUsers, getUserById, updateUser, createDoctor, getPatients, getAdminStats };
+const queryClinicAI = async (req, res) => {
+  try {
+    const { query } = req.body;
+    if (!query) {
+      return res.status(400).json({ success: false, message: 'Yêu cầu truy vấn AI (query) là bắt buộc' });
+    }
+
+    const Appointment = require('../../models/Appointment');
+    const Invoice = require('../../models/Invoice');
+    const User = require('../../models/User');
+    const Post = require('../../models/Post');
+
+    // 1. Fetch clinic figures to construct the system prompt context
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const usersCount = await User.countDocuments({});
+    const doctorsCount = await User.countDocuments({ role: 'doctor', isActive: true });
+    const staffCount = await User.countDocuments({ role: { $in: ['staff', 'accountant'] }, isActive: true });
+    const inactiveCount = await User.countDocuments({ isActive: false });
+
+    const postsCount = await Post.countDocuments({});
+    const publishedPostsCount = await Post.countDocuments({ status: 'Published' });
+    const draftPostsCount = await Post.countDocuments({ status: 'Draft' });
+
+    // Revenue month
+    const match = await Invoice.aggregate([
+      { $match: { status: 'Paid', paidAt: { $gte: startOfMonth } } },
+      { $group: { _id: '$invoiceType', total: { $sum: '$totalAmount' } } }
+    ]);
+    let revenueMonth = 0;
+    let consultationRev = 0;
+    let pharmacyRev = 0;
+    match.forEach(item => {
+      revenueMonth += item.total;
+      if (item._id === 'Consultation') consultationRev = item.total;
+      if (item._id === 'Pharmacy') pharmacyRev = item.total;
+    });
+
+    // Peak hours
+    const timeSlots = await Appointment.aggregate([
+      { $match: { status: { $ne: 'Canceled' } } },
+      { $group: { _id: '$requestedTime', count: { $sum: 1 } } },
+      { $sort: { count: -1 } }
+    ]);
+    const peakTime = timeSlots.length > 0 ? timeSlots[0]._id : 'Chưa xác định';
+    const peakCount = timeSlots.length > 0 ? timeSlots[0].count : 0;
+
+    // CSKH stats
+    const confirmedAppts = await Appointment.find({
+      status: { $in: ['Confirmed', 'Completed'] },
+      confirmedBy: { $exists: true }
+    }).select('createdAt updatedAt');
+    
+    let totalMinutes = 0;
+    let confirmedCount = 0;
+    confirmedAppts.forEach(appt => {
+      const diffMs = appt.updatedAt - appt.createdAt;
+      if (diffMs > 0) {
+        totalMinutes += diffMs / 1000 / 60;
+        confirmedCount++;
+      }
+    });
+    const avgConfirmationTime = confirmedCount > 0 ? Math.round(totalMinutes / confirmedCount) : 15;
+
+    const successCount = await Appointment.countDocuments({ status: { $in: ['Confirmed', 'Completed'] } });
+    const canceledCount = await Appointment.countDocuments({ status: 'Canceled' });
+    const pendingCount = await Appointment.countDocuments({ status: 'Pending' });
+    const totalAppts = successCount + canceledCount + pendingCount;
+    const successRate = totalAppts > 0 ? Math.round((successCount / totalAppts) * 100) : 100;
+    const cancellationRate = totalAppts > 0 ? Math.round((canceledCount / totalAppts) * 100) : 0;
+
+    // 2. Load API Key
+    const env = require('../../config/env');
+    const apiKey = env.GEMINI_API_KEY || process.env.GEMINI_API_KEY || '';
+
+    // 3. Construct System Prompt
+    const systemPrompt = `Bạn là Trợ lý Phân tích AI được tích hợp trong hệ thống quản lý phòng khám Hợp Sơn Tài.
+Dưới đây là số liệu thống kê hiện tại của phòng khám để bạn phân tích:
+- Tổng số tài khoản người dùng: ${usersCount}
+- Số bác sĩ đang hoạt động: ${doctorsCount}
+- Số nhân viên CSKH & Kế toán đang hoạt động: ${staffCount}
+- Số tài khoản đang bị khóa (vô hiệu hóa): ${inactiveCount}
+- Tổng số bài viết y khoa (CMS): ${postsCount} (Đã công bố: ${publishedPostsCount}, Bản nháp: ${draftPostsCount})
+- Tổng doanh thu tháng này: ${revenueMonth} VND (Phí khám lâm sàng: ${consultationRev} VND, Doanh thu nhà thuốc: ${pharmacyRev} VND)
+- Khung giờ khám cao điểm nhất: ${peakTime} (${peakCount} lượt đặt lịch)
+- Tốc độ duyệt lịch trung bình của CSKH: ${avgConfirmationTime} phút (Tỷ lệ duyệt thành công: ${successRate}%, Tỷ lệ hủy: ${cancellationRate}%)
+
+Hãy trả lời yêu cầu hoặc câu hỏi của Quản trị viên bằng tiếng Việt một cách chuyên nghiệp, chính xác theo số liệu trên, ngắn gọn và có đề xuất tối ưu hóa hành động cụ thể.
+Định dạng câu trả lời hoàn toàn bằng Markdown (sử dụng dấu ### cho tiêu đề phần, dấu ** cho chữ in đậm, dấu gạch đầu dòng - hoặc số thứ tự cho danh sách). Không sử dụng các định dạng HTML hay thẻ script.
+
+Yêu cầu phân tích của Quản trị viên: "${query}"`;
+
+    // 4. Call Gemini API
+    const https = require('https');
+    
+    const callGemini = (prompt, key) => {
+      return new Promise((resolve, reject) => {
+        const payload = JSON.stringify({
+          contents: [{
+            parts: [{ text: prompt }]
+          }]
+        });
+
+        const options = {
+          hostname: 'generativelanguage.googleapis.com',
+          port: 443,
+          path: `/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(payload)
+          }
+        };
+
+        const req = https.request(options, (res) => {
+          let body = '';
+          res.on('data', (chunk) => body += chunk);
+          res.on('end', () => {
+            try {
+              if (res.statusCode !== 200) {
+                return reject(new Error(`Gemini API returned status code ${res.statusCode}: ${body}`));
+              }
+              const json = JSON.parse(body);
+              if (json.candidates && json.candidates[0] && json.candidates[0].content && json.candidates[0].content.parts && json.candidates[0].content.parts[0]) {
+                resolve(json.candidates[0].content.parts[0].text);
+              } else {
+                reject(new Error(json.error?.message || 'Không thể giải nghĩa phản hồi từ Gemini API'));
+              }
+            } catch (e) {
+              reject(e);
+            }
+          });
+        });
+
+        req.on('error', (e) => reject(e));
+        req.write(payload);
+        req.end();
+      });
+    };
+
+    const aiResponseText = await callGemini(systemPrompt, apiKey);
+    
+    const { success: ok } = require('../../utils/response');
+    return ok(res, { text: aiResponseText }, 'Phân tích hệ thống bằng AI thành công');
+  } catch (err) {
+    console.error('queryClinicAI error', err);
+    const { fail } = require('../../utils/response');
+    return fail(res, 'Lỗi khi gọi trợ lý AI phân tích', 500, err.message);
+  }
+};
+
+module.exports = { getAllUsers, getUserById, updateUser, createDoctor, getPatients, getAdminStats, queryClinicAI };
+

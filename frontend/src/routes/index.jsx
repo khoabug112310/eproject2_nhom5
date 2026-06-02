@@ -7,7 +7,6 @@ import AccountantDashboard from '../pages/accountant/Dashboard';
 
 // Public Pages
 import Home from '../pages/public/Home';
-import Login from '../pages/auth/Login';
 import Departments from '../pages/public/Departments';
 import Specialists from '../pages/public/Specialists';
 import Services from '../pages/public/Services';
@@ -79,14 +78,7 @@ const AppRoutes = () => {
             </PublicLayout>
           }
         />
-        <Route
-          path="/login"
-          element={
-            <PublicLayout>
-              <Login />
-            </PublicLayout>
-          }
-        />
+
 
         {/* Patient Routes */}
         <Route

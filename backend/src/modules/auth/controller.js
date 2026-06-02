@@ -15,6 +15,11 @@ const login = async (req, res) => {
     if (!user) return fail(res, 'Invalid credentials', 401);
     const valid = await user.comparePassword(password);
     if (!valid) return fail(res, 'Invalid credentials', 401);
+    
+    // Check if account is active
+    if (user.isActive === false) {
+      return fail(res, 'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ Admin.', 403);
+    }
     // Fetch role name for payload & frontend convenience
     const role = await Role.findById(user.roleId);
     const roleName = role ? role.roleName : null;

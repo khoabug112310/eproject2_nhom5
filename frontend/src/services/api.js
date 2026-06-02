@@ -16,6 +16,23 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
+// Interceptor để xử lý tự động khi bị khóa tài khoản hoặc hết hạn token (401/403)
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('userRole');
+      localStorage.removeItem('userName');
+      localStorage.removeItem('userDisplayName');
+      if (window.location.pathname !== '/' || !window.location.search.includes('login=true')) {
+        window.location.href = '/?login=true';
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 // Auth API
 export const authAPI = {
   login: (username, password) =>
@@ -37,6 +54,7 @@ export const profilesAPI = {
   getPatients: () => apiClient.get('/profiles/patients'),
   createUser: (data) => apiClient.post('/profiles/users', data),
   getAdminStats: () => apiClient.get('/profiles/admin/stats'),
+  queryClinicAI: (query) => apiClient.post('/profiles/admin/ai-query', { query }),
 };
 
 // Scheduling API

@@ -13,11 +13,11 @@ export default function RoleGuard({ role, children }) {
   const currentRole = localStorage.getItem('userRole');
 
   if (!currentRole) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/?login=true" replace />;
   }
 
   if (currentRole !== role) {
-    return <Navigate to={homeByRole[currentRole] || '/login'} replace />;
+    return <Navigate to={homeByRole[currentRole] || '/?login=true'} replace />;
   }
 
   return children;

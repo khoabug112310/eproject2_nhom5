@@ -14,6 +14,13 @@ export default function PublicLayout({ children }) {
   const location = useLocation();
   const isHome = location.pathname === '/';
 
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('login') === 'true') {
+      setShowLogin(true);
+    }
+  }, [location.search]);
+
   return (
     <div className="public-layout">
       <div className="top-bar">
