@@ -1,0 +1,55 @@
+/* Minimal app styles to satisfy imports and layout */
+:root{
+	--brand:#0074D9;
+	--muted:#666;
+	--bg:#f7f9fb;
+	--card:#ffffff;
+}
+html,body,#root{height:100%;}
+body { font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; margin: 0; padding: 0; background: var(--bg); color: #222; }
+.public-layout header { background: var(--brand); color: white; padding: 14px 20px; position:sticky; top:0; z-index:10; }
+.public-layout header .container{display:flex;align-items:center;justify-content:space-between;gap:20px;}
+.public-layout h1{font-size:18px;margin:0}
+.public-layout nav a { color: white; margin-right: 14px; text-decoration: none; font-weight:600; }
+.public-layout nav a:hover{opacity:0.9}
+
+main{padding:28px 20px;max-width:1100px;margin:0 auto}
+.page-heading{margin-bottom:18px}
+
+.home-page p{color:var(--muted)}
+
+.departments-page .dept-list, .specialists-page .doctor-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}
+.dept-card, .doctor-card, .vip-card, .post-card{background:var(--card);border-radius:8px;padding:14px;box-shadow:0 1px 4px rgba(0,0,0,0.06)}
+.dept-card h4, .doctor-card h4{margin:0 0 8px 0}
+.dept-card p, .doctor-card p{color:var(--muted);font-size:14px}
+.dept-card a, .doctor-card a{display:inline-block;margin-top:10px;color:var(--brand);font-weight:600}
+
+/* Layout with aside for quick booking */
+.departments-page{display:grid;grid-template-columns:1fr 340px;gap:20px}
+.specialists-page{display:grid;grid-template-columns:1fr 340px;gap:20px}
+.services-page{display:grid;grid-template-columns:1fr 340px;gap:20px}
+
+.quick-booking { border: 1px solid #e0e6ef; padding: 16px; max-width: 100%; background: white; border-radius:8px; }
+.quick-booking h3{margin-top:0}
+.quick-booking label { display: block; margin-bottom: 10px; font-size:14px; color:#333 }
+.quick-booking input, .quick-booking select, .quick-booking textarea { width: 100%; padding: 8px; margin-top: 6px; box-sizing: border-box; border:1px solid #e6eef8;border-radius:6px }
+.quick-booking button{width:100%;margin-top:8px}
+
+.posts-page ul{list-style:none;padding:0;display:grid;gap:10px}
+.posts-page li a{display:block;background:var(--card);padding:12px;border-radius:8px;text-decoration:none;color:#222}
+
+.contact-page form label{display:block;margin-bottom:8px}
+.contact-page form input,.contact-page form textarea{width:100%;padding:8px;margin-bottom:8px;border:1px solid #e6eef8;border-radius:6px}
+
+footer{margin-top:32px;padding:18px 20px;text-align:center;color:var(--muted);font-size:13px}
+
+/* Responsive */
+@media(max-width:900px){
+	.departments-page,.specialists-page,.services-page{grid-template-columns:1fr}
+	main{padding:18px}
+	.public-layout nav{display:none}
+}
+
+/* small utilities */
+.muted{color:var(--muted)}
+.btn{background:var(--brand);color:white;padding:8px 12px;border-radius:6px;border:none}
