@@ -25,6 +25,9 @@ export default function StaffDashboard() {
     emergencyContact: '',
   });
 
+  // Expanded patient groups for account bookings (grouping by patient)
+  const [expandedPatientIds, setExpandedPatientIds] = useState(new Set());
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -74,16 +77,20 @@ export default function StaffDashboard() {
     setSuccessMessage('');
     try {
       // 1. Update patient profile
-      await profilesAPI.updateUser(editingPatient._id, {
+      const updateData = {
         fullName: patientForm.fullName,
         dateOfBirth: patientForm.dateOfBirth,
         gender: patientForm.gender,
         identityCard: patientForm.identityCard,
         phoneNumber: patientForm.phoneNumber,
         address: patientForm.address,
-        insuranceCode: patientForm.insuranceCode,
         emergencyContact: patientForm.emergencyContact,
-      });
+      };
+      // Only include insuranceCode if it has a value (BHYT is optional)
+      if (patientForm.insuranceCode?.trim()) {
+        updateData.insuranceCode = patientForm.insuranceCode.trim();
+      }
+      await profilesAPI.updateUser(editingPatient._id, updateData);
 
       // 2. Confirm the appointment
       await schedulingAPI.updateAppointment(activeApptId, { status: 'Confirmed' });
@@ -140,6 +147,35 @@ export default function StaffDashboard() {
     const isDefaultCard = patient.identityCard?.startsWith('REG-') || patient.identityCard?.startsWith('ADM-');
     const isDefaultName = patient.fullName === 'Khách hàng' || patient.fullName === 'Guest';
     return isDefaultDob || isDefaultCard || isDefaultName || !patient.address || !patient.identityCard;
+  };
+
+  // Toggle expand/collapse for a patient group
+  const togglePatientExpand = (patientId) => {
+    const newSet = new Set(expandedPatientIds);
+    if (newSet.has(patientId)) {
+      newSet.delete(patientId);
+    } else {
+      newSet.add(patientId);
+    }
+    setExpandedPatientIds(newSet);
+  };
+
+  // Group account appointments by patient ID
+  const groupAppointmentsByPatient = (appointments) => {
+    const groups = {};
+    appointments.forEach((appt) => {
+      const patientId = appt.patientId?._id;
+      if (patientId) {
+        if (!groups[patientId]) {
+          groups[patientId] = {
+            patient: appt.patientId,
+            appointments: [],
+          };
+        }
+        groups[patientId].appointments.push(appt);
+      }
+    });
+    return Object.values(groups);
   };
 
   const renderStatus = (status) => {
@@ -236,83 +272,107 @@ export default function StaffDashboard() {
                       <table className="custom-table">
                         <thead>
                           <tr>
+                            <th style={{ width: '50px' }}></th>
                             <th>Bệnh nhân</th>
-                            <th>Ngày &amp; Giờ yêu cầu</th>
-                            <th>Chuyên khoa</th>
-                            <th>Bác sĩ chọn</th>
-                            <th>Triệu chứng</th>
-                            <th>Hình thức đặt</th>
-                            <th>Lý do hủy</th>
-                            <th>Thao tác</th>
+                            <th>Tổng yêu cầu</th>
+                            <th>Trạng thái</th>
+                            <th>Hành động</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {accountAppointments.map((appt) => {
-                            const quick = isQuickBooking(appt.patientId);
+                          {groupAppointmentsByPatient(accountAppointments).map((group) => {
+                            const isExpanded = expandedPatientIds.has(group.patient._id);
+                            const pendingCount = group.appointments.filter(a => a.status === 'Pending').length;
+                            const confirmedCount = group.appointments.filter(a => a.status === 'Confirmed').length;
                             return (
-                              <tr key={appt._id}>
-                                <td>
-                                  <strong>{appt.patientId?.fullName}</strong><br />
-                                  <small className="text-muted">SDT: {appt.patientId?.phoneNumber}</small><br />
-                                  <small className="text-muted">CCCD: {appt.patientId?.identityCard}</small>
-                                </td>
-                                <td>
-                                  <strong>{new Date(appt.requestedDate).toLocaleDateString('vi-VN')}</strong><br />
-                                  <small className="text-muted">{appt.requestedTime}</small>
-                                </td>
-                                <td>{appt.departmentId?.departmentName}</td>
-                                <td>{appt.doctorId?.fullName || 'Bác sĩ bất kỳ'}</td>
-                                <td className="symptoms-td" title={appt.symptoms}>{appt.symptoms || 'Không có triệu chứng'}</td>
-                                <td>
-                                  {quick ? (
-                                    <span className="badge badge-warning">Đặt nhanh (Thiếu thông tin)</span>
-                                  ) : (
-                                    <span className="badge badge-success">Đặt qua tài khoản</span>
-                                  )}
-                                </td>
-                                <td className="cancel-reason-cell" title={appt.cancelReason || ''}>
-                                  {appt.cancelReason ? appt.cancelReason : '-'}
-                                </td>
-                                <td className="btn-cell">
-                                  {appt.status === 'Pending' && (
-                                    <>
-                                      {quick ? (
-                                        <button
-                                          className="btn btn-quick btn-xs"
-                                          onClick={() => handleOpenEditModal(appt)}
-                                        >
-                                          📝 Điền TT &amp; Duyệt
-                                        </button>
-                                      ) : (
-                                        <button
-                                          className="btn btn-primary btn-xs"
-                                          onClick={() => handleDirectConfirm(appt._id)}
-                                        >
-                                          ⚡ Duyệt trực tiếp
-                                        </button>
-                                      )}
-                                      <button
-                                        className="btn btn-danger btn-xs"
-                                        onClick={() => handleCancelAppointment(appt._id)}
-                                      >
-                                        Hủy yêu cầu
-                                      </button>
-                                    </>
-                                  )}
-                                  {appt.status === 'Confirmed' && (
-                                    <>
-                                      {renderStatus(appt.status)}
-                                      <button
-                                        className="btn btn-warning btn-xs"
-                                        onClick={() => handleCancelAppointment(appt._id)}
-                                      >
-                                        Yêu cầu hủy
-                                      </button>
-                                    </>
-                                  )}
-                                  {appt.status !== 'Pending' && appt.status !== 'Confirmed' && renderStatus(appt.status)}
-                                </td>
-                              </tr>
+                              <React.Fragment key={group.patient._id}>
+                                {/* Summary row */}
+                                <tr
+                                  onClick={() => togglePatientExpand(group.patient._id)}
+                                  style={{ cursor: 'pointer', backgroundColor: isExpanded ? '#f0f0f0' : '#fff' }}
+                                >
+                                  <td style={{ textAlign: 'center', fontSize: '18px' }}>
+                                    {isExpanded ? '▼' : '▶'}
+                                  </td>
+                                  <td>
+                                    <strong>{group.patient.fullName}</strong><br />
+                                    <small className="text-muted">SDT: {group.patient.phoneNumber}</small><br />
+                                    <small className="text-muted">CCCD: {group.patient.identityCard}</small>
+                                  </td>
+                                  <td style={{ textAlign: 'center', fontWeight: 'bold' }}>
+                                    {group.appointments.length} ca
+                                  </td>
+                                  <td style={{ textAlign: 'center' }}>
+                                    {pendingCount > 0 && <span className="badge badge-warning">Chờ: {pendingCount}</span>}
+                                    {confirmedCount > 0 && <span className="badge badge-primary" style={{ marginLeft: '5px' }}>Duyệt: {confirmedCount}</span>}
+                                  </td>
+                                  <td style={{ textAlign: 'center' }}>
+                                    <small style={{ color: '#666' }}>Bấm để xem chi tiết</small>
+                                  </td>
+                                </tr>
+
+                                {/* Expanded detail rows */}
+                                {isExpanded && group.appointments.map((appt) => {
+                                  const quick = isQuickBooking(appt.patientId);
+                                  return (
+                                    <tr key={appt._id} style={{ backgroundColor: '#fafafa', borderLeft: '4px solid #0066cc' }}>
+                                      <td></td>
+                                      <td>
+                                        <strong>{new Date(appt.requestedDate).toLocaleDateString('vi-VN')}</strong><br />
+                                        <small className="text-muted">{appt.requestedTime}</small>
+                                      </td>
+                                      <td>{appt.departmentId?.departmentName}</td>
+                                      <td>{appt.doctorId?.fullName || 'Bác sĩ bất kỳ'}</td>
+                                      <td>
+                                        <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', alignItems: 'center' }}>
+                                          <span className="badge" style={{ 
+                                            backgroundColor: appt.status === 'Pending' ? '#ffc107' : 
+                                                           appt.status === 'Confirmed' ? '#007bff' : 
+                                                           appt.status === 'Completed' ? '#28a745' : '#dc3545'
+                                          }}>
+                                            {appt.status === 'Pending' ? 'Chờ duyệt' : 
+                                             appt.status === 'Confirmed' ? 'Đã duyệt' : 
+                                             appt.status === 'Completed' ? 'Đã khám' : 'Đã hủy'}
+                                          </span>
+                                          {appt.status === 'Pending' && (
+                                            <>
+                                              {quick ? (
+                                                <button
+                                                  className="btn btn-quick btn-xs"
+                                                  onClick={() => handleOpenEditModal(appt)}
+                                                >
+                                                  📝 Điền &amp; Duyệt
+                                                </button>
+                                              ) : (
+                                                <button
+                                                  className="btn btn-primary btn-xs"
+                                                  onClick={() => handleDirectConfirm(appt._id)}
+                                                >
+                                                  ⚡ Duyệt
+                                                </button>
+                                              )}
+                                              <button
+                                                className="btn btn-danger btn-xs"
+                                                onClick={() => handleCancelAppointment(appt._id)}
+                                              >
+                                                Hủy
+                                              </button>
+                                            </>
+                                          )}
+                                          {appt.status === 'Confirmed' && (
+                                            <button
+                                              className="btn btn-warning btn-xs"
+                                              onClick={() => handleCancelAppointment(appt._id)}
+                                            >
+                                              Yêu cầu hủy
+                                            </button>
+                                          )}
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </React.Fragment>
                             );
                           })}
                         </tbody>
@@ -332,83 +392,107 @@ export default function StaffDashboard() {
                       <table className="custom-table">
                         <thead>
                           <tr>
+                            <th style={{ width: '50px' }}></th>
                             <th>Bệnh nhân</th>
-                            <th>Ngày &amp; Giờ yêu cầu</th>
-                            <th>Chuyên khoa</th>
-                            <th>Bác sĩ chọn</th>
-                            <th>Triệu chứng</th>
-                            <th>Hình thức đặt</th>
-                            <th>Lý do hủy</th>
-                            <th>Thao tác</th>
+                            <th>Tổng yêu cầu</th>
+                            <th>Trạng thái</th>
+                            <th>Hành động</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {guestAppointments.map((appt) => {
-                            const quick = isQuickBooking(appt.patientId);
+                          {groupAppointmentsByPatient(guestAppointments).map((group) => {
+                            const isExpanded = expandedPatientIds.has(group.patient._id);
+                            const pendingCount = group.appointments.filter(a => a.status === 'Pending').length;
+                            const confirmedCount = group.appointments.filter(a => a.status === 'Confirmed').length;
                             return (
-                              <tr key={appt._id}>
-                                <td>
-                                  <strong>{appt.patientId?.fullName}</strong><br />
-                                  <small className="text-muted">SDT: {appt.patientId?.phoneNumber}</small><br />
-                                  <small className="text-muted">CCCD: {appt.patientId?.identityCard}</small>
-                                </td>
-                                <td>
-                                  <strong>{new Date(appt.requestedDate).toLocaleDateString('vi-VN')}</strong><br />
-                                  <small className="text-muted">{appt.requestedTime}</small>
-                                </td>
-                                <td>{appt.departmentId?.departmentName}</td>
-                                <td>{appt.doctorId?.fullName || 'Bác sĩ bất kỳ'}</td>
-                                <td className="symptoms-td" title={appt.symptoms}>{appt.symptoms || 'Không có triệu chứng'}</td>
-                                <td>
-                                  {quick ? (
-                                    <span className="badge badge-warning">Đặt nhanh (Thiếu thông tin)</span>
-                                  ) : (
-                                    <span className="badge badge-success">Đặt qua tài khoản</span>
-                                  )}
-                                </td>
-                                <td className="cancel-reason-cell" title={appt.cancelReason || ''}>
-                                  {appt.cancelReason ? appt.cancelReason : '-'}
-                                </td>
-                                <td className="btn-cell">
-                                  {appt.status === 'Pending' && (
-                                    <>
-                                      {quick ? (
-                                        <button
-                                          className="btn btn-quick btn-xs"
-                                          onClick={() => handleOpenEditModal(appt)}
-                                        >
-                                          📝 Điền TT &amp; Duyệt
-                                        </button>
-                                      ) : (
-                                        <button
-                                          className="btn btn-primary btn-xs"
-                                          onClick={() => handleDirectConfirm(appt._id)}
-                                        >
-                                          ⚡ Duyệt trực tiếp
-                                        </button>
-                                      )}
-                                      <button
-                                        className="btn btn-danger btn-xs"
-                                        onClick={() => handleCancelAppointment(appt._id)}
-                                      >
-                                        Hủy yêu cầu
-                                      </button>
-                                    </>
-                                  )}
-                                  {appt.status === 'Confirmed' && (
-                                    <>
-                                      {renderStatus(appt.status)}
-                                      <button
-                                        className="btn btn-warning btn-xs"
-                                        onClick={() => handleCancelAppointment(appt._id)}
-                                      >
-                                        Yêu cầu hủy
-                                      </button>
-                                    </>
-                                  )}
-                                  {appt.status !== 'Pending' && appt.status !== 'Confirmed' && renderStatus(appt.status)}
-                                </td>
-                              </tr>
+                              <React.Fragment key={group.patient._id}>
+                                {/* Summary row */}
+                                <tr
+                                  onClick={() => togglePatientExpand(group.patient._id)}
+                                  style={{ cursor: 'pointer', backgroundColor: isExpanded ? '#f0f0f0' : '#fff' }}
+                                >
+                                  <td style={{ textAlign: 'center', fontSize: '18px' }}>
+                                    {isExpanded ? '▼' : '▶'}
+                                  </td>
+                                  <td>
+                                    <strong>{group.patient.fullName}</strong><br />
+                                    <small className="text-muted">SDT: {group.patient.phoneNumber}</small><br />
+                                    <small className="text-muted">CCCD: {group.patient.identityCard}</small>
+                                  </td>
+                                  <td style={{ textAlign: 'center', fontWeight: 'bold' }}>
+                                    {group.appointments.length} ca
+                                  </td>
+                                  <td style={{ textAlign: 'center' }}>
+                                    {pendingCount > 0 && <span className="badge badge-warning">Chờ: {pendingCount}</span>}
+                                    {confirmedCount > 0 && <span className="badge badge-primary" style={{ marginLeft: '5px' }}>Duyệt: {confirmedCount}</span>}
+                                  </td>
+                                  <td style={{ textAlign: 'center' }}>
+                                    <small style={{ color: '#666' }}>Bấm để xem chi tiết</small>
+                                  </td>
+                                </tr>
+
+                                {/* Expanded detail rows */}
+                                {isExpanded && group.appointments.map((appt) => {
+                                  const quick = isQuickBooking(appt.patientId);
+                                  return (
+                                    <tr key={appt._id} style={{ backgroundColor: '#fafafa', borderLeft: '4px solid #0066cc' }}>
+                                      <td></td>
+                                      <td>
+                                        <strong>{new Date(appt.requestedDate).toLocaleDateString('vi-VN')}</strong><br />
+                                        <small className="text-muted">{appt.requestedTime}</small>
+                                      </td>
+                                      <td>{appt.departmentId?.departmentName}</td>
+                                      <td>{appt.doctorId?.fullName || 'Bác sĩ bất kỳ'}</td>
+                                      <td>
+                                        <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', alignItems: 'center' }}>
+                                          <span className="badge" style={{ 
+                                            backgroundColor: appt.status === 'Pending' ? '#ffc107' : 
+                                                           appt.status === 'Confirmed' ? '#007bff' : 
+                                                           appt.status === 'Completed' ? '#28a745' : '#dc3545'
+                                          }}>
+                                            {appt.status === 'Pending' ? 'Chờ duyệt' : 
+                                             appt.status === 'Confirmed' ? 'Đã duyệt' : 
+                                             appt.status === 'Completed' ? 'Đã khám' : 'Đã hủy'}
+                                          </span>
+                                          {appt.status === 'Pending' && (
+                                            <>
+                                              {quick ? (
+                                                <button
+                                                  className="btn btn-quick btn-xs"
+                                                  onClick={() => handleOpenEditModal(appt)}
+                                                >
+                                                  📝 Điền &amp; Duyệt
+                                                </button>
+                                              ) : (
+                                                <button
+                                                  className="btn btn-primary btn-xs"
+                                                  onClick={() => handleDirectConfirm(appt._id)}
+                                                >
+                                                  ⚡ Duyệt
+                                                </button>
+                                              )}
+                                              <button
+                                                className="btn btn-danger btn-xs"
+                                                onClick={() => handleCancelAppointment(appt._id)}
+                                              >
+                                                Hủy
+                                              </button>
+                                            </>
+                                          )}
+                                          {appt.status === 'Confirmed' && (
+                                            <button
+                                              className="btn btn-warning btn-xs"
+                                              onClick={() => handleCancelAppointment(appt._id)}
+                                            >
+                                              Yêu cầu hủy
+                                            </button>
+                                          )}
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </React.Fragment>
                             );
                           })}
                         </tbody>
