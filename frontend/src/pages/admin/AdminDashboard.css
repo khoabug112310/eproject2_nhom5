@@ -181,6 +181,10 @@
   padding: 32px;
   overflow-y: auto;
   background-color: #f8fafc;
+  max-width: none;
+  margin: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .admin-card {
