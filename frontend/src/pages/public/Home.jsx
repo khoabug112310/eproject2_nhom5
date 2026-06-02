@@ -83,9 +83,9 @@ export default function Home() {
         <Hero />
 
         <div className="home-content">
-          
+
           {/* Departments Grid Section */}
-          <div className="card">
+          {/* <div className="card">
             <div className="card-title-bar">
               <h3>Khoa Lâm Sàng Nổi Bật</h3>
               <span style={{ fontSize: '13px', color: 'var(--color-primary)', fontWeight: 'bold' }}>Chuyên nghiệp & Tận tâm</span>
@@ -105,7 +105,7 @@ export default function Home() {
                 <div style={{ padding: '24px', textAlign: 'center', gridColumn: '1/-1' }}>Không tìm thấy chuyên khoa nào</div>
               )}
             </div>
-          </div>
+          </div> */}
 
           {/* Doctors Carousel Section */}
           <div className="card">
@@ -118,10 +118,10 @@ export default function Home() {
                 <div style={{ padding: '24px', textAlign: 'center', width: '100%', color: 'var(--color-text-muted)' }}>Đang tải danh sách bác sĩ...</div>
               ) : doctors.length ? (
                 doctors.slice(0, 8).map((d, i) => (
-                  <DoctorCard 
-                    key={i} 
-                    {...d} 
-                    onBook={() => handleBookDoctor(d)} 
+                  <DoctorCard
+                    key={i}
+                    {...d}
+                    onBook={() => handleBookDoctor(d)}
                   />
                 ))
               ) : (
@@ -132,9 +132,9 @@ export default function Home() {
 
           {/* QuickBooking Inline Card Section */}
           <div className="card" ref={bookingRef} id="booking-section">
-            <QuickBooking 
-              doctors={doctors} 
-              departments={departments} 
+            <QuickBooking
+              doctors={doctors}
+              departments={departments}
               initialDoctorId={activeDoctor}
               initialDepartmentId={activeDept}
               isInline={true}
@@ -165,30 +165,29 @@ export default function Home() {
           </div>
 
           {/* News & Latest Posts Section */}
-          <div className="card">
-            <div className="card-title-bar">
-              <h3>Tin Tức & Kiến Thức Y Khoa</h3>
-              <a href="/news" style={{ fontSize: '13px', color: 'var(--color-primary)', fontWeight: 'bold', textDecoration: 'none' }}>Xem tất cả bài viết →</a>
-            </div>
-            <div className="post-list">
-              {loading ? (
-                <div style={{ padding: '24px', textAlign: 'center', gridColumn: '1/-1', color: 'var(--color-text-muted)' }}>Đang tải tin tức y khoa...</div>
-              ) : posts.length ? (
-                posts.slice(0, 3).map((p, i) => (
-                  <PostCard 
-                    key={i} 
-                    {...p} 
-                    onRead={() => navigate(`/news?slug=${p.slug || p._id}`)} 
-                  />
-                ))
-              ) : (
-                <div style={{ padding: '24px', textAlign: 'center', gridColumn: '1/-1' }}>Chưa có tin tức mới cập nhật</div>
-              )}
-            </div>
+          <div className="post-list">
+            {loading ? (
+              <div style={{ padding: '24px', textAlign: 'center', gridColumn: '1/-1', color: 'var(--color-text-muted)' }}>Đang tải tin tức y khoa...</div>
+            ) : posts.length ? (
+              posts.slice(0, 3).map((p, i) => (
+                <PostCard
+                  key={i}
+                  title={p.title}
+                  excerpt={p.excerpt}
+                  date={p.publishedAt || p.date}
+                  // SỬA Ở ĐÂY: Truyền đúng tên trường ảnh từ API của bạn vào prop 'thumbnail'
+                  // Bạn hãy kiểm tra xem trường ảnh trong Database tên là gì (thường là 'thumbnail', 'imageUrl', hoặc 'image')
+                  thumbnail={p.thumbnail || p.imageUrl || p.image}
+                  onRead={() => navigate(`/news?slug=${p.slug || p._id}`)}
+                />
+              ))
+            ) : (
+              <div style={{ padding: '24px', textAlign: 'center', gridColumn: '1/-1' }}>Chưa có tin tức mới cập nhật</div>
+            )}
           </div>
 
         </div>
-        
+
         {error && (
           <div style={{
             color: 'hsl(0, 84%, 40%)',

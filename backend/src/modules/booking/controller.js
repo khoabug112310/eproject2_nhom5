@@ -3,13 +3,11 @@ const { success: ok, fail } = require('../../utils/response');
 const { GENDER } = require('../../constants/enums');
 
 // Quick booking flow for unauthenticated users:
-// - create or reuse a User by phone (username=phone)
-// - create a Patient placeholder if missing (fill required fields with placeholders)
-// - create an Appointment with status PENDING for CSKH to confirm
-// - also save a QuickBooking record for audit
 const createBooking = async (req, res) => {
   try {
-    const { name, phone, department, doctor, time } = req.body;
+    // 🛠️ SỬA LẠI: Đồng bộ tên biến chính xác với các name/value từ form React gửi lên
+    const { name, phone, departmentId: reqDept, doctorId: reqDoc, requestedDate: reqDate, requestedTime } = req.body;
+    
     if (!name || !phone) return fail(res, 'Name and phone are required', 400);
 
     // Find or create patient role
@@ -25,7 +23,7 @@ const createBooking = async (req, res) => {
       createdUser = true;
     }
 
-    // Find or create Patient record (Patient model has many required fields)
+    // Find or create Patient record
     let patient = await Patient.findOne({ userId: user._id });
     if (!patient) {
       const dob = new Date('1900-01-01');
@@ -40,46 +38,51 @@ const createBooking = async (req, res) => {
       });
     }
 
-    // Resolve departmentId if department provided (could be id or name)
+    // Resolve departmentId
     let departmentId = null;
-    if (department) {
-      // try by id
-      if (/^[0-9a-fA-F]{24}$/.test(String(department))) {
-        departmentId = department;
+    if (reqDept) {
+      if (/^[0-9a-fA-F]{24}$/.test(String(reqDept))) {
+        departmentId = reqDept;
       } else {
-        const dep = await Department.findOne({ departmentName: department });
+        const dep = await Department.findOne({ departmentName: reqDept });
         if (dep) departmentId = dep._id;
       }
     }
 
-    // Resolve doctorId if doctor provided (could be id or fullName)
+    // Resolve doctorId
     let doctorId = null;
-    if (doctor) {
-      if (/^[0-9a-fA-F]{24}$/.test(String(doctor))) {
-        doctorId = doctor;
+    if (reqDoc) {
+      if (/^[0-9a-fA-F]{24}$/.test(String(reqDoc))) {
+        doctorId = reqDoc;
       } else {
-        const doc = await Doctor.findOne({ fullName: doctor });
+        const doc = await Doctor.findOne({ fullName: reqDoc });
         if (doc) doctorId = doc._id;
       }
     }
 
-    // Normalize requestedDate to today if not provided
-    const requestedDate = new Date();
+    // 🛠️ SỬA LẠI: Lấy ngày khám do người dùng chọn ở Form, nếu không có mới lấy ngày hôm nay
+    const requestedDate = reqDate ? new Date(reqDate) : new Date();
     requestedDate.setHours(0, 0, 0, 0);
 
     // Create appointment with PENDING status for CSKH to confirm
     const appt = await Appointment.create({
       patientId: patient._id,
       requestedDate,
-      requestedTime: time || '09:00',
-      symptoms: '',
+      requestedTime: requestedTime || '08:00 - 09:00', // Khớp với format khung giờ của bạn
+      symptoms: req.body.symptoms || '', // Nhận thêm lý do khám từ textarea
       departmentId: departmentId || undefined,
       doctorId: doctorId || undefined,
       status: 'Pending',
     });
 
-    // Keep a QuickBooking audit record
-    const booking = await QuickBooking.create({ name, phone, department, doctor, time });
+    // Keep a QuickBooking audit record (Lưu vết audit theo thông tin gốc gửi lên)
+    const booking = await QuickBooking.create({ 
+      name, 
+      phone, 
+      department: reqDept, 
+      doctor: reqDoc, 
+      time: requestedTime 
+    });
 
     return ok(res, { appointment: appt, quickBooking: booking, createdUser }, 'Yêu cầu đặt lịch đã gửi cho nhân viên CSKH', 201);
   } catch (error) {

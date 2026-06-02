@@ -53,7 +53,7 @@ export default function PatientDashboard() {
     try {
       setLoading(true);
       setErrorMessage('');
-      
+
       // 1. Get Me
       const meRes = await authAPI.me();
       const me = meRes.data.data;
@@ -125,20 +125,55 @@ export default function PatientDashboard() {
       // Wait, profilesAPI.updateUser(currentUser.userId, data): let's verify if we can update the User to patient.
       // Or we can check if there's a POST /profiles/users or POST /auth/register.
       // Wait, let's see profilesAPI.createUser which maps to POST /profiles/users.
-      const payload = {
-        roleName: 'patient',
-        username: currentUser.username,
-        password: 'Password123!', // backend needs it but user is already authenticated
-        fullName: profileForm.fullName,
-        phone: profileForm.phoneNumber,
-        email: currentUser.username + '@clinic.com',
-        gender: profileForm.gender,
-        dateOfBirth: profileForm.dateOfBirth,
-        identityCard: profileForm.identityCard,
-        address: profileForm.address,
-        insuranceCode: profileForm.insuranceCode,
-        emergencyContact: profileForm.emergencyContact
+      const handleUpdateProfile = async (e) => {
+        e.preventDefault();
+        if (!patient) return handleCreatePatientProfile(e);
+
+        setSubmitting(true);
+        setErrorMessage('');
+        setSuccessMessage('');
+        try {
+          const updatePayload = {
+            fullName: profileForm.fullName,
+            dateOfBirth: profileForm.dateOfBirth,
+            gender: profileForm.gender,
+            identityCard: profileForm.identityCard,
+            phoneNumber: profileForm.phoneNumber,
+            address: profileForm.address,
+            insuranceCode: profileForm.insuranceCode,
+            emergencyContact: profileForm.emergencyContact,
+          };
+
+          // 1. Gửi lệnh cập nhật lên Backend
+          await profilesAPI.updateUser(currentUser.userId, updatePayload);
+          // 1. CẬP NHẬT NGAY LẬP TỨC TRÊN UI CHO PATIENT
+          setPatient((prev) => ({
+            ...prev,
+            fullName: profileForm.fullName // Ghi đè tên mới vào State của Patient
+          }));
+
+          // 2. CẬP NHẬT ĐỒNG BỘ LUÔN TÊN TRONG DANH SÁCH HÓA ĐƠN (INVOICES)
+          setInvoices((prevInvoices) =>
+            prevInvoices.map((inv) => ({
+              ...inv,
+              patientId: {
+                ...inv.patientId,
+                fullName: profileForm.fullName // Ghi đè tên mới vào từng hóa đơn
+              }
+            }))
+          );
+
+          setSuccessMessage('Cập nhật hồ sơ thành công!');
+
+          // 3. Đọc lại dữ liệu để đồng bộ hoàn toàn với database
+          await fetchInitialData();
+        } catch (err) {
+          setErrorMessage(err?.response?.data?.message || 'Không thể cập nhật hồ sơ.');
+        } finally {
+          setSubmitting(false);
+        }
       };
+
 
       // Let's call the backend to create/update
       // Since they already exist in User model, we should create Patient model directly.
@@ -275,7 +310,7 @@ export default function PatientDashboard() {
       // Simulating payment gateway response time
       await new Promise((resolve) => setTimeout(resolve, 2000));
       await billingAPI.payInvoice(paymentInvoice._id);
-      
+
       setSuccessMessage('Thanh toán hóa đơn thành công!');
       setPaymentInvoice(null);
       fetchInitialData();
@@ -428,7 +463,6 @@ export default function PatientDashboard() {
               )}
             </div>
           )}
-
           {/* Tab: Book Appointment */}
           {activeTab === 'book' && (
             <div className="dashboard-card">
@@ -440,16 +474,27 @@ export default function PatientDashboard() {
                   <label>Chuyên khoa khám *</label>
                   <select
                     value={bookingForm.departmentId}
-                    onChange={(e) => setBookingForm({ ...bookingForm, departmentId: e.target.value, doctorId: '' })}
+                    onChange={(e) => {
+                      const selectedId = e.target.value;
+                      // Tìm đối tượng chuyên khoa được chọn để lấy tên
+                      const selectedDepObj = departments.find(d => d._id === selectedId);
+                      const selectedDepName = selectedDepObj ? (selectedDepObj.departmentName || selectedDepObj.name) : '';
+
+                      setBookingForm({
+                        ...bookingForm,
+                        departmentId: selectedId,
+                        departmentName: selectedDepName, // Lưu thêm tên nếu cần dùng ở chỗ khác
+                        doctorId: '' // Reset bác sĩ khi đổi khoa
+                      });
+                    }}
                     required
                   >
                     <option value="">-- Chọn chuyên khoa --</option>
                     {departments.map((d) => (
-                      <option key={d._id} value={d._id}>{d.departmentName}</option>
+                      <option key={d._id} value={d._id}>{d.departmentName || d.name}</option>
                     ))}
                   </select>
                 </div>
-
                 <div className="form-group">
                   <label>Bác sĩ (Không bắt buộc)</label>
                   <select
@@ -459,9 +504,24 @@ export default function PatientDashboard() {
                   >
                     <option value="">-- Chọn bác sĩ (Bất kỳ) --</option>
                     {doctors
-                      .filter((doc) => !bookingForm.departmentId || doc.departmentId?._id === bookingForm.departmentId || doc.departmentId === bookingForm.departmentId)
+                      .filter((doc) => {
+                        // 1. Nếu người dùng chưa chọn khoa, hiển thị tất cả bác sĩ
+                        if (!bookingForm.departmentId) return true;
+
+                        // 2. Lấy tên chuyên khoa đang được chọn từ danh sách departments
+                        const currentDepObj = departments.find(d => d._id === bookingForm.departmentId);
+                        const currentDepName = currentDepObj ? (currentDepObj.departmentName || currentDepObj.name) : '';
+
+                        // 3. Lấy tên chuyên khoa từ đối tượng bác sĩ (tùy thuộc backend trả về chuỗi text hay object)
+                        const docDepName = doc.department?.departmentName || doc.department?.name || doc.department;
+
+                        // 4. So sánh khớp tên chuyên khoa giống QuickBooking
+                        return docDepName === currentDepName;
+                      })
                       .map((doc) => (
-                        <option key={doc._id} value={doc._id}>{doc.fullName} ({doc.specialization})</option>
+                        <option key={doc._id || doc.id} value={doc._id || doc.id}>
+                          {doc.fullName} ({doc.specialization || 'Bác sĩ'})
+                        </option>
                       ))}
                   </select>
                 </div>

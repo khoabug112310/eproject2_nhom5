@@ -31,7 +31,7 @@ export default function DoctorCard({ avatar, fullName, specialization, departmen
           fontWeight: 'bold',
           marginBottom: '8px'
         }}>
-          <span>⭐</span> {displayRating} / 5.0
+        
         </div>
         <div className="doc-slots">
           {nextSlot ? `Lịch hẹn trống: ${nextSlot}` : 'Hôm nay: Trống lịch'}
