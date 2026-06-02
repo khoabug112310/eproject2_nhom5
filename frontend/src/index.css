@@ -716,15 +716,21 @@ h1, h2, h3, h4, h5, h6 {
 
 .patient-dashboard__grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
+  grid-template-columns: 320px minmax(0, 1fr);
   gap: var(--space-5);
   align-items: start;
+  grid-template-areas: "aside main";
 }
 
 .patient-dashboard__main {
+  grid-area: main;
   display: flex;
   flex-direction: column;
   gap: var(--space-5);
+}
+
+.patient-dashboard__panels.is-full {
+  grid-template-columns: 1fr;
 }
 
 .patient-dashboard__panels {
@@ -734,6 +740,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .patient-dashboard__aside {
+  grid-area: aside;
   display: flex;
   flex-direction: column;
   gap: var(--space-5);
@@ -883,6 +890,8 @@ h1, h2, h3, h4, h5, h6 {
 .record-item div {
   min-width: 0;
 }
+
+/* Previously hid patient identifiers on mobile; removed so masked phone shows */
 
 .status-pill {
   display: inline-flex;
@@ -2545,6 +2554,51 @@ h1, h2, h3, h4, h5, h6 {
   font-size: 13px;
   color: var(--color-text-muted);
   margin-bottom: 20px;
+}
+
+.booking-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.booking-summary-card {
+  background-color: var(--color-primary-lightest);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  padding: 18px;
+}
+
+.booking-summary-card h4 {
+  margin: 0 0 8px;
+  font-size: 14px;
+  color: var(--color-text-dark);
+}
+
+.booking-summary-card p {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--color-primary);
+}
+
+.booking-summary-card--guest {
+  background-color: rgba(234, 88, 12, 0.1);
+}
+
+.booking-summary-card--account {
+  background-color: rgba(34, 197, 94, 0.12);
+}
+
+.booking-group {
+  margin-bottom: 32px;
+}
+
+.booking-group h3 {
+  margin-bottom: 14px;
+  font-size: 16px;
+  color: var(--color-text-dark);
 }
 
 .card-header {

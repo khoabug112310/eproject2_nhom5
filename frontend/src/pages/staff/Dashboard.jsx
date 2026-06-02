@@ -24,8 +24,6 @@ export default function StaffDashboard() {
     insuranceCode: '',
     emergencyContact: '',
   });
-  const [cancelingAppointment, setCancelingAppointment] = useState(null);
-  const [cancelReason, setCancelReason] = useState('');
 
   useEffect(() => {
     fetchData();
@@ -55,7 +53,7 @@ export default function StaffDashboard() {
     const p = appt.patientId;
     setActiveApptId(appt._id);
     setEditingPatient(p);
-    
+
     setPatientForm({
       fullName: p?.fullName || '',
       dateOfBirth: p?.dateOfBirth ? new Date(p.dateOfBirth).toISOString().split('T')[0] : '',
@@ -116,48 +114,23 @@ export default function StaffDashboard() {
     }
   };
 
-  const openCancelModal = (appt) => {
-    setCancelingAppointment(appt);
-    setCancelReason(appt.cancelReason || '');
-    setErrorMessage('');
-    setSuccessMessage('');
-  };
-
-  const closeCancelModal = () => {
-    setCancelingAppointment(null);
-    setCancelReason('');
-  };
-
-  const handleSubmitCancel = async (e) => {
-    e.preventDefault();
-    if (!cancelingAppointment) return;
-    if (!cancelReason.trim()) {
-      setErrorMessage('Vui lòng nhập lý do hủy lịch.');
-      return;
-    }
-
+  // Confirm and cancel appointment immediately (simple confirm)
+  const handleCancelAppointment = async (apptId) => {
+    const appt = appointments.find((item) => item._id === apptId);
+    if (!appt) return;
+    if (!window.confirm('Bạn có chắc muốn hủy lịch này?')) return;
     setSubmitting(true);
     setErrorMessage('');
     setSuccessMessage('');
     try {
-      await schedulingAPI.updateAppointment(cancelingAppointment._id, {
-        status: 'Canceled',
-        cancelReason: cancelReason.trim(),
-      });
-      setSuccessMessage('Yêu cầu hủy lịch đã được ghi nhận.');
-      closeCancelModal();
+      await schedulingAPI.updateAppointment(apptId, { status: 'Canceled' });
+      setSuccessMessage('Lịch đã được hủy.');
       fetchData();
     } catch (err) {
-      setErrorMessage(err?.response?.data?.message || 'Không thể gửi yêu cầu hủy lịch.');
+      setErrorMessage(err?.response?.data?.message || 'Không thể hủy lịch.');
     } finally {
       setSubmitting(false);
     }
-  };
-
-  const handleCancelAppointment = async (apptId) => {
-    const appt = appointments.find((item) => item._id === apptId);
-    if (!appt) return;
-    openCancelModal(appt);
   };
 
   // Helper to detect if a patient is a quick booking (missing details)
@@ -178,6 +151,10 @@ export default function StaffDashboard() {
     else if (status === 'Canceled') { cls = 'badge-danger'; label = 'Đã hủy'; }
     return <span className={`badge ${cls}`}>{label}</span>;
   };
+
+  const filteredAppointments = appointments.filter(a => filterStatus === 'All' || a.status === filterStatus);
+  const accountAppointments = filteredAppointments.filter((a) => !isQuickBooking(a.patientId));
+  const guestAppointments = filteredAppointments.filter((a) => isQuickBooking(a.patientId));
 
   if (loading) {
     return (
@@ -231,99 +208,215 @@ export default function StaffDashboard() {
             <h2>Hàng đợi tiếp nhận khám bệnh</h2>
             <p className="subtitle">CSKH kiểm tra thông tin liên hệ và CCCD của bệnh nhân trước khi đưa vào hàng chờ khám.</p>
 
-            {appointments.filter(a => filterStatus === 'All' || a.status === filterStatus).length === 0 ? (
+            {filteredAppointments.length === 0 ? (
               <div className="empty-state">
                 <p>Không có yêu cầu đặt lịch nào phù hợp.</p>
               </div>
             ) : (
-              <div className="table-responsive">
-                <table className="custom-table">
-                  <thead>
-                    <tr>
-                      <th>Bệnh nhân</th>
-                      <th>Ngày & Giờ yêu cầu</th>
-                      <th>Chuyên khoa</th>
-                      <th>Bác sĩ chọn</th>
-                      <th>Triệu chứng</th>
-                      <th>Hình thức đặt</th>
-                      <th>Lý do hủy</th>
-                      <th>Thao tác</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {appointments
-                      .filter(a => filterStatus === 'All' || a.status === filterStatus)
-                      .map((appt) => {
-                        const quick = isQuickBooking(appt.patientId);
-                        return (
-                          <tr key={appt._id}>
-                            <td>
-                              <strong>{appt.patientId?.fullName}</strong><br />
-                              <small className="text-muted">SDT: {appt.patientId?.phoneNumber}</small><br />
-                              <small className="text-muted">CCCD: {appt.patientId?.identityCard}</small>
-                            </td>
-                            <td>
-                              <strong>{new Date(appt.requestedDate).toLocaleDateString('vi-VN')}</strong><br />
-                              <small className="text-muted">{appt.requestedTime}</small>
-                            </td>
-                            <td>{appt.departmentId?.departmentName}</td>
-                            <td>{appt.doctorId?.fullName || 'Bác sĩ bất kỳ'}</td>
-                            <td className="symptoms-td" title={appt.symptoms}>{appt.symptoms || 'Không có triệu chứng'}</td>
-                            <td>
-                              {quick ? (
-                                <span className="badge badge-warning">Đặt nhanh (Thiếu thông tin)</span>
-                              ) : (
-                                <span className="badge badge-success">Đặt qua tài khoản</span>
-                              )}
-                            </td>
-                            <td className="cancel-reason-cell" title={appt.cancelReason || ''}>
-                              {appt.cancelReason ? appt.cancelReason : '-'}
-                            </td>
-                            <td className="btn-cell">
-                              {appt.status === 'Pending' && (
-                                <>
-                                  {quick ? (
-                                    <button
-                                      className="btn btn-quick btn-xs"
-                                      onClick={() => handleOpenEditModal(appt)}
-                                    >
-                                      📝 Điền TT & Duyệt
-                                    </button>
-                                  ) : (
-                                    <button
-                                      className="btn btn-primary btn-xs"
-                                      onClick={() => handleDirectConfirm(appt._id)}
-                                    >
-                                      ⚡ Duyệt trực tiếp
-                                    </button>
-                                  )}
-                                  <button
-                                    className="btn btn-danger btn-xs"
-                                    onClick={() => handleCancelAppointment(appt._id)}
-                                  >
-                                    Hủy yêu cầu
-                                  </button>
-                                </>
-                              )}
-                              {appt.status === 'Confirmed' && (
-                                <>
-                                  {renderStatus(appt.status)}
-                                  <button
-                                    className="btn btn-warning btn-xs"
-                                    onClick={() => handleCancelAppointment(appt._id)}
-                                  >
-                                    Yêu cầu hủy
-                                  </button>
-                                </>
-                              )}
-                              {appt.status !== 'Pending' && appt.status !== 'Confirmed' && renderStatus(appt.status)}
-                            </td>
+              <>
+                <div className="booking-summary-grid">
+                  <div className="booking-summary-card booking-summary-card--account">
+                    <h4>Khách có tài khoản</h4>
+                    <p>{accountAppointments.length} ca</p>
+                  </div>
+                  <div className="booking-summary-card booking-summary-card--guest">
+                    <h4>Khách vãng lai</h4>
+                    <p>{guestAppointments.length} ca</p>
+                  </div>
+                </div>
+
+                <div className="booking-group">
+                  <h3>Khách có tài khoản ({accountAppointments.length})</h3>
+                  {accountAppointments.length === 0 ? (
+                    <div className="empty-state">
+                      <p>Không có yêu cầu từ khách có tài khoản trong danh sách hiện tại.</p>
+                    </div>
+                  ) : (
+                    <div className="table-responsive">
+                      <table className="custom-table">
+                        <thead>
+                          <tr>
+                            <th>Bệnh nhân</th>
+                            <th>Ngày &amp; Giờ yêu cầu</th>
+                            <th>Chuyên khoa</th>
+                            <th>Bác sĩ chọn</th>
+                            <th>Triệu chứng</th>
+                            <th>Hình thức đặt</th>
+                            <th>Lý do hủy</th>
+                            <th>Thao tác</th>
                           </tr>
-                        );
-                      })}
-                  </tbody>
-                </table>
-              </div>
+                        </thead>
+                        <tbody>
+                          {accountAppointments.map((appt) => {
+                            const quick = isQuickBooking(appt.patientId);
+                            return (
+                              <tr key={appt._id}>
+                                <td>
+                                  <strong>{appt.patientId?.fullName}</strong><br />
+                                  <small className="text-muted">SDT: {appt.patientId?.phoneNumber}</small><br />
+                                  <small className="text-muted">CCCD: {appt.patientId?.identityCard}</small>
+                                </td>
+                                <td>
+                                  <strong>{new Date(appt.requestedDate).toLocaleDateString('vi-VN')}</strong><br />
+                                  <small className="text-muted">{appt.requestedTime}</small>
+                                </td>
+                                <td>{appt.departmentId?.departmentName}</td>
+                                <td>{appt.doctorId?.fullName || 'Bác sĩ bất kỳ'}</td>
+                                <td className="symptoms-td" title={appt.symptoms}>{appt.symptoms || 'Không có triệu chứng'}</td>
+                                <td>
+                                  {quick ? (
+                                    <span className="badge badge-warning">Đặt nhanh (Thiếu thông tin)</span>
+                                  ) : (
+                                    <span className="badge badge-success">Đặt qua tài khoản</span>
+                                  )}
+                                </td>
+                                <td className="cancel-reason-cell" title={appt.cancelReason || ''}>
+                                  {appt.cancelReason ? appt.cancelReason : '-'}
+                                </td>
+                                <td className="btn-cell">
+                                  {appt.status === 'Pending' && (
+                                    <>
+                                      {quick ? (
+                                        <button
+                                          className="btn btn-quick btn-xs"
+                                          onClick={() => handleOpenEditModal(appt)}
+                                        >
+                                          📝 Điền TT &amp; Duyệt
+                                        </button>
+                                      ) : (
+                                        <button
+                                          className="btn btn-primary btn-xs"
+                                          onClick={() => handleDirectConfirm(appt._id)}
+                                        >
+                                          ⚡ Duyệt trực tiếp
+                                        </button>
+                                      )}
+                                      <button
+                                        className="btn btn-danger btn-xs"
+                                        onClick={() => handleCancelAppointment(appt._id)}
+                                      >
+                                        Hủy yêu cầu
+                                      </button>
+                                    </>
+                                  )}
+                                  {appt.status === 'Confirmed' && (
+                                    <>
+                                      {renderStatus(appt.status)}
+                                      <button
+                                        className="btn btn-warning btn-xs"
+                                        onClick={() => handleCancelAppointment(appt._id)}
+                                      >
+                                        Yêu cầu hủy
+                                      </button>
+                                    </>
+                                  )}
+                                  {appt.status !== 'Pending' && appt.status !== 'Confirmed' && renderStatus(appt.status)}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+
+                <div className="booking-group">
+                  <h3>Khách vãng lai ({guestAppointments.length})</h3>
+                  {guestAppointments.length === 0 ? (
+                    <div className="empty-state">
+                      <p>Không có yêu cầu từ khách vãng lai trong danh sách hiện tại.</p>
+                    </div>
+                  ) : (
+                    <div className="table-responsive">
+                      <table className="custom-table">
+                        <thead>
+                          <tr>
+                            <th>Bệnh nhân</th>
+                            <th>Ngày &amp; Giờ yêu cầu</th>
+                            <th>Chuyên khoa</th>
+                            <th>Bác sĩ chọn</th>
+                            <th>Triệu chứng</th>
+                            <th>Hình thức đặt</th>
+                            <th>Lý do hủy</th>
+                            <th>Thao tác</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {guestAppointments.map((appt) => {
+                            const quick = isQuickBooking(appt.patientId);
+                            return (
+                              <tr key={appt._id}>
+                                <td>
+                                  <strong>{appt.patientId?.fullName}</strong><br />
+                                  <small className="text-muted">SDT: {appt.patientId?.phoneNumber}</small><br />
+                                  <small className="text-muted">CCCD: {appt.patientId?.identityCard}</small>
+                                </td>
+                                <td>
+                                  <strong>{new Date(appt.requestedDate).toLocaleDateString('vi-VN')}</strong><br />
+                                  <small className="text-muted">{appt.requestedTime}</small>
+                                </td>
+                                <td>{appt.departmentId?.departmentName}</td>
+                                <td>{appt.doctorId?.fullName || 'Bác sĩ bất kỳ'}</td>
+                                <td className="symptoms-td" title={appt.symptoms}>{appt.symptoms || 'Không có triệu chứng'}</td>
+                                <td>
+                                  {quick ? (
+                                    <span className="badge badge-warning">Đặt nhanh (Thiếu thông tin)</span>
+                                  ) : (
+                                    <span className="badge badge-success">Đặt qua tài khoản</span>
+                                  )}
+                                </td>
+                                <td className="cancel-reason-cell" title={appt.cancelReason || ''}>
+                                  {appt.cancelReason ? appt.cancelReason : '-'}
+                                </td>
+                                <td className="btn-cell">
+                                  {appt.status === 'Pending' && (
+                                    <>
+                                      {quick ? (
+                                        <button
+                                          className="btn btn-quick btn-xs"
+                                          onClick={() => handleOpenEditModal(appt)}
+                                        >
+                                          📝 Điền TT &amp; Duyệt
+                                        </button>
+                                      ) : (
+                                        <button
+                                          className="btn btn-primary btn-xs"
+                                          onClick={() => handleDirectConfirm(appt._id)}
+                                        >
+                                          ⚡ Duyệt trực tiếp
+                                        </button>
+                                      )}
+                                      <button
+                                        className="btn btn-danger btn-xs"
+                                        onClick={() => handleCancelAppointment(appt._id)}
+                                      >
+                                        Hủy yêu cầu
+                                      </button>
+                                    </>
+                                  )}
+                                  {appt.status === 'Confirmed' && (
+                                    <>
+                                      {renderStatus(appt.status)}
+                                      <button
+                                        className="btn btn-warning btn-xs"
+                                        onClick={() => handleCancelAppointment(appt._id)}
+                                      >
+                                        Yêu cầu hủy
+                                      </button>
+                                    </>
+                                  )}
+                                  {appt.status !== 'Pending' && appt.status !== 'Confirmed' && renderStatus(appt.status)}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </>
             )}
           </div>
         </main>
@@ -342,7 +435,7 @@ export default function StaffDashboard() {
                 <p className="modal-alert-info">
                   ⚠️ Bệnh nhân đặt lịch nhanh chưa có hồ sơ đầy đủ. Vui lòng hỏi thông tin và điền đầy đủ các thông tin bắt buộc trước khi cho phép xác nhận khám.
                 </p>
-                
+
                 <div className="grid-form">
                   <div className="form-group">
                     <label>Họ tên đầy đủ *</label>
@@ -418,69 +511,12 @@ export default function StaffDashboard() {
                       required
                     />
                   </div>
+                </div>
+              </div>
 
-                  <div className="form-group full-width">
-                    <label>Người liên hệ khẩn cấp</label>
-                    <input
-                      type="text"
-                      value={patientForm.emergencyContact}
-                      onChange={(e) => setPatientForm({ ...patientForm, emergencyContact: e.target.value })}
-                      placeholder="Tên - Số điện thoại người thân"
-                    />
-                  </div>
-                </div>
-              </div>
               <div className="modal-footer">
-                <button type="button" className="btn btn-ghost" onClick={() => setEditingPatient(null)}>Hủy</button>
-                <button type="submit" className="btn btn-primary" disabled={submitting}>
-                  {submitting ? 'Đang lưu & Duyệt...' : '💾 Lưu thông tin & Xác nhận lịch'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {cancelingAppointment && (
-        <div className="modal-backdrop">
-          <div className="modal-content cancel-request-modal">
-            <div className="modal-header">
-              <h3>Yêu cầu hủy lịch khám</h3>
-              <button className="close-btn" onClick={closeCancelModal}>&times;</button>
-            </div>
-            <form onSubmit={handleSubmitCancel}>
-              <div className="modal-body">
-                <p className="modal-alert-info">
-                  📝 Vui lòng nhập lý do hủy lịch để ghi nhận yêu cầu.
-                </p>
-                <div className="form-group full-width">
-                  <label>Bệnh nhân</label>
-                  <input type="text" value={cancelingAppointment.patientId?.fullName || ''} disabled />
-                </div>
-                <div className="form-group full-width">
-                  <label>Ngày & Giờ</label>
-                  <input
-                    type="text"
-                    value={`${new Date(cancelingAppointment.requestedDate).toLocaleDateString('vi-VN')} ${cancelingAppointment.requestedTime}`}
-                    disabled
-                  />
-                </div>
-                <div className="form-group full-width">
-                  <label>Lý do hủy lịch *</label>
-                  <textarea
-                    rows={4}
-                    value={cancelReason}
-                    onChange={(e) => setCancelReason(e.target.value)}
-                    placeholder="Nhập lý do hủy lịch..."
-                    required
-                  />
-                </div>
-              </div>
-              <div className="modal-footer">
-                <button type="button" className="btn btn-ghost" onClick={closeCancelModal}>Đóng</button>
-                <button type="submit" className="btn btn-danger" disabled={submitting}>
-                  {submitting ? 'Đang gửi...' : 'Xác nhận hủy lịch'}
-                </button>
+                <button type="button" className="btn btn-ghost" onClick={() => setEditingPatient(null)}>Đóng</button>
+                <button type="submit" className="btn btn-primary" disabled={submitting}>{submitting ? 'Đang xử lý...' : 'Cập nhật & Duyệt'}</button>
               </div>
             </form>
           </div>
