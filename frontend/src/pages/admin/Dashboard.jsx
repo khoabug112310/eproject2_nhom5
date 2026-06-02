@@ -356,12 +356,12 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
         return <h3 key={i} style={{ color: '#10b981', marginTop: '16px', marginBottom: '8px', fontSize: '16px' }}>{line.replace('###', '').trim()}</h3>;
       }
       if (line.trim().startsWith('**') && line.trim().endsWith('**')) {
-        return <p key={i} style={{ fontWeight: 'bold', margin: '4px 0', color: '#f1f5f9' }}>{line.replace(/\*\*/g, '').trim()}</p>;
+        return <p key={i} style={{ fontWeight: 'bold', margin: '4px 0', color: '#1e293b' }}>{line.replace(/\*\*/g, '').trim()}</p>;
       }
       if (line.trim().startsWith('-') || line.trim().startsWith('*')) {
         const content = line.trim().substring(1).trim();
         return (
-          <li key={i} style={{ marginLeft: '20px', marginBottom: '6px', color: '#cbd5e1', fontSize: '13px' }}>
+          <li key={i} style={{ marginLeft: '20px', marginBottom: '6px', color: '#475569', fontSize: '13px' }}>
             {parseInlineFormat(content)}
           </li>
         );
@@ -369,12 +369,12 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
       if (line.trim().startsWith('1.') || line.trim().startsWith('2.') || line.trim().startsWith('3.')) {
         const content = line.trim().substring(2).trim();
         return (
-          <div key={i} style={{ margin: '8px 0', color: '#cbd5e1', fontSize: '13px', paddingLeft: '10px', borderLeft: '2px solid #06b6d4' }}>
+          <div key={i} style={{ margin: '8px 0', color: '#475569', fontSize: '13px', paddingLeft: '10px', borderLeft: '2px solid #06b6d4' }}>
             {parseInlineFormat(content)}
           </div>
         );
       }
-      return <p key={i} style={{ margin: '8px 0', lineHeight: '1.6', color: '#cbd5e1', fontSize: '13px' }}>{parseInlineFormat(line)}</p>;
+      return <p key={i} style={{ margin: '8px 0', lineHeight: '1.6', color: '#475569', fontSize: '13px' }}>{parseInlineFormat(line)}</p>;
     });
   };
 
@@ -382,7 +382,7 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
     const parts = text.split(/(\*\*.*?\*\*)/g);
     return parts.map((part, idx) => {
       if (part.startsWith('**') && part.endsWith('**')) {
-        return <strong key={idx} style={{ color: '#f8fafc' }}>{part.replace(/\*\*/g, '')}</strong>;
+        return <strong key={idx} style={{ color: '#0f172a' }}>{part.replace(/\*\*/g, '')}</strong>;
       }
       return part;
     });
@@ -618,10 +618,10 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                   <div className="admin-stat-icon-wrap" style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', color: '#10b981' }}>📊</div>
                   <div className="admin-stat-info" style={{ width: '100%' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                      <span style={{ fontSize: '12px', color: '#cbd5e1' }}>Lịch thành công: <strong style={{ color: '#10b981' }}>{stats?.qualityMetrics?.rates?.success || 0}%</strong></span>
-                      <span style={{ fontSize: '12px', color: '#cbd5e1' }}>Hủy: <strong style={{ color: '#ef4444' }}>{stats?.qualityMetrics?.rates?.canceled || 0}%</strong></span>
+                      <span className="admin-progress-text">Lịch thành công: <strong style={{ color: '#10b981' }}>{stats?.qualityMetrics?.rates?.success || 0}%</strong></span>
+                      <span className="admin-progress-text">Hủy: <strong style={{ color: '#ef4444' }}>{stats?.qualityMetrics?.rates?.canceled || 0}%</strong></span>
                     </div>
-                    <div style={{ height: '8px', borderRadius: '4px', backgroundColor: '#0f172a', overflow: 'hidden', display: 'flex' }}>
+                    <div className="admin-progress-track" style={{ height: '8px', borderRadius: '4px', overflow: 'hidden', display: 'flex' }}>
                       <div style={{ width: `${stats?.qualityMetrics?.rates?.success || 0}%`, backgroundColor: '#10b981', height: '100%' }}></div>
                       <div style={{ width: `${stats?.qualityMetrics?.rates?.canceled || 0}%`, backgroundColor: '#ef4444', height: '100%' }}></div>
                       <div style={{ width: `${stats?.qualityMetrics?.rates?.pending || 0}%`, backgroundColor: '#f59e0b', height: '100%' }}></div>
@@ -638,7 +638,7 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                     <h3>
                       {stats?.qualityMetrics?.peakHours?.[0]?.time || 'Chưa có'} 
                       {stats?.qualityMetrics?.peakHours?.[0]?.count ? (
-                        <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 'normal', marginLeft: '6px' }}>
+                        <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 'normal', marginLeft: '6px' }}>
                           ({stats.qualityMetrics.peakHours[0].count} ca)
                         </span>
                       ) : null}
@@ -654,8 +654,8 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                 <div className="admin-chart-panel">
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, flexWrap: 'wrap', gap: 10 }}>
                     <div>
-                      <h3 style={{ margin: 0, fontSize: '15px', color: '#f8fafc' }}>Biểu đồ hiệu suất phòng khám</h3>
-                      <p className="subtitle" style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>Doanh thu (Cột xanh) & Bệnh nhân (Đường xanh dương)</p>
+                      <h3 className="admin-chart-title">Biểu đồ hiệu suất phòng khám</h3>
+                      <p className="subtitle" style={{ margin: 0, fontSize: '12px' }}>Doanh thu (Cột xanh) & Bệnh nhân (Đường xanh dương)</p>
                     </div>
                     <div className="stats-period-toggles" style={{ display: 'flex' }}>
                       <button
@@ -689,13 +689,13 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                         const y = paddingTop + innerHeight - ratio * innerHeight;
                         return (
                           <g key={index}>
-                            <line x1={paddingLeft} y1={y} x2={chartWidth - paddingRight} y2={y} stroke="rgba(255, 255, 255, 0.06)" strokeDasharray="3,3" />
+                            <line x1={paddingLeft} y1={y} x2={chartWidth - paddingRight} y2={y} className="admin-chart-gridline" strokeDasharray="3,3" />
                             {/* Left Axis: Revenue */}
-                            <text x={paddingLeft - 8} y={y + 3} textAnchor="end" fontSize="8" fill="#94a3b8">
+                            <text x={paddingLeft - 8} y={y + 3} textAnchor="end" fontSize="8" className="admin-chart-axis-text">
                               {formatCompactVND(ratio * maxRevenue)}
                             </text>
                             {/* Right Axis: Patients */}
-                            <text x={chartWidth - paddingRight + 8} y={y + 3} textAnchor="start" fontSize="8" fill="#06b6d4">
+                            <text x={chartWidth - paddingRight + 8} y={y + 3} textAnchor="start" fontSize="8" className="admin-chart-axis-text-cyan">
                               {Math.round(ratio * maxTraffic)}
                             </text>
                           </g>
@@ -756,7 +756,7 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                       {chartLabels.map((lbl, idx) => {
                         const lx = paddingLeft + (idx + 0.5) * (innerWidth / chartLabels.length);
                         return (
-                          <text key={idx} x={lx} y={chartHeight - 8} textAnchor="middle" fontSize="8" fill="#94a3b8">
+                          <text key={idx} x={lx} y={chartHeight - 8} textAnchor="middle" fontSize="8" className="admin-chart-axis-text">
                             {lbl}
                           </text>
                         );
@@ -812,8 +812,8 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
 
                 {/* Pie/Gauge Revenue breakdown */}
                 <div className="admin-chart-panel">
-                  <h3 style={{ margin: 0, fontSize: '15px', color: '#f8fafc' }}>Cơ cấu nguồn thu (Tháng này)</h3>
-                  <p className="subtitle" style={{ margin: '4px 0 16px 0', fontSize: '12px', color: '#64748b' }}>Tỷ lệ doanh thu giữa Khám bệnh lâm sàng & Doanh thu nhà thuốc</p>
+                  <h3 className="admin-chart-title">Cơ cấu nguồn thu (Tháng này)</h3>
+                  <p className="subtitle" style={{ margin: '4px 0 16px 0', fontSize: '12px' }}>Tỷ lệ doanh thu giữa Khám bệnh lâm sàng & Doanh thu nhà thuốc</p>
 
                   <div className="breakdown-gauge-container">
                     <div className="horizontal-gauge">
@@ -842,18 +842,18 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
 
                 {/* Staff Performance Panel */}
                 <div className="admin-chart-panel admin-full-width-panel">
-                  <h3 style={{ margin: 0, fontSize: '15px', color: '#f8fafc' }}>So sánh hiệu suất hoạt động nhân sự</h3>
-                  <p className="subtitle" style={{ margin: '4px 0 16px 0', fontSize: '12px', color: '#64748b' }}>Đo lường số ca khám hoàn thành của Bác sĩ và số lịch duyệt thành công của CSKH</p>
+                  <h3 className="admin-chart-title">So sánh hiệu suất hoạt động nhân sự</h3>
+                  <p className="subtitle" style={{ margin: '4px 0 16px 0', fontSize: '12px' }}>Đo lường số ca khám hoàn thành của Bác sĩ và số lịch duyệt thành công của CSKH</p>
 
                   <div className="admin-performance-comparison-grid">
                     {/* Doctors Column */}
                     <div>
-                      <h4 style={{ margin: '0 0 12px 0', fontSize: '13px', color: '#cbd5e1', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <h4 className="admin-performance-header">
                         Top Bác Sĩ Xuất Sắc (Ca đã khám hoàn thành)
                       </h4>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                         {!stats?.qualityMetrics?.performance?.doctors || stats.qualityMetrics.performance.doctors.length === 0 ? (
-                          <p style={{ color: '#64748b', fontSize: '12px', margin: 0 }}>Chưa có ca khám hoàn thành nào.</p>
+                          <p className="admin-performance-empty">Chưa có ca khám hoàn thành nào.</p>
                         ) : (
                           stats.qualityMetrics.performance.doctors.map((doc, i) => {
                             const maxVal = Math.max(...stats.qualityMetrics.performance.doctors.map(d => d.count), 1);
@@ -861,10 +861,10 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                             return (
                               <div key={i}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '3px' }}>
-                                  <span style={{ color: '#f1f5f9', fontWeight: '500' }}>{doc.name}</span>
+                                  <span className="admin-performance-name">{doc.name}</span>
                                   <span style={{ color: '#10b981', fontWeight: 'bold' }}>{doc.count} ca</span>
                                 </div>
-                                <div style={{ height: '6px', borderRadius: '3px', backgroundColor: '#0f172a', overflow: 'hidden' }}>
+                                <div className="admin-performance-bar-track">
                                   <div style={{ width: `${pct}%`, backgroundColor: '#10b981', height: '100%' }}></div>
                                 </div>
                               </div>
@@ -876,12 +876,12 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
 
                     {/* CSKH Column */}
                     <div>
-                      <h4 style={{ margin: '0 0 12px 0', fontSize: '13px', color: '#cbd5e1', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <h4 className="admin-performance-header">
                         Top Nhân Viên CSKH (Lịch đã duyệt thành công)
                       </h4>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                         {!stats?.qualityMetrics?.performance?.cskh || stats.qualityMetrics.performance.cskh.length === 0 ? (
-                          <p style={{ color: '#64748b', fontSize: '12px', margin: 0 }}>Chưa có lịch hẹn nào được duyệt.</p>
+                          <p className="admin-performance-empty">Chưa có lịch hẹn nào được duyệt.</p>
                         ) : (
                           stats.qualityMetrics.performance.cskh.map((staff, i) => {
                             const maxVal = Math.max(...stats.qualityMetrics.performance.cskh.map(s => s.count), 1);
@@ -889,10 +889,10 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                             return (
                               <div key={i}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '3px' }}>
-                                  <span style={{ color: '#f1f5f9', fontWeight: '500' }}>{staff.name}</span>
+                                  <span className="admin-performance-name">{staff.name}</span>
                                   <span style={{ color: '#06b6d4', fontWeight: 'bold' }}>{staff.count} đơn</span>
                                 </div>
-                                <div style={{ height: '6px', borderRadius: '3px', backgroundColor: '#0f172a', overflow: 'hidden' }}>
+                                <div className="admin-performance-bar-track">
                                   <div style={{ width: `${pct}%`, backgroundColor: '#06b6d4', height: '100%' }}></div>
                                 </div>
                               </div>
@@ -1214,8 +1214,8 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
               <p className="subtitle">Tạo, cập nhật hoặc xóa các bài viết hướng dẫn sức khỏe, hoạt động phòng khám trên website.</p>
 
               {/* Form create/edit */}
-              <form onSubmit={handleSavePost} className="admin-dark-form" style={{ marginBottom: 32, padding: 24, border: '1px solid rgba(255, 255, 255, 0.05)', borderRadius: 12, backgroundColor: 'rgba(255, 255, 255, 0.01)' }}>
-                <h3 style={{ marginTop: 0, marginBottom: 20, color: '#f8fafc' }}>{editingPost ? '📝 Chỉnh sửa bài viết' : '➕ Tạo bài viết mới'}</h3>
+              <form onSubmit={handleSavePost} className="admin-dark-form admin-inner-form">
+                <h3 style={{ marginTop: 0, marginBottom: 20 }}>{editingPost ? '📝 Chỉnh sửa bài viết' : '➕ Tạo bài viết mới'}</h3>
                 
                 <div className="form-group">
                   <label>Tiêu đề bài viết *</label>
@@ -1280,7 +1280,7 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
               </form>
 
               {/* List of posts */}
-              <h3 style={{ color: '#f8fafc', marginBottom: 15 }}>Danh sách các bài viết hiện tại</h3>
+              <h3 className="admin-card-section-title">Danh sách các bài viết hiện tại</h3>
               {postsList.length === 0 ? (
                 <p style={{ color: '#64748b' }}>Chưa có bài viết nào được tạo.</p>
               ) : (
@@ -1301,7 +1301,7 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                           <td>
                             <img src={post.thumbnailURL} alt="" style={{ width: 60, height: 40, objectFit: 'cover', borderRadius: 4 }} />
                           </td>
-                          <td style={{ fontWeight: 'bold', color: '#f1f5f9' }}>{post.title}</td>
+                          <td className="admin-table-title-cell">{post.title}</td>
                           <td>{new Date(post.publishedAt || post.createdAt).toLocaleDateString('vi-VN')}</td>
                           <td>
                             <span className={`admin-badge ${post.status === 'Published' ? 'admin-badge-success' : 'admin-badge-warning'}`}>
@@ -1343,10 +1343,10 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
 
               {/* AI Executive Summary Cards */}
               <div className="admin-ai-executive-summary">
-                <div className="admin-stat-card" style={{ borderLeft: '4px solid #10b981' }}>
+                <div className="admin-stat-card admin-ai-card-security">
                   <div className="admin-stat-info">
                     <span style={{ fontSize: '11px', color: '#10b981', fontWeight: 'bold', textTransform: 'uppercase' }}>🛡️ Khuyến nghị An ninh</span>
-                    <h4 style={{ margin: '6px 0 2px 0', fontSize: '14px', color: '#f1f5f9' }}>
+                    <h4 className="admin-ai-card-title">
                       {usersList.filter(u => !u.isActive).length > 0 
                         ? `Phát hiện ${usersList.filter(u => !u.isActive).length} tài khoản đang bị khóa.` 
                         : 'Không có tài khoản nào bị khóa. Hệ thống an toàn.'}
@@ -1355,10 +1355,10 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                   </div>
                 </div>
 
-                <div className="admin-stat-card" style={{ borderLeft: '4px solid #06b6d4' }}>
+                <div className="admin-stat-card admin-ai-card-cms">
                   <div className="admin-stat-info">
                     <span style={{ fontSize: '11px', color: '#06b6d4', fontWeight: 'bold', textTransform: 'uppercase' }}>📰 Đánh giá Nội dung CMS</span>
-                    <h4 style={{ margin: '6px 0 2px 0', fontSize: '14px', color: '#f1f5f9' }}>
+                    <h4 className="admin-ai-card-title">
                       {postsList.filter(p => p.status === 'Draft').length > 0 
                         ? `Phát hiện ${postsList.filter(p => p.status === 'Draft').length} bài viết ở trạng thái Bản nháp.` 
                         : 'Tất cả bài viết y tế đã được phát hành.'}
@@ -1367,10 +1367,10 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                   </div>
                 </div>
 
-                <div className="admin-stat-card" style={{ borderLeft: '4px solid #f59e0b' }}>
+                <div className="admin-stat-card admin-ai-card-cskh">
                   <div className="admin-stat-info">
                     <span style={{ fontSize: '11px', color: '#f59e0b', fontWeight: 'bold', textTransform: 'uppercase' }}>⏱️ Hiệu quả CSKH</span>
-                    <h4 style={{ margin: '6px 0 2px 0', fontSize: '14px', color: '#f1f5f9' }}>
+                    <h4 className="admin-ai-card-title">
                       Tốc độ phản hồi trung bình: {stats?.qualityMetrics?.avgConfirmationTime || 15} phút.
                     </h4>
                     <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>
@@ -1390,24 +1390,24 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                     🛡️ AI Security & Staffing Diagnostic
                   </h4>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '13px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.03)', paddingBottom: '8px' }}>
-                      <span style={{ color: '#94a3b8' }}>Tổng tài khoản hệ thống:</span>
-                      <strong style={{ color: '#f1f5f9' }}>{usersList.length}</strong>
+                    <div className="admin-diagnostic-row">
+                      <span className="admin-diagnostic-label">Tổng tài khoản hệ thống:</span>
+                      <strong className="admin-diagnostic-value">{usersList.length}</strong>
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.03)', paddingBottom: '8px' }}>
-                      <span style={{ color: '#94a3b8' }}>Bác sĩ đang hoạt động:</span>
+                    <div className="admin-diagnostic-row">
+                      <span className="admin-diagnostic-label">Bác sĩ đang hoạt động:</span>
                       <strong style={{ color: '#10b981' }}>{usersList.filter(u => u.role === 'doctor' && u.isActive).length}</strong>
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.03)', paddingBottom: '8px' }}>
-                      <span style={{ color: '#94a3b8' }}>Nhân sự sảnh lễ tân/CSKH:</span>
+                    <div className="admin-diagnostic-row">
+                      <span className="admin-diagnostic-label">Nhân sự sảnh lễ tân/CSKH:</span>
                       <strong style={{ color: '#06b6d4' }}>{usersList.filter(u => u.role === 'staff' && u.isActive).length}</strong>
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.03)', paddingBottom: '8px' }}>
-                      <span style={{ color: '#94a3b8' }}>Nhân sự kế toán/thu ngân:</span>
+                    <div className="admin-diagnostic-row">
+                      <span className="admin-diagnostic-label">Nhân sự kế toán/thu ngân:</span>
                       <strong style={{ color: '#a78bfa' }}>{usersList.filter(u => u.role === 'accountant' && u.isActive).length}</strong>
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '4px' }}>
-                      <span style={{ color: '#94a3b8' }}>Điểm số an toàn thông tin:</span>
+                    <div className="admin-diagnostic-row no-border">
+                      <span className="admin-diagnostic-label">Điểm số an toàn thông tin:</span>
                       <strong style={{ color: '#10b981' }}>98/100 (Xuất sắc)</strong>
                     </div>
                   </div>
@@ -1419,24 +1419,24 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                     📰 AI Content & SEO Optimizer
                   </h4>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '13px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.03)', paddingBottom: '8px' }}>
-                      <span style={{ color: '#94a3b8' }}>Tổng bài viết y khoa:</span>
-                      <strong style={{ color: '#f1f5f9' }}>{postsList.length}</strong>
+                    <div className="admin-diagnostic-row">
+                      <span className="admin-diagnostic-label">Tổng bài viết y khoa:</span>
+                      <strong className="admin-diagnostic-value">{postsList.length}</strong>
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.03)', paddingBottom: '8px' }}>
-                      <span style={{ color: '#94a3b8' }}>Bài viết đã công bố:</span>
+                    <div className="admin-diagnostic-row">
+                      <span className="admin-diagnostic-label">Bài viết đã công bố:</span>
                       <strong style={{ color: '#10b981' }}>{postsList.filter(p => p.status === 'Published').length}</strong>
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.03)', paddingBottom: '8px' }}>
-                      <span style={{ color: '#94a3b8' }}>Bản nháp đang soạn thảo:</span>
+                    <div className="admin-diagnostic-row">
+                      <span className="admin-diagnostic-label">Bản nháp đang soạn thảo:</span>
                       <strong style={{ color: '#f59e0b' }}>{postsList.filter(p => p.status === 'Draft').length}</strong>
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.03)', paddingBottom: '8px' }}>
-                      <span style={{ color: '#94a3b8' }}>Ảnh đại diện hợp chuẩn SEO:</span>
+                    <div className="admin-diagnostic-row">
+                      <span className="admin-diagnostic-label">Ảnh đại diện hợp chuẩn SEO:</span>
                       <strong style={{ color: '#10b981' }}>100%</strong>
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '4px' }}>
-                      <span style={{ color: '#94a3b8' }}>Sức khỏe SEO Blog:</span>
+                    <div className="admin-diagnostic-row no-border">
+                      <span className="admin-diagnostic-label">Sức khỏe SEO Blog:</span>
                       <strong style={{ color: '#10b981' }}>Tốt (85%)</strong>
                     </div>
                   </div>
@@ -1445,7 +1445,7 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
 
               {/* AI Chat Box / Interactive prompt */}
               <div className="admin-ai-chat-box">
-                <h4 style={{ margin: '0 0 8px 0', color: '#f1f5f9', fontSize: '14px' }}>
+                <h4 className="admin-ai-chat-title">
                   💬 Trò chuyện & Yêu cầu AI Phân tích chuyên sâu
                 </h4>
                 <p style={{ margin: '0 0 16px 0', fontSize: '12px', color: '#64748b' }}>
