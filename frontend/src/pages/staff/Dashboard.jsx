@@ -348,7 +348,7 @@ export default function StaffDashboard() {
                                                   className="btn btn-primary btn-xs"
                                                   onClick={() => handleDirectConfirm(appt._id)}
                                                 >
-                                                  ⚡ Duyệt
+                                                 Duyệt
                                                 </button>
                                               )}
                                               <button
