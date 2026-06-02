@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import apiClient, { schedulingAPI, profilesAPI, authAPI } from '../services/api';
+import { schedulingAPI } from '../services/api';
 
 export default function QuickBooking({ departments = [], doctors = [], initialDoctorId = '', initialDepartmentId = '', isInline = false }) {
   const [department, setDepartment] = useState(initialDepartmentId);
@@ -24,34 +24,6 @@ export default function QuickBooking({ departments = [], doctors = [], initialDo
       setDoctor(initialDoctorId);
     }
   }, [initialDoctorId]);
-
-  // Prefill name/phone for authenticated patients
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      // try to load patient profile first
-      profilesAPI.getOwnProfile()
-        .then(res => {
-          const p = res.data.data;
-          if (p) {
-            setName(p.fullName || '');
-            setPhone(p.phoneNumber || '');
-          } else {
-            // fallback to /auth/me
-            authAPI.me().then(r => {
-              const u = r.data.data;
-              if (u) {
-                setName(u.displayName || u.username || '');
-                setPhone(u.phone || u.username || '');
-              }
-            }).catch(() => {});
-          }
-        })
-        .catch(() => {
-          // non-fatal
-        });
-    }
-  }, []);
 
   // Dynamic filtering of doctors based on selected department ID
   const selectedDepObj = departments.find(d => d._id === department);
@@ -121,10 +93,11 @@ export default function QuickBooking({ departments = [], doctors = [], initialDo
         } else {
           setError(resp.data?.message || 'Không thể đặt lịch');
         }
-        } else {
-        // Fallback to public quick booking using configured apiClient
-        const payload = { name, phone, departmentId: department, doctorId: doctor, requestedTime: time };
-        const resp = await apiClient.post('/booking', payload);
+      } else {
+        // Fallback to public quick booking
+        const payload = { name, phone, department, doctor, time };
+        const url = 'http://localhost:4000/api/booking'; // use absolute backend URL to prevent proxy issues
+        const resp = await axios.post(url, payload);
         if (resp.data && resp.data.success) {
           setSuccess('Đã gửi yêu cầu đặt lịch! Phòng khám sẽ liên hệ lại với bạn sớm nhất.');
           setName(''); setPhone(''); setDepartment(''); setDoctor('');

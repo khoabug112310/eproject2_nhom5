@@ -1,7 +1,7 @@
 // API Service - Axios wrapper
 import axios from 'axios';
 
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api';
+const API_BASE_URL = 'http://localhost:4000/api';
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -16,26 +16,10 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
-// Interceptor để xử lý 401 và chuyển hướng về màn hình đăng nhập
-apiClient.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('userRole');
-      localStorage.removeItem('userName');
-      localStorage.removeItem('userDisplayName');
-      window.location.href = '/login';
-    }
-    return Promise.reject(error);
-  }
-);
-
 // Auth API
 export const authAPI = {
-  // Login expects 'username' on backend (username or phone). Send as 'username' here.
-  login: (phone, password) =>
-    apiClient.post('/auth/login', { username: phone, password }),
+  login: (username, password) =>
+    apiClient.post('/auth/login', { username, password }),
   register: (data) =>
     apiClient.post('/auth/register', data),
   me: () =>
@@ -53,10 +37,6 @@ export const profilesAPI = {
   getPatients: () => apiClient.get('/profiles/patients'),
   createUser: (data) => apiClient.post('/profiles/users', data),
   getAdminStats: () => apiClient.get('/profiles/admin/stats'),
-  // Patient self-service
-  getOwnProfile: () => apiClient.get('/profiles/patient/me'),
-  createOwnProfile: (data) => apiClient.post('/profiles/patient/me', data),
-  updateOwnProfile: (data) => apiClient.put('/profiles/patient/me', data),
 };
 
 // Scheduling API

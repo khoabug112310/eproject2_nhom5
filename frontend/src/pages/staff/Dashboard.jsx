@@ -24,6 +24,8 @@ export default function StaffDashboard() {
     insuranceCode: '',
     emergencyContact: '',
   });
+  const [cancelingAppointment, setCancelingAppointment] = useState(null);
+  const [cancelReason, setCancelReason] = useState('');
 
   useEffect(() => {
     fetchData();
@@ -114,20 +116,48 @@ export default function StaffDashboard() {
     }
   };
 
-  const handleCancelAppointment = async (apptId) => {
-    if (!window.confirm('Bạn có chắc chắn muốn hủy lịch hẹn này?')) return;
+  const openCancelModal = (appt) => {
+    setCancelingAppointment(appt);
+    setCancelReason(appt.cancelReason || '');
+    setErrorMessage('');
+    setSuccessMessage('');
+  };
+
+  const closeCancelModal = () => {
+    setCancelingAppointment(null);
+    setCancelReason('');
+  };
+
+  const handleSubmitCancel = async (e) => {
+    e.preventDefault();
+    if (!cancelingAppointment) return;
+    if (!cancelReason.trim()) {
+      setErrorMessage('Vui lòng nhập lý do hủy lịch.');
+      return;
+    }
+
     setSubmitting(true);
     setErrorMessage('');
     setSuccessMessage('');
     try {
-      await schedulingAPI.updateAppointment(apptId, { status: 'Canceled' });
-      setSuccessMessage('Hủy lịch hẹn thành công.');
+      await schedulingAPI.updateAppointment(cancelingAppointment._id, {
+        status: 'Canceled',
+        cancelReason: cancelReason.trim(),
+      });
+      setSuccessMessage('Yêu cầu hủy lịch đã được ghi nhận.');
+      closeCancelModal();
       fetchData();
     } catch (err) {
-      setErrorMessage(err?.response?.data?.message || 'Không thể hủy lịch hẹn.');
+      setErrorMessage(err?.response?.data?.message || 'Không thể gửi yêu cầu hủy lịch.');
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleCancelAppointment = async (apptId) => {
+    const appt = appointments.find((item) => item._id === apptId);
+    if (!appt) return;
+    openCancelModal(appt);
   };
 
   // Helper to detect if a patient is a quick booking (missing details)
@@ -197,14 +227,8 @@ export default function StaffDashboard() {
           {successMessage && <div className="alert alert-success">{successMessage}</div>}
           {errorMessage && <div className="alert alert-danger">{errorMessage}</div>}
 
-          <div className="dashboard-card card">
-            <div className="card-title-bar">
-              <h3>Hàng đợi tiếp nhận khám bệnh</h3>
-              <div style={{ display: 'flex', gap: 10 }}> 
-                <span className="badge badge-info">{appointments.filter(a => a.status === 'Pending').length} chờ</span>
-                <button className="btn btn-ghost btn-sm" onClick={() => fetchData()}>⟳ Làm mới</button>
-              </div>
-            </div>
+          <div className="dashboard-card">
+            <h2>Hàng đợi tiếp nhận khám bệnh</h2>
             <p className="subtitle">CSKH kiểm tra thông tin liên hệ và CCCD của bệnh nhân trước khi đưa vào hàng chờ khám.</p>
 
             {appointments.filter(a => filterStatus === 'All' || a.status === filterStatus).length === 0 ? (
@@ -222,6 +246,7 @@ export default function StaffDashboard() {
                       <th>Bác sĩ chọn</th>
                       <th>Triệu chứng</th>
                       <th>Hình thức đặt</th>
+                      <th>Lý do hủy</th>
                       <th>Thao tác</th>
                     </tr>
                   </thead>
@@ -251,6 +276,9 @@ export default function StaffDashboard() {
                                 <span className="badge badge-success">Đặt qua tài khoản</span>
                               )}
                             </td>
+                            <td className="cancel-reason-cell" title={appt.cancelReason || ''}>
+                              {appt.cancelReason ? appt.cancelReason : '-'}
+                            </td>
                             <td className="btn-cell">
                               {appt.status === 'Pending' && (
                                 <>
@@ -277,7 +305,18 @@ export default function StaffDashboard() {
                                   </button>
                                 </>
                               )}
-                              {appt.status !== 'Pending' && renderStatus(appt.status)}
+                              {appt.status === 'Confirmed' && (
+                                <>
+                                  {renderStatus(appt.status)}
+                                  <button
+                                    className="btn btn-warning btn-xs"
+                                    onClick={() => handleCancelAppointment(appt._id)}
+                                  >
+                                    Yêu cầu hủy
+                                  </button>
+                                </>
+                              )}
+                              {appt.status !== 'Pending' && appt.status !== 'Confirmed' && renderStatus(appt.status)}
                             </td>
                           </tr>
                         );
@@ -395,6 +434,52 @@ export default function StaffDashboard() {
                 <button type="button" className="btn btn-ghost" onClick={() => setEditingPatient(null)}>Hủy</button>
                 <button type="submit" className="btn btn-primary" disabled={submitting}>
                   {submitting ? 'Đang lưu & Duyệt...' : '💾 Lưu thông tin & Xác nhận lịch'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {cancelingAppointment && (
+        <div className="modal-backdrop">
+          <div className="modal-content cancel-request-modal">
+            <div className="modal-header">
+              <h3>Yêu cầu hủy lịch khám</h3>
+              <button className="close-btn" onClick={closeCancelModal}>&times;</button>
+            </div>
+            <form onSubmit={handleSubmitCancel}>
+              <div className="modal-body">
+                <p className="modal-alert-info">
+                  📝 Vui lòng nhập lý do hủy lịch để ghi nhận yêu cầu.
+                </p>
+                <div className="form-group full-width">
+                  <label>Bệnh nhân</label>
+                  <input type="text" value={cancelingAppointment.patientId?.fullName || ''} disabled />
+                </div>
+                <div className="form-group full-width">
+                  <label>Ngày & Giờ</label>
+                  <input
+                    type="text"
+                    value={`${new Date(cancelingAppointment.requestedDate).toLocaleDateString('vi-VN')} ${cancelingAppointment.requestedTime}`}
+                    disabled
+                  />
+                </div>
+                <div className="form-group full-width">
+                  <label>Lý do hủy lịch *</label>
+                  <textarea
+                    rows={4}
+                    value={cancelReason}
+                    onChange={(e) => setCancelReason(e.target.value)}
+                    placeholder="Nhập lý do hủy lịch..."
+                    required
+                  />
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-ghost" onClick={closeCancelModal}>Đóng</button>
+                <button type="submit" className="btn btn-danger" disabled={submitting}>
+                  {submitting ? 'Đang gửi...' : 'Xác nhận hủy lịch'}
                 </button>
               </div>
             </form>

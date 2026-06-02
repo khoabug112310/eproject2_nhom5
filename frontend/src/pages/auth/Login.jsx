@@ -1,30 +1,26 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../store/authContext';
+import { authAPI } from '../../services/api';
 
 export default function Login() {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const navigate = useNavigate();
-  const { login } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     try {
-      const result = await login(phone, password);
-      if (!result.success) {
-        setError(result.error || 'Đăng nhập thất bại');
-        return;
-      }
-
-      const role = result.role;
-      if (role === 'admin') navigate('/admin/dashboard');
-      else if (role === 'doctor') navigate('/doctor/schedule');
-      else if (role === 'staff') navigate('/staff/dashboard');
-      else if (role === 'accountant') navigate('/accountant/dashboard');
-      else navigate('/patient/dashboard');
+      const res = await authAPI.login(phone, password);
+      const { token, role, username, displayName } = res.data.data;
+      localStorage.setItem('token', token);
+      localStorage.setItem('userRole', role || '');
+      localStorage.setItem('userName', username || phone || '');
+      localStorage.setItem('userDisplayName', displayName || username || phone || '');
+      if (role === 'admin') window.location.href = '/admin/dashboard';
+      else if (role === 'doctor') window.location.href = '/doctor/schedule';
+      else if (role === 'staff') window.location.href = '/staff/dashboard';
+      else if (role === 'accountant') window.location.href = '/accountant/dashboard';
+      else window.location.href = '/patient/dashboard';
     } catch (err) {
       setError(err?.response?.data?.message || 'Đăng nhập thất bại');
     }
@@ -61,7 +57,7 @@ export default function Login() {
           {error && <div style={{marginTop:12,color:'#b42318',fontSize:14}}>{error}</div>}
 
           <div style={{display:'flex',gap:10,justifyContent:'flex-end',marginTop:16}}>
-            <button type="button" className="btn btn-ghost" onClick={() => navigate('/')}>Quay lại</button>
+            <a className="btn btn-ghost" href="/">Quay lại</a>
             <button type="submit" className="btn btn-primary">Đăng nhập</button>
           </div>
         </form>

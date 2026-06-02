@@ -1,15 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../store/authContext';
+import { authAPI } from '../services/api';
 import RegisterModal from './RegisterModal';
 
-export default function LoginModal({ show, onClose, onLoginSuccess }) {
+export default function LoginModal({ show, onClose }) {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [showRegister, setShowRegister] = useState(false);
-  const navigate = useNavigate();
-  const { login } = useAuth();
 
   useEffect(() => {
     if (show) {
@@ -24,27 +21,26 @@ export default function LoginModal({ show, onClose, onLoginSuccess }) {
 
   if (!show) return null;
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
     setError('');
-    const result = await login(phone, password);
-    if (!result.success) {
-      setError(result.error || 'Số điện thoại hoặc mật khẩu không đúng');
-      return;
-    }
-
-    if (onLoginSuccess) {
-      await onLoginSuccess();
-    }
-
-    onClose();
-
-    const role = result.role;
-    if (role === 'admin') navigate('/admin/dashboard');
-    else if (role === 'doctor') navigate('/doctor/schedule');
-    else if (role === 'staff') navigate('/staff/dashboard');
-    else if (role === 'accountant') navigate('/accountant/dashboard');
-    else navigate('/patient/dashboard');
+    authAPI.login(phone, password)
+      .then((res) => {
+        const { token, role, username, displayName } = res.data.data;
+        localStorage.setItem('token', token);
+        localStorage.setItem('userRole', role || '');
+        localStorage.setItem('userName', username || phone || '');
+        localStorage.setItem('userDisplayName', displayName || username || phone || '');
+        onClose();
+        if (role === 'admin') window.location.href = '/admin/dashboard';
+        else if (role === 'doctor') window.location.href = '/doctor/schedule';
+        else if (role === 'staff') window.location.href = '/staff/dashboard';
+        else if (role === 'accountant') window.location.href = '/accountant/dashboard';
+        else window.location.href = '/patient/dashboard';
+      })
+      .catch((err) => {
+        setError(err?.response?.data?.message || 'Số điện thoại hoặc mật khẩu không đúng');
+      });
   };
 
   return (
