@@ -1,11 +1,14 @@
-/* Custom Styles for Admin Dashboard - Premium Light Theme with Royal Blue Sidebar */
+html, body {
+  margin: 0 !important;
+  padding: 0 !important;
+}
 
 .admin-dashboard-container {
   display: flex;
   flex-direction: row;
   width: 100vw;
   height: 100vh;
-  background-color: #f1f5f9; /* Light slate gray background */
+  background-color: #ffffff; /* White background */
   color: #1e293b; /* Dark slate text */
   font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   overflow: hidden;
@@ -149,6 +152,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  background-color: #ffffff; /* White background */
 }
 
 .admin-top-header {
@@ -178,9 +182,9 @@
 /* Scrollable Workspace */
 .admin-workspace {
   flex-grow: 1;
-  padding: 32px;
+  padding: 24px;
   overflow-y: auto;
-  background-color: #f8fafc;
+  background-color: #ffffff; /* White background */
   max-width: none;
   margin: 0;
   width: 100%;
