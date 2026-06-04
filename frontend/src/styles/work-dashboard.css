@@ -1,0 +1,617 @@
+/* Giao diện làm việc chuyên nghiệp — Kế toán & Bác sĩ */
+
+.work-dashboard {
+  --work-bg: #eef1f6;
+  --work-surface: #ffffff;
+  --work-border: #c5cdd8;
+  --work-border-strong: #94a3b8;
+  --work-text: #1e293b;
+  --work-text-muted: #475569;
+  --work-accent: #1d4ed8;
+  --work-accent-soft: #dbeafe;
+  --work-sidebar-w: 300px;
+  --work-radius: 0;
+  min-height: 100vh;
+  background: var(--work-bg);
+  font-size: 15px;
+}
+
+.work-dashboard .role-topnav {
+  margin-bottom: 0;
+  border-radius: 0;
+  background: var(--work-surface);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  padding: 14px 28px;
+  border-bottom: 2px solid var(--work-border);
+  box-shadow: none;
+}
+
+.work-dashboard .role-topnav__nav a {
+  border-radius: 0;
+  font-size: 14px;
+  padding: 8px 14px;
+}
+
+.work-dashboard .role-topnav__avatar {
+  border-radius: 0;
+}
+
+.work-dashboard .role-topnav__role {
+  border-radius: 0;
+}
+
+.work-dashboard .role-topnav__logout {
+  border-radius: 0;
+}
+
+.work-dashboard .dashboard-layout {
+  max-width: none;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  gap: 0;
+  align-items: stretch;
+  min-height: calc(100vh - 64px);
+}
+
+.work-dashboard .dashboard-sidebar {
+  width: var(--work-sidebar-w);
+  border-radius: 0;
+  border: none;
+  border-right: 2px solid var(--work-border);
+  box-shadow: none;
+  background: var(--work-surface);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  padding: 28px 20px;
+  position: sticky;
+  top: 64px;
+  align-self: flex-start;
+  min-height: calc(100vh - 64px);
+}
+
+.work-dashboard .patient-quick-info {
+  padding-bottom: 20px;
+  margin-bottom: 8px;
+  border-bottom: 2px solid var(--work-border);
+}
+
+.work-dashboard .patient-quick-info .p-avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 0;
+  font-size: 32px;
+  background: var(--work-accent-soft);
+  color: var(--work-accent);
+  border: 2px solid var(--work-border);
+  box-shadow: none;
+}
+
+.work-dashboard .patient-quick-info h4 {
+  font-size: 17px;
+  line-height: 1.35;
+  margin-top: 14px;
+}
+
+.work-dashboard .patient-quick-info .p-card-number {
+  font-size: 13px;
+  font-family: inherit;
+  margin-top: 6px;
+  line-height: 1.4;
+}
+
+.work-dashboard .sidebar-nav {
+  gap: 4px;
+}
+
+.work-dashboard .sidebar-nav button {
+  border-radius: 0;
+  font-size: 15px;
+  padding: 14px 16px;
+  border: 1px solid transparent;
+  border-left: 3px solid transparent;
+}
+
+.work-dashboard .sidebar-nav button:hover {
+  background: #f8fafc;
+  border-color: var(--work-border);
+  border-left-color: var(--work-accent);
+}
+
+.work-dashboard .sidebar-nav button.active {
+  background: var(--work-accent-soft);
+  color: var(--work-accent);
+  border: 1px solid var(--work-border);
+  border-left: 4px solid var(--work-accent);
+  box-shadow: none;
+}
+
+.work-dashboard .dashboard-main-content {
+  padding: 28px 32px 40px;
+  background: var(--work-bg);
+  flex: 1;
+  min-width: 0;
+}
+
+.work-dashboard .dashboard-card {
+  border-radius: 0;
+  border: 1px solid var(--work-border);
+  box-shadow: none;
+  padding: 28px 32px;
+  margin-bottom: 0;
+  background: var(--work-surface);
+}
+
+.work-dashboard .dashboard-card h2 {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin-bottom: 8px;
+}
+
+.work-dashboard .dashboard-card .subtitle {
+  font-size: 15px;
+  color: var(--work-text-muted);
+  margin-bottom: 24px;
+  line-height: 1.5;
+}
+
+.work-dashboard .card-header {
+  flex-wrap: wrap;
+  gap: 20px;
+  padding-bottom: 20px;
+  margin-bottom: 24px;
+  border-bottom: 2px solid var(--work-border);
+}
+
+.work-dashboard .work-page-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+}
+
+@media (min-width: 1100px) {
+  .work-dashboard .card-header.flex-column.md-row {
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: space-between;
+  }
+
+  .work-dashboard .card-header.flex-column.md-row h2 {
+    flex: 1;
+    min-width: 280px;
+    margin-bottom: 0;
+  }
+
+  .work-dashboard .work-page-toolbar {
+    width: auto;
+    flex: 1;
+    justify-content: flex-end;
+    max-width: 720px;
+  }
+}
+
+.work-dashboard .search-filter-bar {
+  margin-bottom: 0;
+  gap: 12px;
+  flex: 1;
+}
+
+.work-dashboard .search-input,
+.work-dashboard .search-filter-bar input,
+.work-dashboard .search-filter-bar select {
+  min-height: 44px;
+  padding: 10px 14px;
+  font-size: 15px;
+  border-radius: 0;
+  border: 1px solid var(--work-border);
+  background: #fff;
+  color: var(--work-text);
+}
+
+.work-dashboard .search-filter-bar input {
+  flex: 1;
+  min-width: 220px;
+}
+
+.work-dashboard .search-filter-bar select {
+  min-width: 180px;
+  cursor: pointer;
+}
+
+.work-dashboard .search-input:focus,
+.work-dashboard .search-filter-bar input:focus,
+.work-dashboard .search-filter-bar select:focus {
+  outline: none;
+  border-color: var(--work-accent);
+  box-shadow: 0 0 0 2px var(--work-accent-soft);
+}
+
+.work-dashboard .custom-table {
+  font-size: 15px;
+  border: 1px solid var(--work-border);
+}
+
+.work-dashboard .custom-table th {
+  background: #f1f5f9;
+  padding: 14px 20px;
+  font-size: 12px;
+  border-bottom: 2px solid var(--work-border-strong);
+  color: var(--work-text);
+  white-space: nowrap;
+}
+
+.work-dashboard .custom-table td {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--work-border);
+  vertical-align: middle;
+}
+
+.work-dashboard .custom-table tbody tr:nth-child(even) {
+  background: #f8fafc;
+}
+
+.work-dashboard .custom-table tbody tr:hover {
+  background: #eff6ff;
+}
+
+.work-dashboard .custom-table strong {
+  font-size: 16px;
+  color: var(--work-text);
+}
+
+.work-dashboard .custom-table small.text-muted {
+  font-size: 13px;
+  color: var(--work-text-muted);
+  display: block;
+  margin-top: 4px;
+}
+
+.work-dashboard .badge {
+  border-radius: 0;
+  padding: 6px 12px;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  border: 1px solid transparent;
+}
+
+.work-dashboard .badge-primary {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-color: #bfdbfe;
+}
+
+.work-dashboard .badge-success {
+  background: #ecfdf5;
+  color: #047857;
+  border-color: #a7f3d0;
+}
+
+.work-dashboard .badge-danger {
+  background: #fef2f2;
+  color: #b91c1c;
+  border-color: #fecaca;
+}
+
+.work-dashboard .badge-info {
+  background: #f0f9ff;
+  color: #0369a1;
+  border-color: #bae6fd;
+}
+
+.work-dashboard .badge-purple {
+  background: #f5f3ff;
+  color: #6d28d9;
+  border-color: #ddd6fe;
+}
+
+.work-dashboard .btn {
+  border-radius: 0;
+  font-size: 14px;
+  padding: 10px 18px;
+  box-shadow: none;
+  min-height: 40px;
+}
+
+.work-dashboard .btn-primary {
+  background: var(--work-accent);
+  border: 1px solid #1e40af;
+}
+
+.work-dashboard .btn-primary:hover {
+  background: #1e40af;
+  filter: none;
+  box-shadow: none;
+}
+
+.work-dashboard .btn-ghost {
+  background: #fff;
+  border: 1px solid var(--work-border-strong);
+}
+
+.work-dashboard .btn-ghost:hover {
+  background: #f8fafc;
+}
+
+.work-dashboard .btn-xs {
+  min-height: 36px;
+  padding: 8px 14px;
+  font-size: 13px;
+}
+
+.work-dashboard .btn-cell {
+  flex-wrap: wrap;
+}
+
+.work-dashboard .text-primary {
+  color: var(--work-accent);
+  font-size: 16px;
+}
+
+.work-dashboard .alert {
+  border-radius: 0;
+  font-size: 15px;
+  padding: 14px 18px;
+  border-width: 1px;
+  border-style: solid;
+}
+
+.work-dashboard .empty-state {
+  padding: 56px 24px;
+  font-size: 15px;
+  border: 1px dashed var(--work-border);
+  background: #f8fafc;
+}
+
+/* Báo cáo kế toán */
+.work-dashboard .stats-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.work-dashboard .stat-card {
+  background: #f8fafc;
+  border: 1px solid var(--work-border);
+  padding: 22px 24px;
+  border-radius: 0;
+}
+
+.work-dashboard .stat-card .stat-icon {
+  font-size: 28px;
+  margin-bottom: 10px;
+}
+
+.work-dashboard .stat-card h3 {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--work-text);
+  margin-bottom: 6px;
+}
+
+.work-dashboard .stat-card p {
+  font-size: 14px;
+  color: var(--work-text-muted);
+}
+
+/* Buồng khám bác sĩ */
+.work-dashboard .exam-workspace-container {
+  background: var(--work-surface);
+  border: 1px solid var(--work-border);
+  padding: 0;
+}
+
+.work-dashboard .workspace-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px 24px;
+  padding: 20px 28px;
+  border-bottom: 2px solid var(--work-border);
+  background: #f8fafc;
+}
+
+.work-dashboard .workspace-header h2 {
+  font-size: 22px;
+  font-weight: 700;
+  flex: 1;
+  min-width: 200px;
+  margin: 0;
+}
+
+.work-dashboard .exam-panels-grid {
+  display: grid;
+  grid-template-columns: minmax(320px, 1fr) minmax(420px, 1.2fr);
+  gap: 0;
+  min-height: 520px;
+}
+
+.work-dashboard .exam-panel {
+  padding: 24px 28px;
+  border-right: 1px solid var(--work-border);
+}
+
+.work-dashboard .exam-panel:last-child {
+  border-right: none;
+}
+
+.work-dashboard .exam-panel h3 {
+  font-size: 17px;
+  font-weight: 700;
+  margin-bottom: 18px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid var(--work-border);
+  color: var(--work-text);
+}
+
+.work-dashboard .exam-panel h4 {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 20px 0 12px;
+}
+
+.work-dashboard .history-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 640px;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+.work-dashboard .history-card {
+  border: 1px solid var(--work-border);
+  background: #f8fafc;
+  padding: 16px 18px;
+  border-radius: 0;
+  border-left: 4px solid var(--work-accent);
+}
+
+.work-dashboard .h-card-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--work-text-muted);
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--work-border);
+}
+
+.work-dashboard .h-card-body {
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.work-dashboard .diagnosis-highlight {
+  font-size: 15px;
+}
+
+.work-dashboard .vitals-input-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.work-dashboard .form-group label,
+.work-dashboard .form-group-sm label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--work-text);
+}
+
+.work-dashboard .form-group input,
+.work-dashboard .form-group textarea,
+.work-dashboard .form-group-sm input {
+  border-radius: 0;
+  min-height: 44px;
+  font-size: 15px;
+  border-color: var(--work-border);
+}
+
+.work-dashboard .form-group textarea {
+  min-height: 100px;
+}
+
+.work-dashboard .prescription-block {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 2px solid var(--work-border);
+}
+
+.work-dashboard .prescription-list-table {
+  border-radius: 0;
+  border: 1px solid var(--work-border);
+  font-size: 14px;
+}
+
+.work-dashboard .prescription-list-table th {
+  padding: 12px 16px;
+  font-size: 12px;
+}
+
+.work-dashboard .prescription-list-table td {
+  padding: 12px 16px;
+}
+
+.work-dashboard .selected-medication-panel {
+  border-radius: 0;
+  border: 1px solid var(--work-border);
+  background: #f8fafc;
+}
+
+.work-dashboard .search-dropdown-menu {
+  border-radius: 0;
+}
+
+.work-dashboard .progress-bar-container {
+  height: 8px;
+  background: #e2e8f0;
+  border-radius: 0;
+  margin-top: 6px;
+  overflow: hidden;
+}
+
+.work-dashboard .progress-bar-fill {
+  height: 100%;
+  background: var(--work-accent);
+  border-radius: 0;
+}
+
+.work-dashboard .modal-content {
+  border-radius: 0;
+  max-width: 760px;
+}
+
+.work-dashboard .modal-backdrop {
+  backdrop-filter: none;
+}
+
+.work-dashboard .dashboard-loading {
+  min-height: 60vh;
+  font-size: 16px;
+}
+
+@media (max-width: 1200px) {
+  .work-dashboard .exam-panels-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .work-dashboard .exam-panel {
+    border-right: none;
+    border-bottom: 1px solid var(--work-border);
+  }
+
+  .work-dashboard .exam-panel:last-child {
+    border-bottom: none;
+  }
+}
+
+@media (max-width: 992px) {
+  .work-dashboard .dashboard-layout {
+    flex-direction: column;
+    min-height: auto;
+  }
+
+  .work-dashboard .dashboard-sidebar {
+    width: 100%;
+    min-height: auto;
+    position: static;
+    border-right: none;
+    border-bottom: 2px solid var(--work-border);
+  }
+
+  .work-dashboard .dashboard-main-content {
+    padding: 20px 16px 32px;
+  }
+
+  .work-dashboard .dashboard-card {
+    padding: 20px 16px;
+  }
+}

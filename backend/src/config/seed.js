@@ -44,6 +44,11 @@ async function seedDatabase() {
       await Invoice.deleteMany({});
       await Invoice_Detail.deleteMany({});
       await Post.deleteMany({});
+      try {
+        await mongoose.connection.collection('servicepackages').deleteMany({});
+      } catch (err) {
+        // ignore if collection does not exist
+      }
       console.log('✓ Cleared existing data (--force)');
     } else {
       const existingRoles = await Role.countDocuments();
@@ -688,7 +693,7 @@ async function seedDatabase() {
     const createdSchedules = await Doctor_Schedule.insertMany(schedules);
     console.log(`✓ Created ${createdSchedules.length} work schedules for June 2026 (all 9 doctors)`);
 
-    // 10. Create an appointment, medical record and prescription for the test patient
+    // 10. Create appointments & medical history for the test patient
     const patientDoc = await Patient.findOne({ phoneNumber: '0914444444' });
     const firstDoctor = doctors[0];
     const todayDate = new Date(2026, 5, 4);
@@ -699,26 +704,23 @@ async function seedDatabase() {
       s.workDate.getTime() === todayDate.getTime()
     );
 
-    const appointment = await Appointment.create({
+    // Past visit: completed with medical record (shows in patient history)
+    const pastVisitDate = new Date(todayDate);
+    pastVisitDate.setDate(pastVisitDate.getDate() - 30);
+
+    const pastAppointment = await Appointment.create({
       patientId: patientDoc._id,
-      requestedDate: todayDate,
+      requestedDate: pastVisitDate,
       requestedTime: '09:00',
       symptoms: 'Đau thắt ngực nhẹ, khó thở khi vận động mạnh',
       departmentId: firstDoctor.departmentId,
       doctorId: firstDoctor._id,
-      scheduleId: firstSchedule ? firstSchedule._id : undefined,
-      status: 'Confirmed',
+      status: 'Completed',
       confirmedBy: staffUser._id,
     });
-    console.log('✓ Created appointment');
-
-    if (firstSchedule) {
-      firstSchedule.currentBooked = 1;
-      await firstSchedule.save();
-    }
 
     const medicalRecord = await Medical_Record.create({
-      appointmentId: appointment._id,
+      appointmentId: pastAppointment._id,
       patientId: patientDoc._id,
       doctorId: firstDoctor._id,
       height: 172,
@@ -729,9 +731,9 @@ async function seedDatabase() {
       diagnosis: 'Tăng huyết áp nhẹ giai đoạn 1, nghi ngờ xơ vữa động mạch vành',
       clinicalNotes: 'Hạn chế ăn mặn, giảm chất béo động vật, tái khám sau 1 tháng.',
     });
-    console.log('✓ Created medical record');
+    console.log('✓ Created past medical record (patient history)');
 
-    const prescription = await Prescription.create({
+    await Prescription.create({
       recordId: medicalRecord._id,
       medicineId: medicines[0]._id, // Paracetamol
       quantity: 10,
@@ -740,7 +742,26 @@ async function seedDatabase() {
       durationDays: 5,
       specialInstructions: 'Uống sau ăn no',
     });
-    console.log('✓ Created prescription');
+    console.log('✓ Created past prescription');
+
+    // Today's visit: confirmed, waiting for doctor to create medical record
+    const appointment = await Appointment.create({
+      patientId: patientDoc._id,
+      requestedDate: todayDate,
+      requestedTime: '10:30',
+      symptoms: 'Tái khám theo dõi huyết áp, đo lại chỉ số sinh hiệu',
+      departmentId: firstDoctor.departmentId,
+      doctorId: firstDoctor._id,
+      scheduleId: firstSchedule ? firstSchedule._id : undefined,
+      status: 'Confirmed',
+      confirmedBy: staffUser._id,
+    });
+    console.log('✓ Created today appointment (awaiting examination)');
+
+    if (firstSchedule) {
+      firstSchedule.currentBooked = 1;
+      await firstSchedule.save();
+    }
 
     // 11. Create invoices: consultation + pharmacy
     const accountantStaff = await Staff.findOne({ position: 'Kế toán' });
@@ -765,7 +786,7 @@ async function seedDatabase() {
     const pharmacyTotal = medicines[0].unitPrice * 10;
     const pharmacyInvoice = await Invoice.create({
       invoiceType: 'Pharmacy',
-      appointmentId: appointment._id,
+      appointmentId: pastAppointment._id,
       patientId: patientDoc._id,
       totalAmount: pharmacyTotal,
       status: 'Unpaid',
