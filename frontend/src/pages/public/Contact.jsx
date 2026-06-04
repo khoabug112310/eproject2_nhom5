@@ -50,7 +50,13 @@ export default function Contact() {
     }
 
     try {
-      const payload = { name, phone, message };
+      // ĐÃ SỬA: Map chính xác key từ các state Front-end sang đúng tên trường của Mongoose Schema
+      const payload = { 
+        senderName: name, 
+        senderPhone: phone, 
+        message: message 
+      };
+      
       await cmsAPI.submitContactInquiry(payload);
       setSuccessMsg('Gửi phản hồi thành công! Cảm ơn ý kiến đóng góp của bạn.');
       setName('');

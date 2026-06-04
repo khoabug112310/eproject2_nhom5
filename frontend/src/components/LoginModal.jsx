@@ -24,6 +24,15 @@ export default function LoginModal({ show, onClose }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     setError('');
+
+    // 1. Kiểm tra cấu trúc số điện thoại Việt Nam trước khi gửi lên Back-end
+    const phoneRegex = /(84|0[3|5|7|8|9])+([0-9]{8})\b/;
+    if (!phoneRegex.test(phone)) {
+      setError('Số điện thoại không đúng định dạng. Vui lòng nhập lại (Ví dụ: 0912345678).');
+      return; // Dừng lại ở đây, chặn không cho gọi API login
+    }
+
+    // 2. Nếu cấu trúc hợp lệ thì mới tiến hành gọi API xử lý đăng nhập
     authAPI.login(phone, password)
       .then((res) => {
         const { token, role, username, displayName } = res.data.data;
@@ -32,6 +41,8 @@ export default function LoginModal({ show, onClose }) {
         localStorage.setItem('userName', username || phone || '');
         localStorage.setItem('userDisplayName', displayName || username || phone || '');
         onClose();
+        
+        // Điều hướng phân quyền dựa trên Role nhận về
         if (role === 'admin') window.location.href = '/admin/dashboard';
         else if (role === 'doctor') window.location.href = '/doctor/schedule';
         else if (role === 'staff') window.location.href = '/staff/dashboard';
@@ -39,6 +50,7 @@ export default function LoginModal({ show, onClose }) {
         else window.location.href = '/patient/dashboard';
       })
       .catch((err) => {
+        // Bắt lỗi sai tài khoản / mật khẩu từ phía Back-end trả về
         setError(err?.response?.data?.message || 'Số điện thoại hoặc mật khẩu không đúng');
       });
   };
@@ -73,6 +85,7 @@ export default function LoginModal({ show, onClose }) {
           <div className="modal-subtitle">Chào mừng trở lại! Vui lòng điền thông tin bên dưới</div>
         </div>
 
+        {/* Khu vực hiển thị thông báo lỗi (Lỗi cấu trúc hoặc sai tài khoản) */}
         {error && (
           <div className="inline-alert">
             <span>⚠️</span> {error}
@@ -84,7 +97,7 @@ export default function LoginModal({ show, onClose }) {
             <label htmlFor="login-phone">Số điện thoại</label>
             <input
               id="login-phone"
-              type="tel"
+              type="text" // Đổi từ "tel" sang "text" để Regex kiểm tra chuẩn xác hơn khi nhập chữ
               placeholder="Nhập số điện thoại của bạn"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
@@ -132,7 +145,7 @@ export default function LoginModal({ show, onClose }) {
           show={showRegister} 
           onClose={() => {
             setShowRegister(false);
-            onClose(); // Close login modal too when they complete register
+            onClose(); // Đóng modal đăng nhập khi họ hoàn tất đăng ký
           }} 
         />
       )}

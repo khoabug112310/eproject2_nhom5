@@ -14,11 +14,16 @@ export default function Hero() {
       gridTemplateColumns: 'repeat(4, 1fr)',
       gap: '16px',
       padding: '24px',
+      
+      // GIỮ LẠI KHUNG TRẮNG NGUYÊN BẢN (KHÔNG BO GÓC)
       background: 'white',
       border: '1px solid var(--color-border)',
-      borderRadius: 'var(--radius-card)',
       boxShadow: 'var(--shadow-md)',
-      marginBottom: '24px',
+      
+      // CHỈNH LẠI KÍCH THƯỚC VÀ CĂN GIỮA ĐỂ CÂN ĐỐI
+      maxWidth: '1200px',    // Giới hạn chiều rộng của hộp trắng (bạn có thể đổi thành 1000px hoặc tùy ý để vừa vặn hơn)
+      margin: '0 auto 24px auto', // Căn đều trái/phải để hộp trắng nằm chính giữa màn hình, phía dưới cách 24px
+      
       textAlign: 'center',
     }}>
       {stats.map((s, idx) => (
