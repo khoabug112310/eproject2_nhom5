@@ -937,10 +937,18 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .patient-sidebar__details div {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
   gap: var(--space-3);
+  align-items: center;
   color: var(--color-text-dark);
+  min-width: 0;
+}
+
+.patient-sidebar__details span,
+.patient-sidebar__details strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .patient-sidebar__links {
@@ -1008,6 +1016,11 @@ h1, h2, h3, h4, h5, h6 {
   .patient-dashboard__panels,
   .form-grid {
     grid-template-columns: 1fr;
+  }
+
+  .patient-dashboard__aside {
+    position: static;
+    top: auto;
   }
 }
 

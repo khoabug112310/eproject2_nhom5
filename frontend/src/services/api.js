@@ -47,8 +47,8 @@ export const profilesAPI = {
 export const schedulingAPI = {
   getDepartments: () =>
     apiClient.get('/scheduling/departments'),
-  getSchedules: (doctorId) =>
-    apiClient.get(`/scheduling/schedules?doctor=${doctorId}`),
+  getSchedules: (doctorId, date) =>
+    apiClient.get(`/scheduling/schedules?doctor=${doctorId}${date ? `&date=${date}` : ''}`),
   bookAppointment: (data) =>
     apiClient.post('/scheduling/appointments', data),
   getAppointments: () =>
@@ -61,8 +61,8 @@ export const schedulingAPI = {
 export const clinicalAPI = {
   getMedicines: () =>
     apiClient.get('/clinical/medicines'),
-  getDoctors: () =>
-    apiClient.get('/clinical/doctors'),
+  getDoctors: (params) =>
+    apiClient.get('/clinical/doctors', { params }),
   getMedicalRecords: (params) =>
     apiClient.get('/clinical/medical-records', { params }),
   createMedicalRecord: (data) =>

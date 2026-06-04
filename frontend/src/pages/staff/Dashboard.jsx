@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { schedulingAPI, profilesAPI } from '../../services/api';
+import { schedulingAPI, profilesAPI, clinicalAPI } from '../../services/api';
 import RoleTopNav from '../../components/RoleTopNav';
+import DoctorScheduleModal from '../../components/DoctorScheduleModal';
 
 export default function StaffDashboard() {
   const [appointments, setAppointments] = useState([]);
@@ -27,6 +28,10 @@ export default function StaffDashboard() {
 
   // Expanded patient groups for account bookings (grouping by patient)
   const [expandedPatientIds, setExpandedPatientIds] = useState(new Set());
+
+  // Doctor Schedule Modal State
+  const [showDoctorScheduleModal, setShowDoctorScheduleModal] = useState(false);
+  const [selectedAppointmentForSchedule, setSelectedAppointmentForSchedule] = useState(null);
 
   useEffect(() => {
     fetchData();
@@ -135,6 +140,37 @@ export default function StaffDashboard() {
       fetchData();
     } catch (err) {
       setErrorMessage(err?.response?.data?.message || 'Không thể hủy lịch.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Open Doctor Schedule Modal
+  const handleOpenDoctorScheduleModal = (appt) => {
+    setSelectedAppointmentForSchedule(appt);
+    setShowDoctorScheduleModal(true);
+  };
+
+  // Handle Confirm after changing doctor
+  const handleConfirmDoctorChange = async (newDoctorId) => {
+    if (!selectedAppointmentForSchedule) return;
+    
+    setSubmitting(true);
+    setErrorMessage('');
+    setSuccessMessage('');
+    
+    try {
+      // Update appointment with new doctor and confirm status
+      const updateData = { doctorId: newDoctorId, status: 'Confirmed' };
+      await schedulingAPI.updateAppointment(selectedAppointmentForSchedule._id, updateData);
+      
+      setSuccessMessage('Đã xác nhận lịch khám. Hóa đơn khám đã được tự động tạo.');
+      
+      setShowDoctorScheduleModal(false);
+      setSelectedAppointmentForSchedule(null);
+      fetchData();
+    } catch (err) {
+      setErrorMessage(err?.response?.data?.message || 'Không thể cập nhật lịch khám.');
     } finally {
       setSubmitting(false);
     }
@@ -336,24 +372,43 @@ export default function StaffDashboard() {
                                           </span>
                                           {appt.status === 'Pending' && (
                                             <>
+                                              <button
+                                                className="btn btn-info btn-xs"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  handleOpenDoctorScheduleModal(appt);
+                                                }}
+                                                title="Xem lịch bác sĩ và đổi bác sĩ nếu cần"
+                                              >
+                                                📅 Lịch bác sĩ
+                                              </button>
                                               {quick ? (
                                                 <button
                                                   className="btn btn-quick btn-xs"
-                                                  onClick={() => handleOpenEditModal(appt)}
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleOpenEditModal(appt);
+                                                  }}
                                                 >
                                                   📝 Điền &amp; Duyệt
                                                 </button>
                                               ) : (
                                                 <button
                                                   className="btn btn-primary btn-xs"
-                                                  onClick={() => handleDirectConfirm(appt._id)}
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleDirectConfirm(appt._id);
+                                                  }}
                                                 >
                                                  Duyệt
                                                 </button>
                                               )}
                                               <button
                                                 className="btn btn-danger btn-xs"
-                                                onClick={() => handleCancelAppointment(appt._id)}
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  handleCancelAppointment(appt._id);
+                                                }}
                                               >
                                                 Hủy
                                               </button>
@@ -362,7 +417,7 @@ export default function StaffDashboard() {
                                           {appt.status === 'Confirmed' && (
                                             <button
                                               className="btn btn-warning btn-xs"
-                                              onClick={() => handleCancelAppointment(appt._id)}
+                                              onClick={(e) => { e.stopPropagation(); handleCancelAppointment(appt._id); }}
                                             >
                                               Yêu cầu hủy
                                             </button>
@@ -456,24 +511,43 @@ export default function StaffDashboard() {
                                           </span>
                                           {appt.status === 'Pending' && (
                                             <>
+                                              <button
+                                                className="btn btn-info btn-xs"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  handleOpenDoctorScheduleModal(appt);
+                                                }}
+                                                title="Xem lịch bác sĩ và đổi bác sĩ nếu cần"
+                                              >
+                                                📅 Lịch bác sĩ
+                                              </button>
                                               {quick ? (
                                                 <button
                                                   className="btn btn-quick btn-xs"
-                                                  onClick={() => handleOpenEditModal(appt)}
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleOpenEditModal(appt);
+                                                  }}
                                                 >
                                                   📝 Điền &amp; Duyệt
                                                 </button>
                                               ) : (
                                                 <button
                                                   className="btn btn-primary btn-xs"
-                                                  onClick={() => handleDirectConfirm(appt._id)}
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleDirectConfirm(appt._id);
+                                                  }}
                                                 >
                                                   ⚡ Duyệt
                                                 </button>
                                               )}
                                               <button
                                                 className="btn btn-danger btn-xs"
-                                                onClick={() => handleCancelAppointment(appt._id)}
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  handleCancelAppointment(appt._id);
+                                                }}
                                               >
                                                 Hủy
                                               </button>
@@ -482,7 +556,7 @@ export default function StaffDashboard() {
                                           {appt.status === 'Confirmed' && (
                                             <button
                                               className="btn btn-warning btn-xs"
-                                              onClick={() => handleCancelAppointment(appt._id)}
+                                              onClick={(e) => { e.stopPropagation(); handleCancelAppointment(appt._id); }}
                                             >
                                               Yêu cầu hủy
                                             </button>
@@ -605,6 +679,19 @@ export default function StaffDashboard() {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Doctor Schedule Modal */}
+      {showDoctorScheduleModal && selectedAppointmentForSchedule && (
+        <DoctorScheduleModal
+          appointment={selectedAppointmentForSchedule}
+          onClose={() => {
+            setShowDoctorScheduleModal(false);
+            setSelectedAppointmentForSchedule(null);
+          }}
+          onConfirm={handleConfirmDoctorChange}
+          isLoading={submitting}
+        />
       )}
     </div>
   );
