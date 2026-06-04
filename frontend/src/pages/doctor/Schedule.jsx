@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { clinicalAPI, schedulingAPI, authAPI } from '../../services/api';
 import RoleTopNav from '../../components/RoleTopNav';
+import '../../styles/work-dashboard.css';
 
 export default function DoctorSchedule() {
   const [activeTab, setActiveTab] = useState('appointments');
@@ -93,16 +94,25 @@ export default function DoctorSchedule() {
     }
   };
 
+  const getRecordForAppointment = (apptId) => {
+    const id = apptId?.toString?.() || apptId;
+    return medicalRecords.find((rec) => {
+      const recApptId = rec.appointmentId?._id || rec.appointmentId;
+      return recApptId?.toString?.() === id;
+    });
+  };
+
   const handleSelectAppointment = async (appt) => {
     setActiveAppt(appt);
+    const existingRecord = getRecordForAppointment(appt._id);
     setExamForm({
-      height: '',
-      weight: '',
-      bloodPressure: '',
-      heartRate: '',
-      temperature: '',
-      diagnosis: '',
-      clinicalNotes: '',
+      height: existingRecord?.height?.toString() || '',
+      weight: existingRecord?.weight?.toString() || '',
+      bloodPressure: existingRecord?.bloodPressure || '',
+      heartRate: existingRecord?.heartRate?.toString() || '',
+      temperature: existingRecord?.temperature?.toString() || '',
+      diagnosis: existingRecord?.diagnosis || '',
+      clinicalNotes: existingRecord?.clinicalNotes || '',
     });
     setPrescriptionItems([]);
     setMedSearch('');
@@ -198,7 +208,9 @@ export default function DoctorSchedule() {
       fetchInitialData();
       setActiveTab('appointments');
     } catch (err) {
-      setErrorMessage(err?.response?.data?.message || 'Đã xảy ra lỗi khi lập hồ sơ bệnh án.');
+      const details = err?.response?.data?.details;
+      const baseMsg = err?.response?.data?.message || 'Đã xảy ra lỗi khi lập hồ sơ bệnh án.';
+      setErrorMessage(details ? `${baseMsg} (${details})` : baseMsg);
     } finally {
       setSubmitting(false);
     }
@@ -209,8 +221,20 @@ export default function DoctorSchedule() {
     ? medicinesList.filter(m => m.name.toLowerCase().includes(medSearch.toLowerCase()))
     : [];
 
+  if (loading) {
+    return (
+      <div className="role-dashboard-shell work-dashboard">
+        <RoleTopNav role="doctor" />
+        <div className="dashboard-loading">
+          <div className="spinner"></div>
+          <p>Đang tải dữ liệu bác sĩ. Vui lòng thử lại.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="role-dashboard-shell">
+    <div className="role-dashboard-shell work-dashboard">
       <RoleTopNav role="doctor" />
 
       <div className="dashboard-layout">
@@ -289,12 +313,19 @@ export default function DoctorSchedule() {
                               </span>
                             </td>
                             <td>
-                              {appt.status === 'Confirmed' ? (
+                              {appt.status === 'Confirmed' && !getRecordForAppointment(appt._id) ? (
                                 <button
                                   className="btn btn-primary btn-xs"
                                   onClick={() => handleSelectAppointment(appt)}
                                 >
                                   🩺 Vào khám bệnh
+                                </button>
+                              ) : appt.status === 'Confirmed' && getRecordForAppointment(appt._id) ? (
+                                <button
+                                  className="btn btn-ghost btn-xs"
+                                  onClick={() => handleSelectAppointment(appt)}
+                                >
+                                  ✏️ Cập nhật bệnh án
                                 </button>
                               ) : (
                                 <span className="text-muted">Đã lưu bệnh án</span>
@@ -352,7 +383,11 @@ export default function DoctorSchedule() {
                 {/* Right Panel: Exam Form & Prescriptions */}
                 <div className="exam-panel panel-right">
                   <form onSubmit={handleSubmitExamination}>
-                    <h3>Lập hồ sơ bệnh án hiện tại</h3>
+                    <h3>
+                      {getRecordForAppointment(activeAppt._id)
+                        ? 'Cập nhật hồ sơ bệnh án hiện tại'
+                        : 'Lập hồ sơ bệnh án hiện tại'}
+                    </h3>
                     
                     {/* Vitals inputs */}
                     <div className="vitals-input-row">

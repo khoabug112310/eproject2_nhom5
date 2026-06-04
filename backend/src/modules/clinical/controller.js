@@ -62,29 +62,45 @@ const createMedicalRecord = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Lịch khám không tồn tại' });
     }
 
-    // Create the Medical Record
-    const record = await Medical_Record.create({
-      appointmentId,
+    const recordFields = {
       patientId: appt.patientId,
       doctorId: doc._id,
       height: Number(height) || undefined,
       weight: Number(weight) || undefined,
-      bloodPressure,
+      bloodPressure: bloodPressure || undefined,
       heartRate: Number(heartRate) || undefined,
       temperature: Number(temperature) || undefined,
       diagnosis,
-      clinicalNotes,
-    });
+      clinicalNotes: clinicalNotes || undefined,
+    };
 
-    // Update appointment status to Completed
-    appt.status = 'Completed';
-    await appt.save();
+    let record = await Medical_Record.findOne({ appointmentId });
+    let message = 'Tạo hồ sơ bệnh án thành công';
+
+    if (record) {
+      Object.assign(record, recordFields);
+      await record.save();
+      message = 'Cập nhật hồ sơ bệnh án thành công';
+    } else {
+      record = await Medical_Record.create({
+        appointmentId,
+        ...recordFields,
+      });
+    }
+
+    if (appt.status !== 'Completed') {
+      appt.status = 'Completed';
+      await appt.save();
+    }
 
     const { success: ok } = require('../../utils/response');
-    return ok(res, record, 'Tạo hồ sơ bệnh án thành công');
+    return ok(res, record, message);
   } catch (err) {
     console.error('createMedicalRecord error', err);
     const { fail } = require('../../utils/response');
+    if (err.code === 11000) {
+      return fail(res, 'Lịch khám này đã có hồ sơ bệnh án', 409, err.message);
+    }
     return fail(res, 'Lỗi khi tạo hồ sơ bệnh án', 500, err.message);
   }
 };

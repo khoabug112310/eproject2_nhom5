@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { billingAPI } from '../../services/api';
 import RoleTopNav from '../../components/RoleTopNav';
+import '../../styles/work-dashboard.css';
 
 export default function AccountantDashboard() {
   const [invoices, setInvoices] = useState([]);
@@ -81,15 +82,18 @@ export default function AccountantDashboard() {
 
   if (loading) {
     return (
-      <div className="dashboard-loading">
-        <div className="spinner"></div>
-        <p>Đang tải dữ liệu hóa đơn & đối soát tài chính...</p>
+      <div className="role-dashboard-shell work-dashboard">
+        <RoleTopNav role="accountant" />
+        <div className="dashboard-loading">
+          <div className="spinner"></div>
+          <p>Đang tải dữ liệu hóa đơn & đối soát tài chính...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="role-dashboard-shell">
+    <div className="role-dashboard-shell work-dashboard">
       <RoleTopNav role="accountant" />
 
       <div className="dashboard-layout">
@@ -126,15 +130,15 @@ export default function AccountantDashboard() {
             <div className="dashboard-card">
               <div className="card-header flex-column md-row">
                 <h2>Quản lý hóa đơn thu phí bệnh nhân</h2>
-                
-                {/* Search and filters bar */}
-                <div className="search-filter-bar">
+
+                <div className="work-page-toolbar search-filter-bar">
                   <input
                     type="text"
-                    placeholder="🔍 Tên BN / SĐT / Mã HĐ..."
+                    placeholder="Tìm: tên BN, SĐT hoặc mã hóa đơn..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="search-input"
+                    aria-label="Tìm kiếm hóa đơn"
                   />
                   <select value={filterType} onChange={(e) => setFilterType(e.target.value)}>
                     <option value="All">Tất cả loại HĐ</option>
