@@ -2,9 +2,20 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { schedulingAPI } from '../services/api';
 
-export default function QuickBooking({ departments = [], doctors = [], initialDoctorId = '', initialDepartmentId = '', isInline = false }) {
+// Hàm tiện ích lấy ngày hôm nay theo định dạng YYYY-MM-DD chuẩn múi giờ địa phương
+const getTodayString = () => {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+export default function QuickBooking({ departments = [], doctors = [], initialDoctorId = '', initialDepartmentId = '', isInline = false, onSuccess }) {
   const [department, setDepartment] = useState(initialDepartmentId);
   const [doctor, setDoctor] = useState(initialDoctorId);
+  
+  const [date, setDate] = useState(getTodayString());
   const [time, setTime] = useState('09:00');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -14,23 +25,21 @@ export default function QuickBooking({ departments = [], doctors = [], initialDo
   const [open, setOpen] = useState(true);
 
   useEffect(() => {
-    if (initialDepartmentId) {
-      setDepartment(initialDepartmentId);
-    }
+    if (initialDepartmentId) setDepartment(initialDepartmentId);
   }, [initialDepartmentId]);
 
   useEffect(() => {
-    if (initialDoctorId) {
-      setDoctor(initialDoctorId);
-    }
+    if (initialDoctorId) setDoctor(initialDoctorId);
   }, [initialDoctorId]);
 
-  // Dynamic filtering of doctors based on selected department ID
   const selectedDepObj = departments.find(d => d._id === department);
   const selectedDepName = selectedDepObj ? (selectedDepObj.departmentName || selectedDepObj.name) : '';
 
+  const selectedDocObj = doctors.find(d => (d.id || d._id) === doctor);
+  const selectedDocName = selectedDocObj ? selectedDocObj.fullName : '';
+
   const filteredDoctors = doctors.filter(doc => {
-    if (!department) return true; // show all if no department selected yet
+    if (!department) return true;
     return doc.department === selectedDepName;
   });
 
@@ -38,11 +47,9 @@ export default function QuickBooking({ departments = [], doctors = [], initialDo
     const newDeptId = e.target.value;
     setDepartment(newDeptId);
     
-    // Find the new department name
     const newDepObj = departments.find(d => d._id === newDeptId);
     const newDepName = newDepObj ? (newDepObj.departmentName || newDepObj.name) : '';
     
-    // Check if currently selected doctor is still valid under new department
     const matches = doctors.filter(doc => !newDeptId || doc.department === newDepName);
     const isStillValid = matches.some(doc => (doc.id || doc._id) === doctor);
     if (!isStillValid) {
@@ -61,14 +68,22 @@ export default function QuickBooking({ departments = [], doctors = [], initialDo
     return () => window.removeEventListener('resize', onResize);
   }, [isInline]);
 
+  const resetForm = () => {
+    setName('');
+    setPhone('');
+    setDepartment('');
+    setDoctor('');
+    setTime('09:00');
+    setDate(getTodayString());
+  };
+
   async function handleSubmit(e) {
     e.preventDefault();
     setError(null);
     setSuccess(null);
     setLoading(true);
 
-    // Simple phone regex validation
-    const phoneRegex = /(84|0[3|5|7|8|9])+([0-9]{8})\b/g;
+    const phoneRegex = /(84|0[3|5|7|8|9])+([0-9]{8})\b/;
     if (!phoneRegex.test(phone)) {
       setError('Số điện thoại không hợp lệ. Vui lòng nhập số điện thoại Việt Nam (ví dụ: 0912345678)');
       setLoading(false);
@@ -78,10 +93,9 @@ export default function QuickBooking({ departments = [], doctors = [], initialDo
     try {
       const token = localStorage.getItem('token');
       if (token) {
-        // Authenticated patient -> create appointment
         const payload = { 
-          requestedDate: new Date().toISOString(), 
-          requestedTime: time, 
+          bookingDate: date, 
+          time, 
           departmentId: department, 
           doctorId: doctor || undefined, 
           symptoms: 'Đặt lịch nhanh' 
@@ -89,18 +103,29 @@ export default function QuickBooking({ departments = [], doctors = [], initialDo
         const resp = await schedulingAPI.bookAppointment(payload);
         if (resp.data && resp.data.success) {
           setSuccess('Đặt lịch khám thành công! Nhân viên chăm sóc khách hàng sẽ liên hệ sớm.');
-          setName(''); setPhone(''); setDepartment(''); setDoctor('');
+          resetForm();
+          if (onSuccess) onSuccess(); // Gọi callback đóng modal ở ngoài layout
+          setTimeout(() => setSuccess(null), 5000);
         } else {
           setError(resp.data?.message || 'Không thể đặt lịch');
         }
       } else {
-        // Fallback to public quick booking
-        const payload = { name, phone, department, doctor, time };
-        const url = 'http://localhost:4000/api/booking'; // use absolute backend URL to prevent proxy issues
+        const payload = { 
+          name, 
+          phone, 
+          department: selectedDepName || department, 
+          doctor: selectedDocName || doctor,         
+          bookingDate: date, 
+          time 
+        };
+        
+        const url = 'http://localhost:4000/api/booking';
         const resp = await axios.post(url, payload);
         if (resp.data && resp.data.success) {
           setSuccess('Đã gửi yêu cầu đặt lịch! Phòng khám sẽ liên hệ lại với bạn sớm nhất.');
-          setName(''); setPhone(''); setDepartment(''); setDoctor('');
+          resetForm();
+          if (onSuccess) onSuccess(); // Gọi callback đóng modal ở ngoài layout
+          setTimeout(() => setSuccess(null), 5000);
         } else {
           setError(resp.data?.message || 'Không thể gửi yêu cầu');
         }
@@ -158,6 +183,17 @@ export default function QuickBooking({ departments = [], doctors = [], initialDo
           </label>
 
           <label>
+            <span className="label-text">Ngày Hẹn Khám <span className="required-star">*</span></span>
+            <input 
+              type="date" 
+              value={date} 
+              min={getTodayString()} 
+              onChange={e => setDate(e.target.value)} 
+              required 
+            />
+          </label>
+
+          <label>
             <span className="label-text">Giờ Hẹn Khám <span className="required-star">*</span></span>
             <input type="time" value={time} onChange={e => setTime(e.target.value)} required />
           </label>
@@ -183,9 +219,25 @@ export default function QuickBooking({ departments = [], doctors = [], initialDo
             />
           </label>
 
-          <button type="submit" disabled={loading} style={{ marginTop: '16px' }}>
-            {loading ? 'Đang gửi thông tin...' : 'Xác Nhận Đăng Ký'}
-          </button>
+          {/* SỬA ĐỔI CHÍNH TẠI ĐÂY: Bọc nút bấm vào div Flexbox để căn giữa tuyệt đối */}
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'center', 
+            width: '100%', 
+            gridColumn: '1 / -1', // Nếu form dùng CSS Grid 2 cột, dòng này ép div chiếm hết hàng để nút nằm giữa chuẩn
+            marginTop: '24px'
+          }}>
+            <button 
+              type="submit" 
+              disabled={loading}
+              style={{
+                padding: '12px 32px', // Tăng nhẹ bề ngang nhìn nút sẽ cân đối, bề thế hơn khi ở giữa
+                cursor: 'pointer'
+              }}
+            >
+              {loading ? 'Đang gửi thông tin...' : 'Xác Nhận Đăng Ký'}
+            </button>
+          </div>
         </form>
       </div>
     </div>

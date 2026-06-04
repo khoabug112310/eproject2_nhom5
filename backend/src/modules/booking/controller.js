@@ -5,16 +5,15 @@ const { GENDER } = require('../../constants/enums');
 // Quick booking flow for unauthenticated users:
 const createBooking = async (req, res) => {
   try {
-    // 🛠️ SỬA LẠI: Đồng bộ tên biến chính xác với các name/value từ form React gửi lên
-    const { name, phone, departmentId: reqDept, doctorId: reqDoc, requestedDate: reqDate, requestedTime } = req.body;
+    const { name, phone, department: reqDept, doctor: reqDoc, bookingDate: reqDate, time } = req.body;    
     
     if (!name || !phone) return fail(res, 'Name and phone are required', 400);
 
-    // Find or create patient role
+    // Tìm hoặc tạo role patient
     const patientRole = await Role.findOne({ roleName: 'patient' });
     if (!patientRole) return fail(res, 'Patient role not configured', 500);
 
-    // Find existing user by username or phone
+    // Tìm user cũ hoặc tạo mới
     let user = await User.findOne({ $or: [{ username: phone }, { phone }] });
     let createdUser = false;
     if (!user) {
@@ -23,7 +22,7 @@ const createBooking = async (req, res) => {
       createdUser = true;
     }
 
-    // Find or create Patient record
+    // Tìm hoặc tạo thông tin Patient
     let patient = await Patient.findOne({ userId: user._id });
     if (!patient) {
       const dob = new Date('1900-01-01');
@@ -38,7 +37,7 @@ const createBooking = async (req, res) => {
       });
     }
 
-    // Resolve departmentId
+    // Xử lý Department
     let departmentId = null;
     if (reqDept) {
       if (/^[0-9a-fA-F]{24}$/.test(String(reqDept))) {
@@ -49,7 +48,7 @@ const createBooking = async (req, res) => {
       }
     }
 
-    // Resolve doctorId
+    // Xử lý Doctor
     let doctorId = null;
     if (reqDoc) {
       if (/^[0-9a-fA-F]{24}$/.test(String(reqDoc))) {
@@ -60,28 +59,38 @@ const createBooking = async (req, res) => {
       }
     }
 
-    // 🛠️ SỬA LẠI: Lấy ngày khám do người dùng chọn ở Form, nếu không có mới lấy ngày hôm nay
-    const requestedDate = reqDate ? new Date(reqDate) : new Date();
-    requestedDate.setHours(0, 0, 0, 0);
+    // Xử lý ngày cho Appointment (Vẫn giữ Date Object để bảng Appointment lưu chuẩn hệ thống)
+    const appointmentDate = reqDate ? new Date(reqDate) : new Date();
+    appointmentDate.setHours(0, 0, 0, 0);
 
-    // Create appointment with PENDING status for CSKH to confirm
+    // Chuẩn hóa khung giờ (Dùng chung cho cả 2 bảng)
+    const finalTime = time || '08:00 - 09:00'; 
+
+    // 1. Tạo lịch hẹn chính thức hệ thống (Appointment)
     const appt = await Appointment.create({
       patientId: patient._id,
-      requestedDate,
-      requestedTime: requestedTime || '08:00 - 09:00', // Khớp với format khung giờ của bạn
-      symptoms: req.body.symptoms || '', // Nhận thêm lý do khám từ textarea
+      requestedDate: appointmentDate,
+      requestedTime: finalTime, 
+      symptoms: req.body.symptoms || '', 
       departmentId: departmentId || undefined,
       doctorId: doctorId || undefined,
       status: 'Pending',
     });
 
-    // Keep a QuickBooking audit record (Lưu vết audit theo thông tin gốc gửi lên)
+    // 🛠️ ĐÃ SỬA: Cắt chuỗi để ép bookingDate luôn chỉ có định dạng YYYY-MM-DD (Ví dụ: "2026-06-04")
+    // Dù Frontend gửi lên dạng ISO đầy đủ hay chuỗi ngắn, hệ thống vẫn sẽ bóc tách lấy phần ngày.
+    const stringDate = reqDate 
+      ? String(reqDate).split('T')[0] 
+      : new Date().toISOString().split('T')[0];
+
+    // 2. Tạo bản ghi QuickBooking (Chỉ lưu Chuỗi Ngày Tháng Năm thô)
     const booking = await QuickBooking.create({ 
       name, 
       phone, 
       department: reqDept, 
       doctor: reqDoc, 
-      time: requestedTime 
+      bookingDate: stringDate, // 📌 Sẽ lưu thuần chuỗi chữ ngắn gọn "2026-06-04" vào DB
+      time: finalTime          
     });
 
     return ok(res, { appointment: appt, quickBooking: booking, createdUser }, 'Yêu cầu đặt lịch đã gửi cho nhân viên CSKH', 201);

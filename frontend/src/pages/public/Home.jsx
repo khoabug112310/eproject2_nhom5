@@ -25,12 +25,7 @@ export default function Home() {
   const [activeDoctor, setActiveDoctor] = useState('');
   const [activeDept, setActiveDept] = useState('');
 
-  const popularServices = [
-    { icon: '🩺', title: 'Khám Sức Khỏe Tổng Quát', desc: 'Đánh giá toàn diện chức năng cơ quan, xét nghiệm máu, tầm soát chỉ số sinh hóa sớm.', price: '1.200.000đ' },
-    { icon: '👶', title: 'Tư Vấn & Khám Nhi Khoa', desc: 'Kiểm tra tăng trưởng toàn diện, tư vấn dinh dưỡng và chăm sóc tiêm phòng cho trẻ nhỏ.', price: '300.000đ' },
-    { icon: '🌿', title: 'Châm Cứu & Y Học Cổ Truyền', desc: 'Trị liệu đau cơ xương khớp, mất ngủ kéo dài bằng phương pháp châm cứu đông y phục hồi năng lượng.', price: '450.000đ' },
-    { icon: '🫀', title: 'Tầm Soát Bệnh Lý Tim Mạch', desc: 'Siêu âm tim màu, đo điện tâm đồ và tư vấn phòng tránh tai biến mạch máu não hiệu quả.', price: '950.000đ' }
-  ];
+  
 
   function scrollToBooking() {
     bookingRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -141,28 +136,7 @@ export default function Home() {
             />
           </div>
 
-          {/* Services Grid Section (Static Clinic Packages) */}
-          <div className="card">
-            <div className="card-title-bar">
-              <h3>Gói Khám Sức Khỏe Phổ Biến</h3>
-              <span style={{ fontSize: '13px', color: 'var(--color-accent)', fontWeight: 'bold' }}>Chi phí công khai - Tiết kiệm</span>
-            </div>
-            <div className="services-grid">
-              {popularServices.map((s, idx) => (
-                <div key={idx} className="service-card fade-in">
-                  <div>
-                    <div className="service-icon">{s.icon}</div>
-                    <h4>{s.title}</h4>
-                    <p className="service-desc">{s.desc}</p>
-                  </div>
-                  <div className="service-footer">
-                    <span className="service-price">{s.price}</span>
-                    <button className="service-btn" onClick={scrollToBooking}>Đặt lịch khám</button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+     
 
           {/* News & Latest Posts Section */}
           <div className="post-list">
@@ -175,8 +149,7 @@ export default function Home() {
                   title={p.title}
                   excerpt={p.excerpt}
                   date={p.publishedAt || p.date}
-                  // SỬA Ở ĐÂY: Truyền đúng tên trường ảnh từ API của bạn vào prop 'thumbnail'
-                  // Bạn hãy kiểm tra xem trường ảnh trong Database tên là gì (thường là 'thumbnail', 'imageUrl', hoặc 'image')
+
                   thumbnail={p.thumbnail || p.imageUrl || p.image}
                   onRead={() => navigate(`/news?slug=${p.slug || p._id}`)}
                 />
