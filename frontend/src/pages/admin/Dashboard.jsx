@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { profilesAPI, schedulingAPI, cmsAPI, billingAPI, authAPI } from '../../services/api';
 import { useAuth } from '../../store/authContext';
+import Swal from 'sweetalert2';
 import './AdminDashboard.css';
 
 export default function AdminDashboard() {
@@ -95,10 +96,38 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
     thumbnailURL: '',
     status: 'Published',
   });
+  const [postStatusFilter, setPostStatusFilter] = useState('All');
+  const [postSearch, setPostSearch] = useState('');
+  const [isPostModalOpen, setIsPostModalOpen] = useState(false);
 
   useEffect(() => {
     fetchAdminData();
   }, []);
+
+  useEffect(() => {
+    if (successMessage) {
+      const timer = setTimeout(() => {
+        setSuccessMessage('');
+      }, 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [successMessage]);
+
+  useEffect(() => {
+    if (errorMessage) {
+      const timer = setTimeout(() => {
+        setErrorMessage('');
+      }, 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [errorMessage]);
+
+  useEffect(() => {
+    setSuccessMessage('');
+    setErrorMessage('');
+    setPostStatusFilter('All');
+    setPostSearch('');
+  }, [activeTab]);
 
   const fetchAdminData = async () => {
     try {
@@ -210,6 +239,7 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
       }
       setEditingPost(null);
       setPostForm({ title: '', content: '', thumbnailURL: '', status: 'Published' });
+      setIsPostModalOpen(false);
       fetchAdminData();
     } catch (err) {
       setErrorMessage(err?.response?.data?.message || 'Lỗi khi lưu bài viết.');
@@ -226,11 +256,21 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
       thumbnailURL: post.thumbnailURL || '',
       status: post.status || 'Published',
     });
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setIsPostModalOpen(true);
   };
 
   const handleDeletePost = async (postId) => {
-    if (!window.confirm('Bạn có chắc chắn muốn xóa bài viết này không?')) return;
+    const result = await Swal.fire({
+      title: 'Xác nhận xóa',
+      text: 'Bạn có chắc chắn muốn xóa bài viết này không?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#64748b',
+      confirmButtonText: 'Xóa',
+      cancelButtonText: 'Hủy'
+    });
+    if (!result.isConfirmed) return;
     try {
       await cmsAPI.deletePost(postId);
       setSuccessMessage('Đã xóa bài viết thành công.');
@@ -275,7 +315,17 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
   };
 
   const handleDeleteUserClick = async (userId) => {
-    if (!window.confirm('Bạn có chắc chắn muốn xóa tài khoản này và mọi thông tin liên quan?')) return;
+    const result = await Swal.fire({
+      title: 'Xác nhận xóa',
+      text: 'Bạn có chắc chắn muốn xóa tài khoản này và mọi thông tin liên quan?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#64748b',
+      confirmButtonText: 'Xóa',
+      cancelButtonText: 'Hủy'
+    });
+    if (!result.isConfirmed) return;
     try {
       setSubmitting(true);
       setErrorMessage('');
@@ -329,7 +379,17 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
   };
 
   const handleDeleteAppointment = async (appointmentId) => {
-    if (!window.confirm('Bạn có chắc chắn muốn xóa lịch hẹn này và toàn bộ hóa đơn/bệnh án liên quan?')) return;
+    const result = await Swal.fire({
+      title: 'Xác nhận xóa',
+      text: 'Bạn có chắc chắn muốn xóa lịch hẹn này và toàn bộ hóa đơn/bệnh án liên quan?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#64748b',
+      confirmButtonText: 'Xóa',
+      cancelButtonText: 'Hủy'
+    });
+    if (!result.isConfirmed) return;
     try {
       setSubmitting(true);
       setErrorMessage('');
@@ -348,7 +408,13 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
     const file = e.target.files[0];
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) {
-      alert('Kích thước ảnh không được vượt quá 5MB');
+      Swal.fire({
+        title: 'Ảnh quá lớn',
+        text: 'Kích thước ảnh không được vượt quá 5MB',
+        icon: 'error',
+        confirmButtonColor: '#3085d6',
+        confirmButtonText: 'Đồng ý'
+      });
       return;
     }
     const reader = new FileReader();
@@ -1388,9 +1454,9 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                                     {u.isActive ? 'Đang hoạt động' : 'Đã khóa'}
                                   </span>
                                 </td>
-                                <td className="btn-cell">
+                                <td>
                                   {u.role !== 'admin' && (
-                                    <>
+                                    <div className="btn-cell">
                                       <button
                                         className={u.isActive ? 'admin-btn-danger' : 'admin-btn-emerald'}
                                         onClick={() => handleToggleActive(u._id, u.isActive)}
@@ -1423,7 +1489,7 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                                       >
                                         👤 Vào vai
                                       </button>
-                                    </>
+                                    </div>
                                   )}
                                 </td>
                               </tr>
@@ -1678,92 +1744,140 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
           {/* Tab: CMS Blog Posts */}
           {activeTab === 'cms' && (
             <div className="admin-card">
-              <h2>Quản trị tin tức y khoa (CMS)</h2>
-              <p className="subtitle">Tạo, cập nhật hoặc xóa các bài viết hướng dẫn sức khỏe, hoạt động phòng khám trên website.</p>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
+                <h3 className="admin-card-section-title" style={{ margin: 0 }}>Danh sách các bài viết hiện tại</h3>
+                <button
+                  onClick={() => {
+                    setEditingPost(null);
+                    setPostForm({ title: '', content: '', thumbnailURL: '', status: 'Published' });
+                    setIsPostModalOpen(true);
+                  }}
+                  className="admin-btn-emerald"
+                  style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                >
+                  ➕ Tạo bài viết mới
+                </button>
+              </div>
 
-              {/* Form create/edit */}
-              <form onSubmit={handleSavePost} className="admin-dark-form admin-inner-form post-form-redesign">
-                <h3 style={{ marginTop: 0, marginBottom: 20 }}>{editingPost ? '📝 Chỉnh sửa bài viết' : '➕ Tạo bài viết mới'}</h3>
-                
-                <div className="post-form-grid">
-                  <div className="form-group">
-                    <label>Tiêu đề bài viết *</label>
-                    <input
-                      type="text"
-                      value={postForm.title}
-                      onChange={(e) => setPostForm({ ...postForm, title: e.target.value })}
-                      placeholder="VD: Cách phòng tránh dịch sốt xuất huyết mùa hè"
-                      required
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label>Ảnh bìa bài viết *</label>
-                    <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                      <input
-                        type="text"
-                        value={postForm.thumbnailURL}
-                        onChange={(e) => setPostForm({ ...postForm, thumbnailURL: e.target.value })}
-                        placeholder="https://images.unsplash.com/photo-..."
-                        style={{ flex: 1 }}
-                        required
-                      />
-                      <span style={{ color: '#64748b', fontSize: '13px', whiteSpace: 'nowrap' }}>hoặc Tải lên:</span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleImageUpload}
-                        style={{ width: 'auto', border: 'none', padding: 0, margin: 0, cursor: 'pointer' }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="form-group">
-                    <label>Trạng thái phát hành</label>
-                    <select
-                      value={postForm.status}
-                      onChange={(e) => setPostForm({ ...postForm, status: e.target.value })}
-                    >
-                      <option value="Published">Phát hành công khai (Published)</option>
-                      <option value="Draft">Bản nháp (Draft)</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="form-group">
-                  <label>Nội dung chi tiết bài viết (Markdown hoặc Text)*</label>
-                  <textarea
-                    rows="8"
-                    value={postForm.content}
-                    onChange={(e) => setPostForm({ ...postForm, content: e.target.value })}
-                    placeholder="Nhập nội dung bài viết sức khỏe tại đây..."
-                    required
-                  />
-                </div>
-
-                <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 15 }}>
-                  {editingPost && (
-                    <button
-                      type="button"
-                      className="admin-btn-secondary"
-                      onClick={() => {
+              {/* Form create/edit Popup Modal */}
+              {isPostModalOpen && (
+                <div className="admin-modal-overlay">
+                  <div className="admin-modal-content" style={{ maxWidth: '800px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
+                      <h3 style={{ margin: 0 }}>{editingPost ? '📝 Chỉnh sửa bài viết' : '➕ Tạo bài viết mới'}</h3>
+                      <button className="admin-close-modal-btn" onClick={() => {
+                        setIsPostModalOpen(false);
                         setEditingPost(null);
                         setPostForm({ title: '', content: '', thumbnailURL: '', status: 'Published' });
-                      }}
-                    >
-                      Hủy chỉnh sửa
-                    </button>
-                  )}
-                  <button type="submit" className="admin-btn-emerald" disabled={submitting}>
-                    {submitting ? 'Đang lưu...' : 'Lưu bài viết'}
-                  </button>
-                </div>
-              </form>
+                      }}>×</button>
+                    </div>
 
-              {/* List of posts */}
-              <h3 className="admin-card-section-title">Danh sách các bài viết hiện tại</h3>
-              {postsList.length === 0 ? (
-                <p style={{ color: '#64748b' }}>Chưa có bài viết nào được tạo.</p>
+                    <form onSubmit={handleSavePost} className="admin-dark-form">
+                      <div className="post-form-grid">
+                        <div className="form-group">
+                          <label>Tiêu đề bài viết *</label>
+                          <input
+                            type="text"
+                            value={postForm.title}
+                            onChange={(e) => setPostForm({ ...postForm, title: e.target.value })}
+                            placeholder="VD: Cách phòng tránh dịch sốt xuất huyết mùa hè"
+                            required
+                          />
+                        </div>
+
+                        <div className="form-group">
+                          <label>Ảnh bìa bài viết *</label>
+                          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                            <input
+                              type="text"
+                              value={postForm.thumbnailURL}
+                              onChange={(e) => setPostForm({ ...postForm, thumbnailURL: e.target.value })}
+                              placeholder="https://images.unsplash.com/photo-..."
+                              style={{ flex: 1 }}
+                              required
+                            />
+                            <span style={{ color: '#64748b', fontSize: '13px', whiteSpace: 'nowrap' }}>hoặc Tải lên:</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={handleImageUpload}
+                              style={{ width: 'auto', border: 'none', padding: 0, margin: 0, cursor: 'pointer' }}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="form-group">
+                          <label>Trạng thái phát hành</label>
+                          <select
+                            value={postForm.status}
+                            onChange={(e) => setPostForm({ ...postForm, status: e.target.value })}
+                          >
+                            <option value="Published">Phát hành công khai (Published)</option>
+                            <option value="Draft">Bản nháp (Draft)</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="form-group">
+                        <label>Nội dung chi tiết bài viết (Markdown hoặc Text)*</label>
+                        <textarea
+                          rows="8"
+                          value={postForm.content}
+                          onChange={(e) => setPostForm({ ...postForm, content: e.target.value })}
+                          placeholder="Nhập nội dung bài viết sức khỏe tại đây..."
+                          required
+                        />
+                      </div>
+
+                      <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 15 }}>
+                        <button
+                          type="button"
+                          className="admin-btn-secondary"
+                          onClick={() => {
+                            setIsPostModalOpen(false);
+                            setEditingPost(null);
+                            setPostForm({ title: '', content: '', thumbnailURL: '', status: 'Published' });
+                          }}
+                        >
+                          Hủy
+                        </button>
+                        <button type="submit" className="admin-btn-emerald" disabled={submitting}>
+                          {submitting ? 'Đang lưu...' : 'Lưu bài viết'}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
+
+
+              
+              {/* Search bar & Status filter for posts */}
+              <div className="admin-dark-form" style={{ marginBottom: 20, display: 'flex', gap: 15 }}>
+                <input
+                  type="text"
+                  placeholder="🔍 Tìm kiếm bài viết theo tiêu đề..."
+                  value={postSearch}
+                  onChange={(e) => setPostSearch(e.target.value)}
+                  style={{ flex: 1 }}
+                />
+                <select
+                  value={postStatusFilter}
+                  onChange={(e) => setPostStatusFilter(e.target.value)}
+                  style={{ width: 220, cursor: 'pointer' }}
+                >
+                  <option value="All">📰 Tất cả bài viết</option>
+                  <option value="Published">🟢 Đã công bố (Published)</option>
+                  <option value="Draft">🟡 Bản nháp (Draft)</option>
+                </select>
+              </div>
+
+              {postsList.filter((post) => {
+                const matchesSearch = !postSearch || post.title.toLowerCase().includes(postSearch.toLowerCase());
+                const matchesFilter = postStatusFilter === 'All' || post.status === postStatusFilter;
+                return matchesSearch && matchesFilter;
+              }).length === 0 ? (
+                <p style={{ color: '#64748b' }}>Không tìm thấy bài viết nào khớp với tiêu chí tìm kiếm/lọc.</p>
               ) : (
                 <div className="table-responsive">
                   <table className="admin-dark-table">
@@ -1777,28 +1891,36 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                       </tr>
                     </thead>
                     <tbody>
-                      {postsList.map((post) => (
-                        <tr key={post._id}>
-                          <td>
-                            <img src={post.thumbnailURL} alt="" style={{ width: 60, height: 40, objectFit: 'cover', borderRadius: 4 }} />
-                          </td>
-                          <td className="admin-table-title-cell">{post.title}</td>
-                          <td>{new Date(post.publishedAt || post.createdAt).toLocaleDateString('vi-VN')}</td>
-                          <td>
-                            <span className={`admin-badge ${post.status === 'Published' ? 'admin-badge-success' : 'admin-badge-warning'}`}>
-                              {post.status === 'Published' ? 'Đã công bố' : 'Bản nháp'}
-                            </span>
-                          </td>
-                          <td className="btn-cell">
-                            <button className="admin-btn-secondary" style={{ padding: '6px 12px', fontSize: '12px', marginRight: '8px' }} onClick={() => handleEditPost(post)}>
-                              Chỉnh sửa
-                            </button>
-                            <button className="admin-btn-danger" style={{ padding: '6px 12px', fontSize: '12px' }} onClick={() => handleDeletePost(post._id)}>
-                              Xóa
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
+                      {postsList
+                        .filter((post) => {
+                          const matchesSearch = !postSearch || post.title.toLowerCase().includes(postSearch.toLowerCase());
+                          const matchesFilter = postStatusFilter === 'All' || post.status === postStatusFilter;
+                          return matchesSearch && matchesFilter;
+                        })
+                        .map((post) => (
+                          <tr key={post._id}>
+                            <td>
+                              <img src={post.thumbnailURL} alt="" style={{ width: 60, height: 40, objectFit: 'cover', borderRadius: 4 }} />
+                            </td>
+                            <td className="admin-table-title-cell">{post.title}</td>
+                            <td>{new Date(post.publishedAt || post.createdAt).toLocaleDateString('vi-VN')}</td>
+                            <td>
+                              <span className={`admin-badge ${post.status === 'Published' ? 'admin-badge-success' : 'admin-badge-warning'}`}>
+                                {post.status === 'Published' ? 'Đã công bố' : 'Bản nháp'}
+                              </span>
+                            </td>
+                            <td>
+                              <div className="btn-cell">
+                                <button className="admin-btn-secondary" style={{ padding: '6px 12px', fontSize: '12px' }} onClick={() => handleEditPost(post)}>
+                                  Chỉnh sửa
+                                </button>
+                                <button className="admin-btn-danger" style={{ padding: '6px 12px', fontSize: '12px' }} onClick={() => handleDeletePost(post._id)}>
+                                  Xóa
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
                     </tbody>
                   </table>
                 </div>

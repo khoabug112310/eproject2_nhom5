@@ -4,6 +4,7 @@ import RoleTopNav from '../../components/RoleTopNav';
 import Footer from '../../components/Footer';
 import PatientSidebar from './components/PatientSidebar';
 import BookingForm from './components/BookingForm';
+import Swal from 'sweetalert2';
 
 export default function PatientDashboard() {
   const [loading, setLoading] = useState(true);
@@ -91,9 +92,17 @@ export default function PatientDashboard() {
       return;
     }
 
-    if (!window.confirm('Bạn có muốn thanh toán tất cả hóa đơn chưa thanh toán?')) {
-      return;
-    }
+    const result = await Swal.fire({
+      title: 'Xác nhận thanh toán',
+      text: 'Bạn có muốn thanh toán tất cả hóa đơn chưa thanh toán?',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#10b981',
+      cancelButtonColor: '#64748b',
+      confirmButtonText: 'Thanh toán',
+      cancelButtonText: 'Hủy'
+    });
+    if (!result.isConfirmed) return;
 
     setPaymentProcessing(true);
     setPaymentMessage('');
@@ -114,9 +123,17 @@ export default function PatientDashboard() {
       setPaymentMessage('Hóa đơn này đã được thanh toán.');
       return;
     }
-    if (!window.confirm(`Bạn có chắc muốn thanh toán hóa đơn ${translateInvoiceType(invoice.invoiceType)} trị giá ${formatCurrency(invoice.totalAmount || 0)}?`)) {
-      return;
-    }
+    const result = await Swal.fire({
+      title: 'Xác nhận thanh toán',
+      text: `Bạn có chắc muốn thanh toán hóa đơn ${translateInvoiceType(invoice.invoiceType)} trị giá ${formatCurrency(invoice.totalAmount || 0)}?`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#10b981',
+      cancelButtonColor: '#64748b',
+      confirmButtonText: 'Thanh toán',
+      cancelButtonText: 'Hủy'
+    });
+    if (!result.isConfirmed) return;
 
     setPaymentProcessing(true);
     setPaymentMessage('');
@@ -156,7 +173,17 @@ export default function PatientDashboard() {
   };
 
   const handleCancel = async (id) => {
-    if (!window.confirm('Bạn có chắc muốn hủy lịch này?')) return;
+    const result = await Swal.fire({
+      title: 'Xác nhận hủy lịch',
+      text: 'Bạn có chắc muốn hủy lịch này?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#64748b',
+      confirmButtonText: 'Hủy lịch',
+      cancelButtonText: 'Đóng'
+    });
+    if (!result.isConfirmed) return;
     try {
       await schedulingAPI.updateAppointment(id, { status: 'Canceled' });
       setAppointments((prev) => prev.filter((a) => a._id !== id));

@@ -119,7 +119,7 @@ async function seedDatabase() {
     const departments = await Department.insertMany(departmentsData);
     console.log('✓ Created 9 departments');
 
-   // 3b. Định nghĩa Schema cho Service Package
+    // 3b. Định nghĩa Schema cho Service Package
     const servicePackageSchema = new mongoose.Schema({
       id: { type: String, required: true, unique: true },
       icon: { type: String, required: true },
@@ -220,9 +220,6 @@ async function seedDatabase() {
     console.log(`✓ Created ${insertedPackages.length} service packages`);
 
     // ==========================================
-
-    // Chạy hàm import
-    importData();
 
     // 4. Create Doctor Users & Doctors (9 Doctors)
     const doctorRole = roles.find(r => r.roleName === 'doctor');
@@ -414,6 +411,43 @@ async function seedDatabase() {
     });
     console.log('✓ Created patient');
 
+    // Extra patients
+    const extraPatientsData = [
+      { username: '0914000001', email: 'lan.nguyen@example.com', phone: '0914000001', fullName: 'Nguyễn Thị Lan', dateOfBirth: new Date('1985-08-20'), gender: 'Nữ', identityCard: '123456789013', address: 'Quận 1, TP. Hồ Chí Minh' },
+      { username: '0914000002', email: 'hoang.tran@example.com', phone: '0914000002', fullName: 'Trần Minh Hoàng', dateOfBirth: new Date('1995-12-10'), gender: 'Nam', identityCard: '123456789014', address: 'Quận 3, TP. Hồ Chí Minh' },
+      { username: '0914000003', email: 'huong.pham@example.com', phone: '0914000003', fullName: 'Phạm Thanh Hương', dateOfBirth: new Date('1992-03-25'), gender: 'Nữ', identityCard: '123456789015', address: 'Bình Thạnh, TP. Hồ Chí Minh' },
+      { username: '0914000004', email: 'tuan.hoang@example.com', phone: '0914000004', fullName: 'Hoàng Anh Tuấn', dateOfBirth: new Date('1978-11-05'), gender: 'Nam', identityCard: '123456789016', address: 'Tân Bình, TP. Hồ Chí Minh' },
+      { username: '0914000005', email: 'mai.vu@example.com', phone: '0914000005', fullName: 'Vũ Thị Mai', dateOfBirth: new Date('2000-07-15'), gender: 'Nữ', identityCard: '123456789017', address: 'Phú Nhuận, TP. Hồ Chí Minh' },
+      { username: '0914000006', email: 'dung.do@example.com', phone: '0914000006', fullName: 'Đỗ Hùng Dũng', dateOfBirth: new Date('1988-02-28'), gender: 'Nam', identityCard: '123456789018', address: 'Gò Vấp, TP. Hồ Chí Minh' },
+      { username: '0914000007', email: 'triet.bui@example.com', phone: '0914000007', fullName: 'Bùi Minh Triết', dateOfBirth: new Date('1965-05-18'), gender: 'Nam', identityCard: '123456789019', address: 'Quận 7, TP. Hồ Chí Minh' },
+      { username: '0914000008', email: 'trang.ngo@example.com', phone: '0914000008', fullName: 'Ngô Thu Trang', dateOfBirth: new Date('1993-09-09'), gender: 'Nữ', identityCard: '123456789020', address: 'Thủ Đức, TP. Hồ Chí Minh' },
+      { username: '0914000009', email: 'nam.le@example.com', phone: '0914000009', fullName: 'Lê Hoài Nam', dateOfBirth: new Date('1980-04-30'), gender: 'Nam', identityCard: '123456789021', address: 'Quận 10, TP. Hồ Chí Minh' },
+      { username: '0914000010', email: 'yen.nguyen@example.com', phone: '0914000010', fullName: 'Nguyễn Hải Yến', dateOfBirth: new Date('1997-01-22'), gender: 'Nữ', identityCard: '123456789022', address: 'Bình Tân, TP. Hồ Chí Minh' },
+    ];
+
+    const extraPatients = [];
+    for (const p of extraPatientsData) {
+      const u = await User.create({
+        username: p.username,
+        passwordHash: 'patient123',
+        roleId: patientRole._id,
+        email: p.email,
+        phone: p.phone,
+        isActive: true,
+      });
+      const pat = await Patient.create({
+        userId: u._id,
+        fullName: p.fullName,
+        dateOfBirth: p.dateOfBirth,
+        gender: p.gender,
+        identityCard: p.identityCard,
+        phoneNumber: p.phone,
+        address: p.address,
+      });
+      extraPatients.push(pat);
+    }
+    console.log(`✓ Created ${extraPatients.length} extra patients`);
+
     // 7. Create Medicines (16 standard items)
     const medicinesData = [
       { medicineCode: 'MED001', medicineName: 'Paracetamol 500mg', activeIngredient: 'Paracetamol', usageRoute: 'Uống', unit: 'viên', unitPrice: 2000, stockQuantity: 500, isActive: true },
@@ -538,51 +572,136 @@ async function seedDatabase() {
         `,
         status: 'Published',
         publishedAt: new Date('2026-05-10'),
+      },
+      {
+        title: 'Chế Độ Ăn Uống Y Khoa Cho Bệnh Nhân Gút (Gout): Nên Ăn Gì Và Kiêng Gì?',
+        slug: 'che-do-dinh-duong-y-khoa-benh-nhan-gout',
+        thumbnailURL: 'https://images.unsplash.com/photo-1498837167922-ddd27525d352?q=80&w=600&auto=format&fit=crop',
+        content: `
+          <p>Chế độ dinh dưỡng đóng vai trò cực kỳ quan trọng trong việc kiểm soát nồng độ axit uric máu, làm giảm tần suất xuất hiện các cơn gút (gout) cấp tính và ngăn ngừa các biến chứng nguy hiểm lên thận. Theo các chuyên gia Cơ Xương Khớp, việc điều chỉnh thực đơn hàng ngày có thể hỗ trợ đắc lực cho phác đồ điều trị nội khoa.</p>
+          <h3>Nguyên tắc dinh dưỡng cốt lõi:</h3>
+          <ul>
+            <li><strong>Hạn chế thực phẩm giàu Purin:</strong> Tránh tuyệt đối nội tạng động vật (gan, thận, lòng, tim), các loại thịt đỏ (thịt bò, dê, trâu) và một số hải sản như cá trích, tôm, sò điệp.</li>
+            <li><strong>Nói không với bia rượu:</strong> Rượu bia cản trước quá trình đào thải axit uric ở thận, là tác nhân hàng đầu kích hoạt cơn đau gút dữ dội vào ban đêm.</li>
+            <li><strong>Uống nhiều nước:</strong> Đảm bảo từ 2 - 2.5 lít nước mỗi ngày (nước lọc hoặc nước khoáng kiềm nhẹ) để kích thích thận lọc thải axit uric qua đường tiểu.</li>
+            <li><strong>Ưu tiên đạm thực vật và sữa ít béo:</strong> Sử dụng đậu phụ, các loại hạt lành mạnh và sữa chua/phô mai ít béo để cung cấp đủ dưỡng chất mà không làm tăng axit uric.</li>
+          </ul>
+          <p>Bên cạnh dinh dưỡng, bệnh nhân cần tuân thủ dùng thuốc hạ axit uric theo đúng chỉ định của bác sĩ chuyên khoa và tái khám định kỳ.</p>
+        `,
+        status: 'Published',
+        publishedAt: new Date('2026-06-03'),
+      },
+      {
+        title: 'Rối Loạn Tiền Đình: Triệu Chứng Nhận Biết Và Phương Pháp Điều Trị',
+        slug: 'roi-loan-tien-dinh-trieu-chung-dieu-tri',
+        thumbnailURL: 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?q=80&w=600&auto=format&fit=crop',
+        content: `
+          <p>Rối loạn tiền đình là bệnh lý phổ biến gây ra do tổn thương dây thần kinh số 8 hoặc hệ thống đường dẫn truyền thăng bằng trong não bộ. Bệnh ảnh hưởng nghiêm trọng đến khả năng giữ thăng bằng của cơ thể và sinh hoạt hàng ngày của người bệnh.</p>
+          <h3>Triệu chứng điển hình:</h3>
+          <ul>
+            <li><strong>Chóng mặt dữ dội:</strong> Cảm giác nhà cửa xoay tròn, chao đảo khi thay đổi tư thế đột ngột.</li>
+            <li><strong>Mất thăng bằng:</strong> Đi đứng loạng choạng, không vững vàng, dễ ngã.</li>
+            <li><strong>Ù tai và giảm thính lực:</strong> Thường đi kèm cảm giác nặng tai, nghe thấy tiếng vo ve trong tai.</li>
+            <li><strong>Buồn nôn và nôn mửa:</strong> Xảy ra do hệ thần kinh thực vật bị kích thích quá mức trong các cơn chóng mặt.</li>
+          </ul>
+          <h3>Phương pháp điều trị y học:</h3>
+          <p>Tùy theo nguyên nhân ngoại biên hay trung ương, bác sĩ sẽ chỉ định các thuốc cắt cơn chóng mặt (như dimenhydrinate), thuốc cải thiện tuần hoàn tai trong (betahistine) hoặc kết hợp châm cứu, bấm huyệt Đông y ở các huyệt đạo Ấn đường, Nội quan để thông kinh hoạt lạc. Ngoài ra, việc duy trì lối sống lành mạnh, giảm stress và tập luyện các bài tập phục hồi chức năng tiền đình đóng vai trò rất quan trọng.</p>
+        `,
+        status: 'Published',
+        publishedAt: new Date('2026-06-02'),
+      },
+      {
+        title: 'Đái Tháo Đường: Biến Chứng Nguy Hiểm Và Cách Phòng Ngừa Chủ Động',
+        slug: 'dai-thao-duong-bien-chung-phong-ngua',
+        thumbnailURL: 'https://images.unsplash.com/photo-1505751172876-fa1923c5c528?q=80&w=600&auto=format&fit=crop',
+        content: `
+          <p>Đái tháo đường (tiểu đường) là bệnh lý chuyển hóa mạn tính đặc trưng bởi tình trạng lượng đường trong máu luôn ở mức cao do thiếu hụt insulin hoặc đề kháng insulin. Nếu không được kiểm soát tốt, bệnh sẽ tàn phá âm thầm các cơ quan trong cơ thể.</p>
+          <h3>Các biến chứng nguy hiểm:</h3>
+          <ul>
+            <li><strong>Biến chứng tim mạch:</strong> Tăng nguy cơ xơ vữa động mạch, nhồi máu cơ tim và tai biến mạch máu não gấp 2-4 lần.</li>
+            <li><strong>Biến chứng thận:</strong> Tổn thương mạch máu nhỏ ở cầu thận dẫn đến suy thận mạn tính giai đoạn cuối phải chạy thận nhân tạo.</li>
+            <li><strong>Biến chứng mắt:</strong> Gây tổn thương võng mạc, đục thủy tinh thể, thậm chí dẫn đến mù lòa.</li>
+            <li><strong>Biến chứng thần kinh & Bàn chân:</strong> Gây dị cảm, tê bì tay chân, mất cảm giác đau dẫn đến các vết loét nhiễm trùng khó lành phải cắt cụt chi.</li>
+          </ul>
+          <h3>Phòng ngừa chủ động:</h3>
+          <p>Để ngăn ngừa và kiểm soát đái tháo đường, người dân cần xây dựng thực đơn ít tinh bột đường tinh chế, giàu chất xơ từ rau củ, tập thể dục tối thiểu 150 phút/tuần và tầm soát định kỳ chỉ số đường huyết đói cùng HbA1c mỗi 6 tháng một lần.</p>
+        `,
+        status: 'Published',
+        publishedAt: new Date('2026-06-01'),
+      },
+      {
+        title: 'Bệnh Sốt Xuất Huyết: Hướng Dẫn Chăm Sóc Và Dấu Hiệu Cảnh Báo Nguy Hiểm',
+        slug: 'sot-xuat-huyet-cham-soc-canh-bao-nguy-hiem',
+        thumbnailURL: 'https://images.unsplash.com/photo-1584036561566-baf241f2c44e?q=80&w=600&auto=format&fit=crop',
+        content: `
+          <p>Sốt xuất huyết Dengue là bệnh truyền nhiễm cấp tính do virus Dengue gây ra thông qua vật chủ trung gian truyền bệnh là muỗi vằn Aedes aegypti. Bệnh có thể diễn tiến nặng bất ngờ vào những ngày hết sốt (thường từ ngày thứ 3 đến ngày thứ 7 của bệnh).</p>
+          <h3>Cách chăm sóc an toàn tại nhà:</h3>
+          <ul>
+            <li><strong>Hạ sốt đúng cách:</strong> Chỉ sử dụng Paracetamol đơn chất để hạ sốt. Tuyệt đối không dùng Aspirin hoặc Ibuprofen vì các thuốc này làm trầm trọng thêm tình trạng xuất huyết.</li>
+            <li><strong>Bù nước liên tục:</strong> Uống nhiều dung dịch Oresol pha đúng liều lượng hướng dẫn, nước trái cây (nước dừa, nước cam) để bổ sung chất điện giải mất đi do sốt cao.</li>
+            <li><strong>Nghỉ ngơi tại giường:</strong> Tránh các vận động thể chất mạnh để hạn chế nguy cơ xuất huyết nội tạng.</li>
+          </ul>
+          <h3>Các dấu hiệu nguy hiểm cần nhập viện khân cấp:</h3>
+          <p>Người nhà cần theo dõi sát sao và đưa bệnh nhân đi cấp cứu ngay khi xuất hiện một trong các dấu hiệu cảnh báo sau: Đau bụng dữ dội vùng hạ sườn phải, nôn mửa liên tục, chảy máu cam hoặc chảy máu chân răng, đi ngoài phân đen, tay chân lạnh ẩm, lờ đờ hoặc vật vã kích thích.</p>
+        `,
+        status: 'Published',
+        publishedAt: new Date('2026-05-30'),
       }
     ];
 
     await Post.insertMany(postsData);
-    console.log('✓ Created 6 rich-text clinical blog posts');
+    console.log('✓ Created 10 rich-text clinical blog posts');
 
-    // 9. Create Doctor Schedules for ALL 9 doctors
+    // 9. Create Doctor Schedules for ALL 9 doctors for June 2026
     const schedules = [];
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    for (const doc of doctors) {
-      // Create a morning schedule (08:00 - 12:00)
-      schedules.push({
-        doctorId: doc._id,
-        workDate: today,
-        startTime: '08:00',
-        endTime: '12:00',
-        maxPatients: 15,
-        currentBooked: 0,
-        status: 'Available',
-      });
-      // Create an afternoon schedule (13:30 - 17:30)
-      schedules.push({
-        doctorId: doc._id,
-        workDate: today,
-        startTime: '13:30',
-        endTime: '17:30',
-        maxPatients: 15,
-        currentBooked: 0,
-        status: 'Available',
-      });
+    for (let day = 1; day <= 30; day++) {
+      const date = new Date(2026, 5, day); // Note: Month 5 is June in JS Date (0-indexed)
+      date.setHours(0, 0, 0, 0);
+
+      for (const doc of doctors) {
+        // Morning schedule (08:00 - 12:00)
+        schedules.push({
+          doctorId: doc._id,
+          workDate: date,
+          startTime: '08:00',
+          endTime: '12:00',
+          maxPatients: 15,
+          currentBooked: 0,
+          status: 'Available',
+        });
+        // Afternoon schedule (13:30 - 17:30)
+        schedules.push({
+          doctorId: doc._id,
+          workDate: date,
+          startTime: '13:30',
+          endTime: '17:30',
+          maxPatients: 15,
+          currentBooked: 0,
+          status: 'Available',
+        });
+      }
     }
 
     const createdSchedules = await Doctor_Schedule.insertMany(schedules);
-    console.log('✓ Created daily work schedules for all 9 doctors');
+    console.log(`✓ Created ${createdSchedules.length} work schedules for June 2026 (all 9 doctors)`);
 
     // 10. Create an appointment, medical record and prescription for the test patient
     const patientDoc = await Patient.findOne({ phoneNumber: '0914444444' });
     const firstDoctor = doctors[0];
-    const firstSchedule = createdSchedules.find(s => s.doctorId.toString() === firstDoctor._id.toString() && s.startTime === '08:00');
+    const todayDate = new Date(2026, 5, 4);
+    todayDate.setHours(0, 0, 0, 0);
+    const firstSchedule = createdSchedules.find(s =>
+      s.doctorId.toString() === firstDoctor._id.toString() &&
+      s.startTime === '08:00' &&
+      s.workDate.getTime() === todayDate.getTime()
+    );
 
     const appointment = await Appointment.create({
       patientId: patientDoc._id,
-      requestedDate: today,
+      requestedDate: todayDate,
       requestedTime: '09:00',
       symptoms: 'Đau thắt ngực nhẹ, khó thở khi vận động mạnh',
       departmentId: firstDoctor.departmentId,
@@ -661,6 +780,217 @@ async function seedDatabase() {
       subTotal: pharmacyTotal,
     });
     console.log('✓ Created invoices and invoice details');
+
+    // 12. Create 5 COMPLETED appointments, medical records, prescriptions, and paid invoices
+    console.log('✓ Seeding 5 completed appointments...');
+
+    const completedAppointmentsData = [
+      {
+        patient: extraPatients[0], // Nguyễn Thị Lan
+        doctor: doctors.find(d => d.fullName.includes('Nguyễn Văn An')),
+        date: new Date(2026, 5, 1),
+        time: '09:00',
+        startTime: '08:00',
+        symptoms: 'Đau âm ỉ vùng thượng vị, ợ chua, buồn nôn sau khi ăn',
+        height: 158,
+        weight: 52,
+        bloodPressure: '120/80',
+        heartRate: 76,
+        temperature: 36.5,
+        diagnosis: 'Viêm dạ dày cấp tính, trào ngược dạ dày thực quản (GERD)',
+        clinicalNotes: 'Ăn chín uống sôi, chia nhỏ bữa ăn, tránh thức ăn cay nóng và chất kích thích. Uống thuốc đúng giờ.',
+        medicines: [
+          { med: medicines.find(m => m.medicineCode === 'MED008'), qty: 14, dosage: '20mg', freq: '2 lần/ngày, trước ăn 30p', duration: 7, inst: 'Uống sáng và tối' },
+          { med: medicines.find(m => m.medicineCode === 'MED001'), qty: 10, dosage: '500mg', freq: '3 lần/ngày khi đau', duration: 3, inst: 'Uống sau ăn' }
+        ]
+      },
+      {
+        patient: extraPatients[1], // Trần Minh Hoàng
+        doctor: doctors.find(d => d.fullName.includes('Trần Văn Hùng')),
+        date: new Date(2026, 5, 1),
+        time: '14:30',
+        startTime: '13:30',
+        symptoms: 'Đau đầu, chóng mặt nhẹ, đo huyết áp tại nhà thấy cao (150/90)',
+        height: 175,
+        weight: 74,
+        bloodPressure: '155/95',
+        heartRate: 85,
+        temperature: 36.6,
+        diagnosis: 'Tăng huyết áp vô căn giai đoạn 2, rối loạn lipid máu',
+        clinicalNotes: 'Giảm muối trong khẩu phần ăn, tập thể dục nhẹ nhàng 30 phút mỗi ngày. Tái khám sau 1 tháng.',
+        medicines: [
+          { med: medicines.find(m => m.medicineCode === 'MED010'), qty: 30, dosage: '5mg', freq: '1 lần/ngày', duration: 30, inst: 'Uống sáng sau ăn' },
+          { med: medicines.find(m => m.medicineCode === 'MED006'), qty: 30, dosage: '20mg', freq: '1 lần/ngày', duration: 30, inst: 'Uống tối trước khi đi ngủ' }
+        ]
+      },
+      {
+        patient: extraPatients[2], // Phạm Thanh Hương
+        doctor: doctors.find(d => d.fullName.includes('Hoàng Đức Minh')),
+        date: new Date(2026, 5, 2),
+        time: '10:00',
+        startTime: '08:00',
+        symptoms: 'Da vùng cổ nổi vệt đỏ, có mụn nước nhỏ, rát nhiều nghi do kiến ba khoang',
+        height: 162,
+        weight: 48,
+        bloodPressure: '110/70',
+        heartRate: 72,
+        temperature: 36.7,
+        diagnosis: 'Viêm da tiếp xúc kích ứng do côn trùng',
+        clinicalNotes: 'Tránh gãi, không tự ý đắp các loại lá cây. Rửa nhẹ bằng nước muối sinh lý trước khi bôi thuốc.',
+        medicines: [
+          { med: medicines.find(m => m.medicineCode === 'MED004'), qty: 10, dosage: '10mg', freq: '1 lần/ngày', duration: 10, inst: 'Uống tối sau ăn' }
+        ]
+      },
+      {
+        patient: extraPatients[3], // Hoàng Anh Tuấn
+        doctor: doctors.find(d => d.fullName.includes('Lâm Chí Dũng')),
+        date: new Date(2026, 5, 3),
+        time: '15:30',
+        startTime: '13:30',
+        symptoms: 'Đau mỏi vai gáy lan xuống cánh tay phải, tê nhẹ ngón tay',
+        height: 170,
+        weight: 70,
+        bloodPressure: '130/80',
+        heartRate: 78,
+        temperature: 36.4,
+        diagnosis: 'Đau vai gáy cấp, thoái hóa cột sống cổ nhẹ',
+        clinicalNotes: 'Tránh ngồi một tư thế quá lâu, tập các bài tập vận động cổ nhẹ nhàng. Kết hợp châm cứu trị liệu.',
+        medicines: [
+          { med: medicines.find(m => m.medicineCode === 'MED016'), qty: 20, dosage: '500mg', freq: '2 lần/ngày', duration: 10, inst: 'Uống sau ăn no' }
+        ]
+      },
+      {
+        patient: extraPatients[4], // Vũ Thị Mai
+        doctor: doctors.find(d => d.fullName.includes('Vương Quốc Hùng')),
+        date: new Date(2026, 5, 4),
+        time: '09:30',
+        startTime: '08:00',
+        symptoms: 'Đau họng, nuốt vướng, sốt nhẹ 37.8 độ, chảy mũi trong',
+        height: 160,
+        weight: 50,
+        bloodPressure: '115/75',
+        heartRate: 80,
+        temperature: 37.8,
+        diagnosis: 'Viêm họng hạt cấp tính, viêm mũi dị ứng thời tiết',
+        clinicalNotes: 'Súc họng bằng nước muối sinh lý ấm nhiều lần trong ngày, uống nhiều nước ấm, giữ ấm vùng cổ.',
+        medicines: [
+          { med: medicines.find(m => m.medicineCode === 'MED002'), qty: 20, dosage: '500mg', freq: '2 lần/ngày', duration: 10, inst: 'Uống sáng và tối sau ăn' },
+          { med: medicines.find(m => m.medicineCode === 'MED001'), qty: 10, dosage: '500mg', freq: '2 lần/ngày khi sốt > 38.5 độ', duration: 5, inst: 'Uống cách nhau 4-6 tiếng' }
+        ]
+      }
+    ];
+
+    for (const data of completedAppointmentsData) {
+      // Find the doctor's schedule for this date and time block
+      const sched = createdSchedules.find(s =>
+        s.doctorId.toString() === data.doctor._id.toString() &&
+        s.workDate.getTime() === data.date.getTime() &&
+        s.startTime === data.startTime
+      );
+
+      if (sched) {
+        sched.currentBooked += 1;
+        if (sched.currentBooked >= sched.maxPatients) {
+          sched.status = 'Full';
+        }
+        await sched.save();
+      }
+
+      // Create Appointment
+      const appt = await Appointment.create({
+        patientId: data.patient._id,
+        requestedDate: data.date,
+        requestedTime: data.time,
+        symptoms: data.symptoms,
+        departmentId: data.doctor.departmentId,
+        doctorId: data.doctor._id,
+        scheduleId: sched ? sched._id : undefined,
+        status: 'Completed',
+        confirmedBy: staffUser._id,
+      });
+
+      // Create Medical Record
+      const record = await Medical_Record.create({
+        appointmentId: appt._id,
+        patientId: data.patient._id,
+        doctorId: data.doctor._id,
+        height: data.height,
+        weight: data.weight,
+        bloodPressure: data.bloodPressure,
+        heartRate: data.heartRate,
+        temperature: data.temperature,
+        diagnosis: data.diagnosis,
+        clinicalNotes: data.clinicalNotes,
+        createdAt: data.date
+      });
+
+      // Create Prescriptions & Calculate total pharmacy amount
+      let pharmacyTotal = 0;
+      const invoiceDetailsData = [];
+
+      for (const item of data.medicines) {
+        await Prescription.create({
+          recordId: record._id,
+          medicineId: item.med._id,
+          quantity: item.qty,
+          dosage: item.dosage,
+          frequency: item.freq,
+          durationDays: item.duration,
+          specialInstructions: item.inst,
+          createdAt: data.date
+        });
+
+        const sub = item.qty * item.med.unitPrice;
+        pharmacyTotal += sub;
+
+        invoiceDetailsData.push({
+          medicineId: item.med._id,
+          quantity: item.qty,
+          unitPrice: item.med.unitPrice,
+          subTotal: sub,
+        });
+
+        // Deduct stock quantity
+        item.med.stockQuantity -= item.qty;
+        await item.med.save();
+      }
+
+      // Create Invoices (Consultation & Pharmacy)
+      await Invoice.create({
+        invoiceType: 'Consultation',
+        appointmentId: appt._id,
+        patientId: data.patient._id,
+        totalAmount: data.doctor.baseFee || 250000,
+        status: 'Paid',
+        issuedAt: data.date,
+        paidAt: data.date,
+        processedBy: accountantUser._id,
+      });
+
+      if (pharmacyTotal > 0) {
+        const pharmInv = await Invoice.create({
+          invoiceType: 'Pharmacy',
+          appointmentId: appt._id,
+          patientId: data.patient._id,
+          totalAmount: pharmacyTotal,
+          status: 'Paid',
+          issuedAt: data.date,
+          paidAt: data.date,
+          processedBy: accountantUser._id,
+        });
+
+        for (const detail of invoiceDetailsData) {
+          await Invoice_Detail.create({
+            invoiceId: pharmInv._id,
+            medicineId: detail.medicineId,
+            quantity: detail.quantity,
+            unitPrice: detail.unitPrice,
+            subTotal: detail.subTotal,
+            createdAt: data.date
+          });
+        }
+      }
+    }
 
     console.log('\n✓ Database seeding completed successfully!');
     console.log('\nTest Accounts:');

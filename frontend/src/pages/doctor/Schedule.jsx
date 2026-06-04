@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { clinicalAPI, schedulingAPI, authAPI } from '../../services/api';
 import RoleTopNav from '../../components/RoleTopNav';
+import Swal from 'sweetalert2';
 
 export default function DoctorSchedule() {
   const [activeTab, setActiveTab] = useState('appointments');
@@ -123,7 +124,13 @@ export default function DoctorSchedule() {
     
     // Check if stock is sufficient
     if (selectedMed.stockQuantity < medForm.quantity) {
-      alert(`Lưu ý: Kho chỉ còn ${selectedMed.stockQuantity} ${selectedMed.unit}. Vẫn tiếp tục kê đơn?`);
+      Swal.fire({
+        title: 'Cảnh báo kho thuốc',
+        text: `Lưu ý: Kho chỉ còn ${selectedMed.stockQuantity} ${selectedMed.unit}. Vẫn tiếp tục kê đơn?`,
+        icon: 'warning',
+        confirmButtonColor: '#3085d6',
+        confirmButtonText: 'Đồng ý'
+      });
     }
 
     const newItem = {
@@ -156,7 +163,13 @@ export default function DoctorSchedule() {
   const handleSubmitExamination = async (e) => {
     e.preventDefault();
     if (!examForm.diagnosis) {
-      alert('Vui lòng điền Chẩn đoán bệnh lý.');
+      Swal.fire({
+        title: 'Thiếu thông tin',
+        text: 'Vui lòng điền Chẩn đoán bệnh lý.',
+        icon: 'error',
+        confirmButtonColor: '#3085d6',
+        confirmButtonText: 'Đồng ý'
+      });
       return;
     }
 
@@ -585,17 +598,28 @@ export default function DoctorSchedule() {
                                 // Find prescriptions and set modal view
                                 clinicalAPI.getPrescriptions(rec._id)
                                   .then((res) => {
-                                    alert(
-                                      `BỆNH ÁN CHI TIẾT:\n` +
-                                      `Bệnh nhân: ${rec.patientId?.fullName}\n` +
-                                      `Chẩn đoán: ${rec.diagnosis}\n` +
-                                      `Huyết áp: ${rec.bloodPressure || '--'} mmHg | Nhịp tim: ${rec.heartRate || '--'} bpm\n` +
-                                      `Lời dặn bác sĩ: ${rec.clinicalNotes || 'Không có'}\n\n` +
-                                      `ĐƠN THUỐC:\n` +
-                                      (res.data.data.length === 0 
-                                        ? 'Không kê đơn thuốc' 
-                                        : res.data.data.map(p => `- ${p.medicineId?.name}: ${p.quantity} viên (${p.dosage} - ${p.frequency} - Dùng ${p.durationDays} ngày)`).join('\n'))
-                                    );
+                                    Swal.fire({
+                                      title: 'Bệnh án chi tiết',
+                                      html: `
+                                        <div style="text-align: left; font-size: 14px; line-height: 1.6;">
+                                          <p><strong>Bệnh nhân:</strong> ${rec.patientId?.fullName || 'N/A'}</p>
+                                          <p><strong>Chẩn đoán:</strong> <span style="color: #10b981; font-weight: bold;">${rec.diagnosis}</span></p>
+                                          <p><strong>Chỉ số sinh tồn:</strong> HA: ${rec.bloodPressure || '--'} mmHg | Nhịp tim: ${rec.heartRate || '--'} bpm</p>
+                                          <p><strong>Lời dặn của Bác sĩ:</strong> ${rec.clinicalNotes || 'Không có'}</p>
+                                          <hr style="border-top: 1px solid #e2e8f0; margin: 15px 0;">
+                                          <p><strong>ĐƠN THUỐC CHI TIẾT:</strong></p>
+                                          <ul style="padding-left: 20px; margin: 0;">
+                                            ${res.data.data.length === 0 
+                                              ? '<li>Không kê đơn thuốc</li>' 
+                                              : res.data.data.map(p => `<li><strong>${p.medicineId?.name || 'Thuốc'}</strong>: ${p.quantity} viên (${p.dosage} - ${p.frequency} - Dùng ${p.durationDays} ngày)</li>`).join('')
+                                            }
+                                          </ul>
+                                        </div>
+                                      `,
+                                      icon: 'info',
+                                      confirmButtonColor: '#3085d6',
+                                      confirmButtonText: 'Đóng'
+                                    });
                                   })
                                   .catch(console.error);
                               }}

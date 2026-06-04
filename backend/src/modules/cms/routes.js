@@ -1,6 +1,6 @@
 // Module CMS - Routes
 const express = require('express');
-const { authenticateToken } = require('../../middlewares/auth');
+const { authenticateToken, optionalAuthenticate } = require('../../middlewares/auth');
 const { authorizeRole } = require('../../middlewares/rbac');
 const { USER_ROLE } = require('../../constants/enums');
 const { getPosts, createPost, updatePost, deletePost, getContactInquiries, createContactInquiry, uploadImage } = require('./controller');
@@ -8,7 +8,7 @@ const { getPosts, createPost, updatePost, deletePost, getContactInquiries, creat
 const router = express.Router();
 
 // Public
-router.get('/posts', getPosts);
+router.get('/posts', optionalAuthenticate, getPosts);
 router.post('/contact-inquiries', createContactInquiry);
 
 // Admin

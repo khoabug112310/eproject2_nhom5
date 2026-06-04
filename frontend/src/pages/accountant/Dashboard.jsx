@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { billingAPI } from '../../services/api';
 import RoleTopNav from '../../components/RoleTopNav';
+import Swal from 'sweetalert2';
 
 export default function AccountantDashboard() {
   const [invoices, setInvoices] = useState([]);
@@ -37,7 +38,17 @@ export default function AccountantDashboard() {
   };
 
   const handleProcessPayment = async (invoiceId) => {
-    if (!window.confirm('Bạn có xác nhận đã thu tiền mặt/chuyển khoản thực tế cho hóa đơn này không?')) return;
+    const result = await Swal.fire({
+      title: 'Xác nhận thu tiền',
+      text: 'Bạn có xác nhận đã thu tiền mặt/chuyển khoản thực tế cho hóa đơn này không?',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#10b981',
+      cancelButtonColor: '#64748b',
+      confirmButtonText: 'Xác nhận',
+      cancelButtonText: 'Hủy'
+    });
+    if (!result.isConfirmed) return;
     setSubmitting(true);
     setErrorMessage('');
     setSuccessMessage('');

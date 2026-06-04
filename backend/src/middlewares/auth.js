@@ -32,4 +32,28 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
-module.exports = { authenticateToken };
+const optionalAuthenticate = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+
+  if (!token) {
+    return next();
+  }
+
+  jwt.verify(token, config.JWT_SECRET, async (err, decoded) => {
+    if (err) {
+      return next();
+    }
+    try {
+      const user = await User.findById(decoded.id);
+      if (user && user.isActive !== false) {
+        req.user = decoded;
+      }
+      next();
+    } catch (error) {
+      next();
+    }
+  });
+};
+
+module.exports = { authenticateToken, optionalAuthenticate };
