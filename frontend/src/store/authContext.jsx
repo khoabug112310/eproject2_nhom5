@@ -42,6 +42,16 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('userDisplayName');
   }, []);
 
+  const impersonate = useCallback((data) => {
+    const { token, role, username, displayName } = data;
+    localStorage.setItem('token', token);
+    localStorage.setItem('userRole', role || '');
+    localStorage.setItem('userName', username || '');
+    localStorage.setItem('userDisplayName', displayName || username || '');
+    setToken(token);
+    setUser({ role, username: username || '', displayName: displayName || username || '' });
+  }, []);
+
   useEffect(() => {
     let mounted = true;
 
@@ -75,6 +85,7 @@ export const AuthProvider = ({ children }) => {
     token,
     login,
     logout,
+    impersonate,
     isAuthenticated: !!token,
   };
 

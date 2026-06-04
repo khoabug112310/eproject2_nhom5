@@ -5,6 +5,8 @@ const Department = require('../../models/Department');
 const Doctor = require('../../models/Doctor');
 const Appointment = require('../../models/Appointment');
 const Patient = require('../../models/Patient');
+const Staff = require('../../models/Staff');
+const User = require('../../models/User');
 const { APPOINTMENT_STATUS } = require('../../constants/enums');
 
 const getDepartments = async (req, res) => {
@@ -139,12 +141,31 @@ const getAppointments = async (req, res) => {
     }
 
     const items = await Appointment.find(q)
-      .populate('patientId doctorId departmentId scheduleId')
+      .populate('patientId doctorId departmentId scheduleId confirmedBy')
       .sort({ requestedDate: -1, requestedTime: -1 })
       .lean();
 
+    const mappedItems = [];
+    for (const appt of items) {
+      if (appt.confirmedBy) {
+        const userId = appt.confirmedBy._id;
+        const staff = await Staff.findOne({ userId }).lean();
+        let fullName = staff ? staff.fullName : appt.confirmedBy.username;
+        if (!staff) {
+          const doc = await Doctor.findOne({ userId }).lean();
+          if (doc) fullName = doc.fullName;
+        }
+        appt.confirmedBy = {
+          _id: userId,
+          username: appt.confirmedBy.username,
+          fullName: fullName
+        };
+      }
+      mappedItems.push(appt);
+    }
+
     const { success: ok } = require('../../utils/response');
-    return ok(res, items, 'Lấy danh sách lịch khám');
+    return ok(res, mappedItems, 'Lấy danh sách lịch khám');
   } catch (err) {
     console.error('getAppointments error', err);
     const { fail } = require('../../utils/response');

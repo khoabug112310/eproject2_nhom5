@@ -43,6 +43,8 @@ export const authAPI = {
     apiClient.get('/auth/me'),
   logout: () =>
     apiClient.post('/auth/logout'),
+  impersonate: (userId) =>
+    apiClient.post(`/auth/impersonate/${userId}`),
 };
 
 // Profiles API
@@ -55,6 +57,10 @@ export const profilesAPI = {
   createUser: (data) => apiClient.post('/profiles/users', data),
   getAdminStats: () => apiClient.get('/profiles/admin/stats'),
   queryClinicAI: (query) => apiClient.post('/profiles/admin/ai-query', { query }),
+  editUserAdmin: (id, data) => apiClient.put(`/profiles/admin/users/${id}`, data),
+  deleteUserAdmin: (id) => apiClient.delete(`/profiles/admin/users/${id}`),
+  deleteAppointmentAdmin: (id) => apiClient.delete(`/profiles/admin/appointments/${id}`),
+  updateTimelineStepAdmin: (data) => apiClient.put('/profiles/admin/timeline/step', data),
 };
 
 // Scheduling API
@@ -111,6 +117,8 @@ export const cmsAPI = {
     apiClient.delete(`/cms/posts/${id}`),
   submitContactInquiry: (data) =>
     apiClient.post('/cms/contact-inquiries', data),
+  uploadImage: (image) =>
+    apiClient.post('/cms/upload', { image }),
 };
 
 export default apiClient;

@@ -153,4 +153,40 @@ const createContactInquiry = async (req, res) => {
   }
 };
 
-module.exports = { getPosts, createPost, updatePost, deletePost, getContactInquiries, createContactInquiry };
+const fs = require('fs');
+const path = require('path');
+
+const uploadImage = async (req, res) => {
+  try {
+    const { image } = req.body;
+    if (!image) return res.status(400).json({ success: false, message: 'Dữ liệu ảnh base64 là bắt buộc' });
+    
+    const matches = image.match(/^data:image\/([A-Za-z-+\/]+);base64,(.+)$/);
+    if (!matches || matches.length !== 3) {
+      return res.status(400).json({ success: false, message: 'Định dạng ảnh không hợp lệ' });
+    }
+    
+    const ext = matches[1] === 'jpeg' ? 'jpg' : matches[1];
+    const buffer = Buffer.from(matches[2], 'base64');
+    const filename = `img_${Date.now()}.${ext}`;
+    const uploadDir = path.join(__dirname, '../../../uploads');
+    
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    
+    fs.writeFileSync(path.join(uploadDir, filename), buffer);
+    
+    const config = require('../../config/env');
+    const imageUrl = `http://localhost:${config.PORT}/uploads/${filename}`;
+    
+    const { success: ok } = require('../../utils/response');
+    return ok(res, { url: imageUrl }, 'Tải ảnh lên thành công');
+  } catch (err) {
+    console.error('uploadImage error', err);
+    const { fail } = require('../../utils/response');
+    return fail(res, 'Lỗi khi tải ảnh lên', 500, err.message);
+  }
+};
+
+module.exports = { getPosts, createPost, updatePost, deletePost, getContactInquiries, createContactInquiry, uploadImage };

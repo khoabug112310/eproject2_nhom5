@@ -36,7 +36,7 @@ const appointmentSchema = new mongoose.Schema({
   },
   confirmedBy: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Staff',
+    ref: 'User',
   },
   createdAt: {
     type: Date,

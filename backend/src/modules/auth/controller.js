@@ -138,4 +138,41 @@ const logout = (req, res) => {
   res.status(501).json({ message: 'Not implemented' });
 };
 
-module.exports = { login, register, me, refreshToken, logout };
+const impersonate = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    // Safety check: only admins can impersonate (this is also guarded in routes)
+    if (req.user.role !== 'admin') {
+      return fail(res, 'Quyền truy cập bị từ chối. Chỉ Admin mới có quyền đăng nhập hộ.', 403);
+    }
+    
+    const user = await User.findById(userId);
+    if (!user) return fail(res, 'Không tìm thấy tài khoản người dùng', 404);
+    
+    const role = await Role.findById(user.roleId);
+    const roleName = role ? role.roleName : null;
+    
+    const payload = { id: user._id, roleId: user.roleId, role: roleName };
+    const token = jwt.sign(payload, config.JWT_SECRET, { expiresIn: '7d' });
+    
+    let displayName = user.username;
+    if (roleName === 'doctor') {
+      const doctor = await Doctor.findOne({ userId: user._id });
+      if (doctor && doctor.fullName) displayName = doctor.fullName;
+    } else if (roleName === 'staff' || roleName === 'accountant') {
+      const staff = await Staff.findOne({ userId: user._id });
+      if (staff && staff.fullName) displayName = staff.fullName;
+    } else if (roleName === 'patient') {
+      const patient = await Patient.findOne({ userId: user._id });
+      if (patient && patient.fullName) displayName = patient.fullName;
+    }
+    
+    return ok(res, { token, role: roleName, username: user.username, displayName }, 'Đăng nhập hộ thành công');
+  } catch (err) {
+    console.error('impersonate error', err);
+    return fail(res, 'Server error', 500, err.message);
+  }
+};
+
+module.exports = { login, register, me, refreshToken, logout, impersonate };

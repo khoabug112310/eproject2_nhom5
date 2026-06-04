@@ -616,5 +616,294 @@ Yêu cầu phân tích của Quản trị viên: "${query}"`;
   }
 };
 
-module.exports = { getAllUsers, getUserById, updateUser, createDoctor, getPatients, getAdminStats, queryClinicAI };
+const bcrypt = require('bcryptjs');
+
+const editUserAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { username, password, email, phone, isActive, fullName, departmentId, specialization, experienceYears, baseFee, bio, position } = req.body;
+
+    const user = await User.findById(id);
+    if (!user) return res.status(404).json({ success: false, message: 'Không tìm thấy tài khoản người dùng' });
+
+    if (username && username !== user.username) {
+      const exists = await User.findOne({ username });
+      if (exists) return res.status(409).json({ success: false, message: 'Tên đăng nhập đã tồn tại' });
+      user.username = username;
+    }
+
+    if (email !== undefined) user.email = email;
+    if (phone !== undefined) user.phone = phone;
+    if (isActive !== undefined) user.isActive = isActive;
+
+    if (password) {
+      user.passwordHash = await bcrypt.hash(password, 10);
+    }
+
+    await user.save();
+
+    const role = await Role.findById(user.roleId);
+    const roleName = role ? role.roleName : null;
+
+    if (roleName === 'doctor') {
+      let doctor = await Doctor.findOne({ userId: user._id });
+      if (!doctor) {
+        doctor = new Doctor({ userId: user._id });
+      }
+      if (fullName !== undefined) doctor.fullName = fullName;
+      if (specialization !== undefined) doctor.specialization = specialization;
+      if (departmentId !== undefined) doctor.departmentId = departmentId;
+      if (experienceYears !== undefined) doctor.experienceYears = Number(experienceYears) || 0;
+      if (baseFee !== undefined) doctor.baseFee = Number(baseFee) || 150000;
+      if (bio !== undefined) doctor.bio = bio;
+      await doctor.save();
+    } else if (roleName === 'staff' || roleName === 'accountant') {
+      let staff = await Staff.findOne({ userId: user._id });
+      if (!staff) {
+        staff = new Staff({ userId: user._id, fullName: fullName || 'Nhân sự' });
+      }
+      if (fullName !== undefined) staff.fullName = fullName;
+      if (phone !== undefined) staff.phoneNumber = phone;
+      if (position !== undefined) staff.position = position;
+      await staff.save();
+    } else if (roleName === 'patient') {
+      let patient = await Patient.findOne({ userId: user._id });
+      if (!patient) {
+        patient = new Patient({ userId: user._id, fullName: fullName || 'Bệnh nhân' });
+      }
+      if (fullName !== undefined) patient.fullName = fullName;
+      if (phone !== undefined) patient.phoneNumber = phone;
+      await patient.save();
+    }
+
+    const { success: ok } = require('../../utils/response');
+    return ok(res, user, 'Cập nhật tài khoản thành công');
+  } catch (err) {
+    console.error('editUserAdmin error', err);
+    const { fail } = require('../../utils/response');
+    return fail(res, 'Lỗi khi cập nhật tài khoản', 500, err.message);
+  }
+};
+
+const deleteUserAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const user = await User.findById(id);
+    if (!user) return res.status(404).json({ success: false, message: 'Không tìm thấy tài khoản người dùng' });
+
+    const role = await Role.findById(user.roleId);
+    const roleName = role ? role.roleName : null;
+
+    if (roleName === 'doctor') {
+      await Doctor.deleteOne({ userId: user._id });
+    } else if (roleName === 'staff' || roleName === 'accountant') {
+      await Staff.deleteOne({ userId: user._id });
+    } else if (roleName === 'patient') {
+      await Patient.deleteOne({ userId: user._id });
+    }
+
+    await User.deleteOne({ _id: user._id });
+
+    const { success: ok } = require('../../utils/response');
+    return ok(res, null, 'Xóa tài khoản thành công');
+  } catch (err) {
+    console.error('deleteUserAdmin error', err);
+    const { fail } = require('../../utils/response');
+    return fail(res, 'Lỗi khi xóa tài khoản', 500, err.message);
+  }
+};
+
+const deleteAppointmentAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const Appointment = require('../../models/Appointment');
+    const Invoice = require('../../models/Invoice');
+    const Invoice_Detail = require('../../models/Invoice_Detail');
+    const Medical_Record = require('../../models/Medical_Record');
+    const Prescription = require('../../models/Prescription');
+
+    const appt = await Appointment.findById(id);
+    if (!appt) return res.status(404).json({ success: false, message: 'Không tìm thấy lịch hẹn' });
+
+    const invoices = await Invoice.find({ appointmentId: appt._id });
+    for (const inv of invoices) {
+      await Invoice_Detail.deleteMany({ invoiceId: inv._id });
+    }
+    await Invoice.deleteMany({ appointmentId: appt._id });
+
+    const medRecords = await Medical_Record.find({ appointmentId: appt._id });
+    for (const rec of medRecords) {
+      await Prescription.deleteMany({ recordId: rec._id });
+    }
+    await Medical_Record.deleteMany({ appointmentId: appt._id });
+
+    await Appointment.deleteOne({ _id: appt._id });
+
+    const { success: ok } = require('../../utils/response');
+    return ok(res, null, 'Xóa lịch hẹn và các dữ liệu liên quan thành công');
+  } catch (err) {
+    console.error('deleteAppointmentAdmin error', err);
+    const { fail } = require('../../utils/response');
+    return fail(res, 'Lỗi khi xóa lịch hẹn', 500, err.message);
+  }
+};
+
+const updateTimelineStepAdmin = async (req, res) => {
+  try {
+    const { appointmentId, stepIndex, action, status } = req.body;
+    if (!appointmentId || typeof stepIndex !== 'number') {
+      return res.status(400).json({ success: false, message: 'appointmentId và stepIndex là bắt buộc' });
+    }
+
+    const Appointment = require('../../models/Appointment');
+    const Invoice = require('../../models/Invoice');
+    const Medical_Record = require('../../models/Medical_Record');
+    const Prescription = require('../../models/Prescription');
+
+    const appt = await Appointment.findById(appointmentId);
+    if (!appt) return res.status(404).json({ success: false, message: 'Không tìm thấy lịch hẹn' });
+
+    if (stepIndex === 2) {
+      if (action === 'update') {
+        appt.status = status;
+        if (status === 'Confirmed') {
+          appt.confirmedBy = req.user.id;
+          const existingInv = await Invoice.findOne({ appointmentId: appt._id, invoiceType: 'Consultation' });
+          if (!existingInv) {
+            let fee = 150000;
+            if (appt.doctorId) {
+              const doc = await Doctor.findOne({ userId: appt.doctorId }) || await Doctor.findById(appt.doctorId);
+              if (doc && typeof doc.baseFee === 'number') fee = doc.baseFee;
+            }
+            await Invoice.create({
+              appointmentId: appt._id,
+              patientId: appt.patientId,
+              invoiceType: 'Consultation',
+              totalAmount: fee,
+              status: 'Unpaid',
+              issuedAt: new Date()
+            });
+          }
+        } else {
+          appt.confirmedBy = undefined;
+        }
+      } else if (action === 'delete') {
+        appt.status = 'Pending';
+        appt.confirmedBy = undefined;
+      }
+      await appt.save();
+    }
+    else if (stepIndex === 3) {
+      let inv = await Invoice.findOne({ appointmentId: appt._id, invoiceType: 'Consultation' });
+      if (action === 'update') {
+        if (!inv) {
+          let fee = 150000;
+          if (appt.doctorId) {
+            const doc = await Doctor.findById(appt.doctorId);
+            if (doc && typeof doc.baseFee === 'number') fee = doc.baseFee;
+          }
+          inv = await Invoice.create({
+            appointmentId: appt._id,
+            patientId: appt.patientId,
+            invoiceType: 'Consultation',
+            totalAmount: fee,
+            status: 'Unpaid',
+            issuedAt: new Date()
+          });
+        }
+        inv.status = status;
+        if (status === 'Paid') {
+          inv.paidAt = new Date();
+          const staff = await Staff.findOne({ userId: req.user.id });
+          if (staff) inv.processedBy = staff._id;
+        } else {
+          inv.paidAt = undefined;
+          inv.processedBy = undefined;
+        }
+        await inv.save();
+      } else if (action === 'delete') {
+        if (inv) {
+          await Invoice.deleteOne({ _id: inv._id });
+        }
+      }
+    }
+    else if (stepIndex === 4) {
+      if (action === 'update') {
+        if (status === 'Completed') {
+          appt.status = 'Completed';
+          await appt.save();
+          let rec = await Medical_Record.findOne({ appointmentId: appt._id });
+          if (!rec) {
+            let doc = await Doctor.findOne({ userId: req.user.id });
+            if (!doc) doc = await Doctor.findById(appt.doctorId);
+            await Medical_Record.create({
+              appointmentId: appt._id,
+              patientId: appt.patientId,
+              doctorId: doc ? doc._id : undefined,
+              diagnosis: 'Khám lâm sàng (Admin chốt)',
+              clinicalNotes: 'Do Admin cập nhật trạng thái quy trình'
+            });
+          }
+        } else {
+          appt.status = 'Confirmed';
+          await appt.save();
+          const rec = await Medical_Record.findOne({ appointmentId: appt._id });
+          if (rec) {
+            await Prescription.deleteMany({ recordId: rec._id });
+            await Medical_Record.deleteOne({ _id: rec._id });
+          }
+        }
+      } else if (action === 'delete') {
+        appt.status = 'Confirmed';
+        await appt.save();
+        const rec = await Medical_Record.findOne({ appointmentId: appt._id });
+        if (rec) {
+          await Prescription.deleteMany({ recordId: rec._id });
+          await Medical_Record.deleteOne({ _id: rec._id });
+        }
+      }
+    }
+    else if (stepIndex === 5) {
+      let inv = await Invoice.findOne({ appointmentId: appt._id, invoiceType: 'Pharmacy' });
+      if (action === 'update') {
+        if (!inv) {
+          inv = await Invoice.create({
+            appointmentId: appt._id,
+            patientId: appt.patientId,
+            invoiceType: 'Pharmacy',
+            totalAmount: 100000,
+            status: 'Unpaid',
+            issuedAt: new Date()
+          });
+        }
+        inv.status = status;
+        if (status === 'Paid') {
+          inv.paidAt = new Date();
+          const staff = await Staff.findOne({ userId: req.user.id });
+          if (staff) inv.processedBy = staff._id;
+        } else {
+          inv.paidAt = undefined;
+          inv.processedBy = undefined;
+        }
+        await inv.save();
+      } else if (action === 'delete') {
+        if (inv) {
+          const Invoice_Detail = require('../../models/Invoice_Detail');
+          await Invoice_Detail.deleteMany({ invoiceId: inv._id });
+          await Invoice.deleteOne({ _id: inv._id });
+        }
+      }
+    }
+
+    const { success: ok } = require('../../utils/response');
+    return ok(res, null, 'Cập nhật bước quy trình thành công');
+  } catch (err) {
+    console.error('updateTimelineStepAdmin error', err);
+    const { fail } = require('../../utils/response');
+    return fail(res, 'Lỗi khi cập nhật bước quy trình', 500, err.message);
+  }
+};
+
+module.exports = { getAllUsers, getUserById, updateUser, createDoctor, getPatients, getAdminStats, queryClinicAI, editUserAdmin, deleteUserAdmin, deleteAppointmentAdmin, updateTimelineStepAdmin };
 

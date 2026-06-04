@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { profilesAPI, schedulingAPI, cmsAPI, billingAPI } from '../../services/api';
+import { profilesAPI, schedulingAPI, cmsAPI, billingAPI, authAPI } from '../../services/api';
 import { useAuth } from '../../store/authContext';
 import './AdminDashboard.css';
 
 export default function AdminDashboard() {
-  const { logout } = useAuth();
+  const { logout, impersonate: setImpersonateCredentials } = useAuth();
   const [activeTab, setActiveTab] = useState('analytics');
   const [stats, setStats] = useState(null);
   const [appointments, setAppointments] = useState([]);
@@ -29,6 +29,42 @@ export default function AdminDashboard() {
   // User Management State
   const [userSubTab, setUserSubTab] = useState('list'); // 'list' | 'create'
   const [userSearch, setUserSearch] = useState('');
+  const [roleFilter, setRoleFilter] = useState('all');
+
+  // User Edit State
+  const [editingUser, setEditingUser] = useState(null);
+  const [editUserForm, setEditUserForm] = useState({
+    username: '',
+    password: '',
+    email: '',
+    phone: '',
+    isActive: true,
+    fullName: '',
+    departmentId: '',
+    specialization: '',
+    experienceYears: 5,
+    baseFee: 150000,
+    position: '',
+  });
+
+  // Floating AI Chatbot State
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [chatMessages, setChatMessages] = useState([
+    {
+      sender: 'ai',
+      text: `### 🧠 TRỢ LÝ PHÂN TÍCH HỆ THỐNG AI
+Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tích hợp trực tiếp để theo dõi hoạt động phòng khám.
+
+**Tôi có thể hỗ trợ bạn phân tích các dữ liệu thực tế sau:**
+1. 👥 **"Phân tích nhân sự và an ninh tài khoản"**: Kiểm tra cơ cấu, an ninh bảo mật và trạng thái khóa tài khoản.
+2. 📰 **"Tối ưu hóa bài viết CMS"**: Đánh giá SEO, đề xuất từ khóa và quản lý bản nháp tin tức.
+3. 💰 **"Đánh giá doanh thu và vận hành"**: Phân tích giờ cao điểm, cấu trúc nguồn thu và xử lý điểm nghẽn quy trình.
+`,
+      time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+    }
+  ]);
+  const [chatInput, setChatInput] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
 
   // AI System Assistant State
   const [aiInput, setAiInput] = useState('');
@@ -201,6 +237,189 @@ export default function AdminDashboard() {
       fetchAdminData();
     } catch (err) {
       setErrorMessage('Không thể xóa bài viết.');
+    }
+  };
+
+  const handleEditUserClick = (u) => {
+    setEditingUser(u);
+    setEditUserForm({
+      username: u.username || '',
+      password: '',
+      email: u.email || '',
+      phone: u.phone || '',
+      isActive: u.isActive !== false,
+      fullName: u.profile?.fullName || '',
+      departmentId: u.profile?.departmentId?._id || u.profile?.departmentId || '',
+      specialization: u.profile?.specialization || '',
+      experienceYears: u.profile?.experienceYears || 0,
+      baseFee: u.profile?.baseFee || 150000,
+      position: u.profile?.position || '',
+    });
+  };
+
+  const handleSaveUserEdit = async (e) => {
+    e.preventDefault();
+    setSubmitting(true);
+    setErrorMessage('');
+    setSuccessMessage('');
+    try {
+      await profilesAPI.editUserAdmin(editingUser._id, editUserForm);
+      setSuccessMessage('Đã cập nhật thông tin tài khoản thành công!');
+      setEditingUser(null);
+      fetchAdminData();
+    } catch (err) {
+      setErrorMessage(err?.response?.data?.message || 'Lỗi khi cập nhật tài khoản.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDeleteUserClick = async (userId) => {
+    if (!window.confirm('Bạn có chắc chắn muốn xóa tài khoản này và mọi thông tin liên quan?')) return;
+    try {
+      setSubmitting(true);
+      setErrorMessage('');
+      setSuccessMessage('');
+      await profilesAPI.deleteUserAdmin(userId);
+      setSuccessMessage('Đã xóa tài khoản thành công!');
+      fetchAdminData();
+    } catch (err) {
+      setErrorMessage(err?.response?.data?.message || 'Lỗi khi xóa tài khoản.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleImpersonateClick = async (userId) => {
+    try {
+      setSubmitting(true);
+      const res = await authAPI.impersonate(userId);
+      const credentials = res.data.data;
+      setImpersonateCredentials(credentials);
+      const role = credentials.role;
+      const homeByRole = {
+        patient: '/patient/dashboard',
+        doctor: '/doctor/schedule',
+        staff: '/staff/dashboard',
+        accountant: '/accountant/dashboard',
+        admin: '/admin/dashboard',
+      };
+      const dest = homeByRole[role] || '/';
+      window.location.href = dest;
+    } catch (err) {
+      setErrorMessage('Đăng nhập hộ thất bại. Vui lòng thử lại.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleUpdateStep = async (appointmentId, stepIndex, action, status) => {
+    try {
+      setSubmitting(true);
+      setErrorMessage('');
+      setSuccessMessage('');
+      await profilesAPI.updateTimelineStepAdmin({ appointmentId, stepIndex, action, status });
+      setSuccessMessage('Đã cập nhật bước quy trình thành công!');
+      fetchAdminData();
+    } catch (err) {
+      setErrorMessage(err?.response?.data?.message || 'Lỗi khi cập nhật bước quy trình.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDeleteAppointment = async (appointmentId) => {
+    if (!window.confirm('Bạn có chắc chắn muốn xóa lịch hẹn này và toàn bộ hóa đơn/bệnh án liên quan?')) return;
+    try {
+      setSubmitting(true);
+      setErrorMessage('');
+      setSuccessMessage('');
+      await profilesAPI.deleteAppointmentAdmin(appointmentId);
+      setSuccessMessage('Đã xóa lịch hẹn thành công!');
+      fetchAdminData();
+    } catch (err) {
+      setErrorMessage('Không thể xóa lịch hẹn.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Kích thước ảnh không được vượt quá 5MB');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      try {
+        setSubmitting(true);
+        const base64Data = reader.result;
+        const res = await cmsAPI.uploadImage(base64Data);
+        setPostForm(prev => ({ ...prev, thumbnailURL: res.data.data.url }));
+        setSuccessMessage('Tải ảnh lên thành công!');
+      } catch (err) {
+        setErrorMessage('Lỗi khi tải ảnh lên server.');
+      } finally {
+        setSubmitting(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSendChatMessage = async (e) => {
+    if (e) e.preventDefault();
+    if (!chatInput.trim()) return;
+    
+    const userText = chatInput;
+    setChatInput('');
+    
+    const newMsg = {
+      sender: 'user',
+      text: userText,
+      time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+    };
+    setChatMessages(prev => [...prev, newMsg]);
+    setChatLoading(true);
+
+    try {
+      const res = await profilesAPI.queryClinicAI(userText);
+      const aiText = res.data.data.text;
+      setChatMessages(prev => [...prev, {
+        sender: 'ai',
+        text: aiText,
+        time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+      }]);
+    } catch (err) {
+      console.warn('AI API Call failed, falling back to local diagnostics', err);
+      setTimeout(() => {
+        let fallbackText = '';
+        const q = userText.toLowerCase();
+        if (q.includes('nhân sự') || q.includes('tài khoản') || q.includes('bảo mật')) {
+          fallbackText = `### 🧠 KẾT QUẢ PHÂN TÍCH NHÂN SỰ & AN NINH
+Hệ thống phát hiện **${usersList.length} tài khoản**. Có **${usersList.filter(u => !u.isActive).length} tài khoản đang bị khóa**.
+Định kỳ 30 ngày khuyên dùng việc thay đổi mật khẩu để tăng tính bảo mật.`;
+        } else if (q.includes('bài viết') || q.includes('cms') || q.includes('seo')) {
+          fallbackText = `### 🧠 BÁO CÁO TỐI ƯU SEO CMS
+Tìm thấy **${postsList.length} bài viết** (${postsList.filter(p => p.status === 'Published').length} đã đăng, ${postsList.filter(p => p.status === 'Draft').length} bản nháp).
+Khuyến nghị bổ sung thẻ ALT hình ảnh và nâng độ dài bài viết lên > 600 từ.`;
+        } else if (q.includes('doanh thu') || q.includes('thống kê') || q.includes('tiền')) {
+          const rev = stats?.revenue?.month || 0;
+          fallbackText = `### 🧠 PHÂN TÍCH DOANH THU & VẬN HÀNH
+Doanh thu tháng này đạt **${formatVND(rev)}**.
+Phí khám lâm sàng chiếm ${consultationPct}%, nhà thuốc chiếm ${pharmacyPct}%.`;
+        } else {
+          fallbackText = `Tôi là trợ lý AI của bạn. Rất vui được hỗ trợ! Bạn có câu hỏi nào khác về hoạt động của phòng khám không?`;
+        }
+        setChatMessages(prev => [...prev, {
+          sender: 'ai',
+          text: fallbackText,
+          time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+        }]);
+      }, 800);
+    } finally {
+      setChatLoading(false);
     }
   };
 
@@ -948,6 +1167,9 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                 <div className="admin-timeline-list">
                   {filteredAppointments.map((appt) => {
                     const steps = getTimelineSteps(appt);
+                    const patientInvoice = invoices.find(inv => inv.appointmentId?._id === appt._id && inv.invoiceType === 'Consultation');
+                    const pharmacyInvoice = invoices.find(inv => inv.appointmentId?._id === appt._id && inv.invoiceType === 'Pharmacy');
+
                     return (
                       <div className="admin-timeline-row" key={appt._id}>
                         <div className="admin-timeline-meta">
@@ -959,17 +1181,103 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                           <span className="admin-badge admin-badge-primary" style={{ marginTop: 6, display: 'inline-block', width: 'fit-content' }}>
                             🩺 Khoa: {appt.departmentId?.departmentName || 'Chưa phân khoa'}
                           </span>
+                          <button
+                            onClick={() => handleDeleteAppointment(appt._id)}
+                            className="admin-btn-danger"
+                            style={{ marginTop: '12px', padding: '6px 12px', fontSize: '12px', width: 'fit-content' }}
+                            disabled={submitting}
+                          >
+                            🗑️ Xóa quy trình
+                          </button>
                         </div>
                         <div className="admin-timeline-steps">
-                          {steps.map((s, idx) => (
-                            <div className="admin-timeline-step" key={idx}>
-                              <div className={`admin-step-dot ${s.done === true ? 'done' : s.done === false ? 'warn' : 'waiting'}`}>
-                                {s.done === true ? '✓' : s.done === false ? '!' : '○'}
-                              </div>
-                              <span className="admin-step-label">{s.label}</span>
-                              <span className="admin-step-desc">{s.desc}</span>
+                          {/* Step 1: Requested */}
+                          <div className="admin-timeline-step">
+                            <div className="admin-step-dot done">✓</div>
+                            <span className="admin-step-label">Yêu cầu đặt</span>
+                            <span className="admin-step-desc">BN: {appt.patientId?.fullName || 'Bệnh nhân'}</span>
+                          </div>
+
+                          {/* Step 2: CSKH Approved */}
+                          <div className="admin-timeline-step">
+                            <div className={`admin-step-dot ${appt.status !== 'Pending' && appt.status !== 'Canceled' ? 'done' : appt.status === 'Canceled' ? 'warn' : 'waiting'}`}>
+                              {appt.status !== 'Pending' && appt.status !== 'Canceled' ? '✓' : appt.status === 'Canceled' ? '!' : '○'}
                             </div>
-                          ))}
+                            <span className="admin-step-label">CSKH Duyệt</span>
+                            <span className="admin-step-desc">
+                              {appt.status === 'Pending' ? 'Đang chờ' : `Bởi: ${appt.confirmedBy?.fullName || appt.confirmedBy?.username || 'CSKH'}`}
+                            </span>
+                            <div className="admin-timeline-actions">
+                              {appt.status === 'Pending' ? (
+                                <button onClick={() => handleUpdateStep(appt._id, 2, 'update', 'Confirmed')} className="action-link-btn green">Duyệt</button>
+                              ) : (
+                                <button onClick={() => handleUpdateStep(appt._id, 2, 'update', 'Pending')} className="action-link-btn orange">Reset</button>
+                              )}
+                              <button onClick={() => handleUpdateStep(appt._id, 2, 'update', 'Canceled')} className="action-link-btn red">Hủy</button>
+                            </div>
+                          </div>
+
+                          {/* Step 3: Consultation Fee */}
+                          <div className="admin-timeline-step">
+                            <div className={`admin-step-dot ${patientInvoice?.status === 'Paid' ? 'done' : 'waiting'}`}>
+                              {patientInvoice?.status === 'Paid' ? '✓' : '○'}
+                            </div>
+                            <span className="admin-step-label">Phí lâm sàng</span>
+                            <span className="admin-step-desc">
+                              {patientInvoice?.status === 'Paid' ? `Bởi: ${patientInvoice.processedBy?.fullName || 'Kế toán'}` : 'Chưa đóng'}
+                            </span>
+                            <div className="admin-timeline-actions">
+                              {patientInvoice?.status === 'Paid' ? (
+                                <button onClick={() => handleUpdateStep(appt._id, 3, 'update', 'Unpaid')} className="action-link-btn orange">Unpaid</button>
+                              ) : (
+                                <button onClick={() => handleUpdateStep(appt._id, 3, 'update', 'Paid')} className="action-link-btn green">Thanh toán</button>
+                              )}
+                              <button onClick={() => handleUpdateStep(appt._id, 3, 'delete')} className="action-link-btn red">Xóa HĐ</button>
+                            </div>
+                          </div>
+
+                          {/* Step 4: Doctor Exam */}
+                          <div className="admin-timeline-step">
+                            <div className={`admin-step-dot ${appt.status === 'Completed' ? 'done' : 'waiting'}`}>
+                              {appt.status === 'Completed' ? '✓' : '○'}
+                            </div>
+                            <span className="admin-step-label">Bác sĩ khám</span>
+                            <span className="admin-step-desc">
+                              {appt.status === 'Completed' ? `Khám xong bởi: ${appt.doctorId?.fullName || 'Bác sĩ'}` : 'Chưa khám'}
+                            </span>
+                            <div className="admin-timeline-actions">
+                              {appt.status === 'Completed' ? (
+                                <button onClick={() => handleUpdateStep(appt._id, 4, 'update', 'Confirmed')} className="action-link-btn orange">Reset</button>
+                              ) : (
+                                <button onClick={() => handleUpdateStep(appt._id, 4, 'update', 'Completed')} className="action-link-btn green">Xác nhận</button>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Step 5: Pharmacy Invoice */}
+                          <div className="admin-timeline-step">
+                            <div className={`admin-step-dot ${pharmacyInvoice ? (pharmacyInvoice.status === 'Paid' ? 'done' : 'warn') : 'waiting'}`}>
+                              {pharmacyInvoice ? (pharmacyInvoice.status === 'Paid' ? '✓' : '!') : '○'}
+                            </div>
+                            <span className="admin-step-label">Tiền thuốc</span>
+                            <span className="admin-step-desc">
+                              {pharmacyInvoice ? (pharmacyInvoice.status === 'Paid' ? `Bởi: ${pharmacyInvoice.processedBy?.fullName || 'Kế toán'}` : 'Chờ thu tiền') : 'Không thuốc'}
+                            </span>
+                            <div className="admin-timeline-actions">
+                              {pharmacyInvoice ? (
+                                <>
+                                  {pharmacyInvoice.status === 'Paid' ? (
+                                    <button onClick={() => handleUpdateStep(appt._id, 5, 'update', 'Unpaid')} className="action-link-btn orange">Unpaid</button>
+                                  ) : (
+                                    <button onClick={() => handleUpdateStep(appt._id, 5, 'update', 'Paid')} className="action-link-btn green">Thanh toán</button>
+                                  )}
+                                  <button onClick={() => handleUpdateStep(appt._id, 5, 'delete')} className="action-link-btn red">Xóa</button>
+                                </>
+                              ) : (
+                                <button onClick={() => handleUpdateStep(appt._id, 5, 'update', 'Unpaid')} className="action-link-btn blue">+ Tạo HĐ</button>
+                              )}
+                            </div>
+                          </div>
                         </div>
                       </div>
                     );
@@ -1007,14 +1315,26 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
 
               {userSubTab === 'list' ? (
                 <div>
-                  {/* Search bar */}
-                  <div className="admin-dark-form" style={{ marginBottom: 20 }}>
+                  {/* Search bar & Role filter */}
+                  <div className="admin-dark-form" style={{ marginBottom: 20, display: 'flex', gap: 15 }}>
                     <input
                       type="text"
-                      placeholder="🔍 Tìm nhân viên theo tên, số điện thoại..."
+                      placeholder="🔍 Tìm nhân viên/người dùng theo tên, số điện thoại..."
                       value={userSearch}
                       onChange={(e) => setUserSearch(e.target.value)}
+                      style={{ flex: 1 }}
                     />
+                    <select
+                      value={roleFilter}
+                      onChange={(e) => setRoleFilter(e.target.value)}
+                      style={{ width: 220, cursor: 'pointer' }}
+                    >
+                      <option value="all">👥 Tất cả vai trò</option>
+                      <option value="doctor">🩺 Bác sĩ</option>
+                      <option value="staff">接待 Lễ tân / CSKH</option>
+                      <option value="accountant">💰 Kế toán</option>
+                      <option value="patient">👤 Bệnh nhân</option>
+                    </select>
                   </div>
 
                   {/* List Table */}
@@ -1032,7 +1352,10 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                       </thead>
                       <tbody>
                         {usersList
-                          .filter(u => u.role !== 'patient')
+                          .filter(u => {
+                            if (roleFilter === 'all') return true;
+                            return u.role === roleFilter;
+                          })
                           .filter(u => {
                             const fullName = u.profile?.fullName || '';
                             const username = u.username || '';
@@ -1044,17 +1367,18 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                             else if (u.role === 'doctor') roleLabel = 'Bác sĩ';
                             else if (u.role === 'staff') roleLabel = 'Lễ tân/CSKH';
                             else if (u.role === 'accountant') roleLabel = 'Kế toán';
+                            else if (u.role === 'patient') roleLabel = 'Bệnh nhân';
 
                             const position = u.role === 'doctor' 
                               ? u.profile?.specialization 
-                              : (u.profile?.position || (u.role === 'admin' ? 'Quản lý hệ thống' : 'Nhân sự'));
+                              : (u.profile?.position || (u.role === 'admin' ? 'Quản lý hệ thống' : u.role === 'patient' ? 'Khách hàng' : 'Nhân sự'));
 
                             return (
                               <tr key={u._id}>
                                 <td><strong>{u.username}</strong></td>
-                                <td>{u.profile?.fullName || 'Admin'}</td>
+                                <td>{u.profile?.fullName || (u.role === 'admin' ? 'Admin' : 'Chưa thiết lập')}</td>
                                 <td>
-                                  <span className={`admin-badge admin-badge-${u.role === 'admin' ? 'danger' : u.role === 'doctor' ? 'primary' : 'success'}`}>
+                                  <span className={`admin-badge admin-badge-${u.role === 'admin' ? 'danger' : u.role === 'doctor' ? 'primary' : u.role === 'patient' ? 'info' : 'success'}`}>
                                     {roleLabel}
                                   </span>
                                 </td>
@@ -1066,14 +1390,40 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                                 </td>
                                 <td className="btn-cell">
                                   {u.role !== 'admin' && (
-                                    <button
-                                      className={u.isActive ? 'admin-btn-danger' : 'admin-btn-emerald'}
-                                      onClick={() => handleToggleActive(u._id, u.isActive)}
-                                      disabled={submitting}
-                                      style={{ minWidth: 110, padding: '6px 12px', fontSize: '13px' }}
-                                    >
-                                      {u.isActive ? '🔒 Khóa' : '🔓 Kích hoạt'}
-                                    </button>
+                                    <>
+                                      <button
+                                        className={u.isActive ? 'admin-btn-danger' : 'admin-btn-emerald'}
+                                        onClick={() => handleToggleActive(u._id, u.isActive)}
+                                        disabled={submitting}
+                                        style={{ padding: '4px 8px', fontSize: '12px' }}
+                                      >
+                                        {u.isActive ? '🔒 Khóa' : '🔓 Mở'}
+                                      </button>
+                                      <button
+                                        className="admin-btn-secondary"
+                                        onClick={() => handleEditUserClick(u)}
+                                        disabled={submitting}
+                                        style={{ padding: '4px 8px', fontSize: '12px' }}
+                                      >
+                                        ✏️ Sửa
+                                      </button>
+                                      <button
+                                        className="admin-btn-danger"
+                                        onClick={() => handleDeleteUserClick(u._id)}
+                                        disabled={submitting}
+                                        style={{ padding: '4px 8px', fontSize: '12px' }}
+                                      >
+                                        🗑️ Xóa
+                                      </button>
+                                      <button
+                                        className="admin-btn-secondary"
+                                        onClick={() => handleImpersonateClick(u._id)}
+                                        disabled={submitting}
+                                        style={{ padding: '4px 8px', fontSize: '12px', backgroundColor: '#3b82f6', color: '#fff', borderColor: '#2563eb' }}
+                                      >
+                                        👤 Vào vai
+                                      </button>
+                                    </>
                                   )}
                                 </td>
                               </tr>
@@ -1082,6 +1432,124 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                       </tbody>
                     </table>
                   </div>
+
+                  {/* Edit User Modal */}
+                  {editingUser && (
+                    <div className="admin-modal-overlay">
+                      <div className="admin-modal-content">
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
+                          <h3 style={{ margin: 0 }}>✏️ Chỉnh sửa tài khoản người dùng</h3>
+                          <button className="admin-close-modal-btn" onClick={() => setEditingUser(null)}>×</button>
+                        </div>
+                        <form onSubmit={handleSaveUserEdit} className="admin-dark-form grid-form">
+                          <div className="form-group">
+                            <label>Tên đăng nhập (SĐT)</label>
+                            <input
+                              type="text"
+                              value={editUserForm.username}
+                              onChange={(e) => setEditUserForm({ ...editUserForm, username: e.target.value })}
+                              required
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label>Mật khẩu mới (Để trống nếu không đổi)</label>
+                            <input
+                              type="password"
+                              value={editUserForm.password}
+                              onChange={(e) => setEditUserForm({ ...editUserForm, password: e.target.value })}
+                              placeholder="Nhập mật khẩu mới..."
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label>Họ và tên *</label>
+                            <input
+                              type="text"
+                              value={editUserForm.fullName}
+                              onChange={(e) => setEditUserForm({ ...editUserForm, fullName: e.target.value })}
+                              required
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label>Email</label>
+                            <input
+                              type="email"
+                              value={editUserForm.email}
+                              onChange={(e) => setEditUserForm({ ...editUserForm, email: e.target.value })}
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label>Số điện thoại</label>
+                            <input
+                              type="text"
+                              value={editUserForm.phone}
+                              onChange={(e) => setEditUserForm({ ...editUserForm, phone: e.target.value })}
+                            />
+                          </div>
+                          {editingUser.role === 'doctor' && (
+                            <>
+                              <div className="form-group">
+                                <label>Chuyên khoa *</label>
+                                <input
+                                  type="text"
+                                  value={editUserForm.specialization}
+                                  onChange={(e) => setEditUserForm({ ...editUserForm, specialization: e.target.value })}
+                                  required
+                                />
+                              </div>
+                              <div className="form-group">
+                                <label>Khoa chỉ định *</label>
+                                <select
+                                  value={editUserForm.departmentId}
+                                  onChange={(e) => setEditUserForm({ ...editUserForm, departmentId: e.target.value })}
+                                  required
+                                >
+                                  <option value="">-- Chọn khoa --</option>
+                                  {departments.map((d) => (
+                                    <option key={d._id} value={d._id}>{d.departmentName}</option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div className="form-group">
+                                <label>Số năm kinh nghiệm</label>
+                                <input
+                                  type="number"
+                                  value={editUserForm.experienceYears}
+                                  onChange={(e) => setEditUserForm({ ...editUserForm, experienceYears: e.target.value })}
+                                />
+                              </div>
+                              <div className="form-group">
+                                <label>Phí khám lâm sàng *</label>
+                                <input
+                                  type="number"
+                                  value={editUserForm.baseFee}
+                                  onChange={(e) => setEditUserForm({ ...editUserForm, baseFee: e.target.value })}
+                                  required
+                                />
+                              </div>
+                            </>
+                          )}
+                          {(editingUser.role === 'staff' || editingUser.role === 'accountant') && (
+                            <div className="form-group">
+                              <label>Vị trí / Nhiệm vụ</label>
+                              <input
+                                type="text"
+                                value={editUserForm.position}
+                                onChange={(e) => setEditUserForm({ ...editUserForm, position: e.target.value })}
+                              />
+                            </div>
+                          )}
+                          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', gridColumn: 'span 2', marginTop: '15px' }}>
+                            <button type="button" className="admin-btn-secondary" onClick={() => setEditingUser(null)}>
+                              Hủy
+                            </button>
+                            <button type="submit" className="admin-btn-emerald" disabled={submitting}>
+                              Lưu thay đổi
+                            </button>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <form onSubmit={handleCreateUser} className="admin-dark-form grid-form">
@@ -1214,45 +1682,58 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
               <p className="subtitle">Tạo, cập nhật hoặc xóa các bài viết hướng dẫn sức khỏe, hoạt động phòng khám trên website.</p>
 
               {/* Form create/edit */}
-              <form onSubmit={handleSavePost} className="admin-dark-form admin-inner-form">
+              <form onSubmit={handleSavePost} className="admin-dark-form admin-inner-form post-form-redesign">
                 <h3 style={{ marginTop: 0, marginBottom: 20 }}>{editingPost ? '📝 Chỉnh sửa bài viết' : '➕ Tạo bài viết mới'}</h3>
                 
-                <div className="form-group">
-                  <label>Tiêu đề bài viết *</label>
-                  <input
-                    type="text"
-                    value={postForm.title}
-                    onChange={(e) => setPostForm({ ...postForm, title: e.target.value })}
-                    placeholder="VD: Cách phòng tránh dịch sốt xuất huyết mùa hè"
-                    required
-                  />
-                </div>
+                <div className="post-form-grid">
+                  <div className="form-group">
+                    <label>Tiêu đề bài viết *</label>
+                    <input
+                      type="text"
+                      value={postForm.title}
+                      onChange={(e) => setPostForm({ ...postForm, title: e.target.value })}
+                      placeholder="VD: Cách phòng tránh dịch sốt xuất huyết mùa hè"
+                      required
+                    />
+                  </div>
 
-                <div className="form-group">
-                  <label>Ảnh bìa bài viết (URL)</label>
-                  <input
-                    type="text"
-                    value={postForm.thumbnailURL}
-                    onChange={(e) => setPostForm({ ...postForm, thumbnailURL: e.target.value })}
-                    placeholder="https://images.unsplash.com/photo-..."
-                  />
-                </div>
+                  <div className="form-group">
+                    <label>Ảnh bìa bài viết *</label>
+                    <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                      <input
+                        type="text"
+                        value={postForm.thumbnailURL}
+                        onChange={(e) => setPostForm({ ...postForm, thumbnailURL: e.target.value })}
+                        placeholder="https://images.unsplash.com/photo-..."
+                        style={{ flex: 1 }}
+                        required
+                      />
+                      <span style={{ color: '#64748b', fontSize: '13px', whiteSpace: 'nowrap' }}>hoặc Tải lên:</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                        style={{ width: 'auto', border: 'none', padding: 0, margin: 0, cursor: 'pointer' }}
+                      />
+                    </div>
+                  </div>
 
-                <div className="form-group">
-                  <label>Trạng thái phát hành</label>
-                  <select
-                    value={postForm.status}
-                    onChange={(e) => setPostForm({ ...postForm, status: e.target.value })}
-                  >
-                    <option value="Published">Phát hành công khai (Published)</option>
-                    <option value="Draft">Bản nháp (Draft)</option>
-                  </select>
+                  <div className="form-group">
+                    <label>Trạng thái phát hành</label>
+                    <select
+                      value={postForm.status}
+                      onChange={(e) => setPostForm({ ...postForm, status: e.target.value })}
+                    >
+                      <option value="Published">Phát hành công khai (Published)</option>
+                      <option value="Draft">Bản nháp (Draft)</option>
+                    </select>
+                  </div>
                 </div>
 
                 <div className="form-group">
                   <label>Nội dung chi tiết bài viết (Markdown hoặc Text)*</label>
                   <textarea
-                    rows="6"
+                    rows="8"
                     value={postForm.content}
                     onChange={(e) => setPostForm({ ...postForm, content: e.target.value })}
                     placeholder="Nhập nội dung bài viết sức khỏe tại đây..."
@@ -1260,7 +1741,7 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                   />
                 </div>
 
-                <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 15 }}>
                   {editingPost && (
                     <button
                       type="button"
@@ -1499,6 +1980,70 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
             </div>
           )}
         </main>
+      </div>
+      
+      {/* Floating AI Chatbot */}
+      <div className={`floating-chatbot ${isChatOpen ? 'open' : ''}`}>
+        {isChatOpen ? (
+          <div className="chatbot-window">
+            <div className="chatbot-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '18px' }}>🧠</span>
+                <div>
+                  <h4 style={{ margin: 0, fontSize: '13px', color: '#fff', fontWeight: 'bold' }}>Trợ lý AI Phòng khám</h4>
+                  <span style={{ fontSize: '10px', color: '#10b981', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: '500' }}>
+                    <span style={{ width: '6px', height: '6px', backgroundColor: '#10b981', borderRadius: '50%', display: 'inline-block' }}></span> Trực tuyến
+                  </span>
+                </div>
+              </div>
+              <button className="chatbot-close-btn" onClick={() => setIsChatOpen(false)}>×</button>
+            </div>
+            
+            <div className="chatbot-messages">
+              {chatMessages.map((msg, i) => (
+                <div key={i} className={`chat-bubble-wrapper ${msg.sender}`}>
+                  <div className={`chat-bubble ${msg.sender}`}>
+                    {msg.sender === 'ai' ? renderAIResponse(msg.text) : <p style={{ margin: 0 }}>{msg.text}</p>}
+                    <span className="chat-time">{msg.time}</span>
+                  </div>
+                </div>
+              ))}
+              {chatLoading && (
+                <div className="chat-bubble-wrapper ai">
+                  <div className="chat-bubble ai thinking">
+                    <span className="thinking-dot"></span>
+                    <span className="thinking-dot"></span>
+                    <span className="thinking-dot"></span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="chatbot-suggestions">
+              <button onClick={() => { setChatInput('Phân tích nhân sự và an ninh tài khoản'); }}>👥 Nhân sự</button>
+              <button onClick={() => { setChatInput('Tối ưu hóa bài viết CMS'); }}>📰 SEO CMS</button>
+              <button onClick={() => { setChatInput('Phân tích doanh thu và hiệu suất vận hành'); }}>💰 Doanh thu</button>
+            </div>
+
+            <form onSubmit={handleSendChatMessage} className="chatbot-input-form">
+              <input
+                type="text"
+                placeholder="Nhập câu hỏi tại đây..."
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                disabled={chatLoading}
+              />
+              <button type="submit" id="chat-submit-btn" disabled={chatLoading}>
+                ✈️
+              </button>
+            </form>
+          </div>
+        ) : (
+          <button className="chatbot-toggle-btn" onClick={() => setIsChatOpen(true)}>
+            <span className="chatbot-pulse-glow"></span>
+            💬 Trợ lý AI
+          </button>
+        )}
       </div>
     </div>
   );
