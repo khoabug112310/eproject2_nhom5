@@ -145,8 +145,8 @@ export default function DoctorSchedule() {
 
     const newItem = {
       medicineId: selectedMed._id,
-      name: selectedMed.name,
-      dosageForm: selectedMed.dosageForm,
+      name: selectedMed.medicineName || selectedMed.name,
+      dosageForm: selectedMed.usageRoute || selectedMed.dosageForm || 'Uống',
       quantity: Number(medForm.quantity),
       dosage: medForm.dosage,
       frequency: medForm.frequency,
@@ -231,7 +231,9 @@ export default function DoctorSchedule() {
 
   // Filters for medicines
   const filteredMeds = medSearch
-    ? medicinesList.filter(m => m.name.toLowerCase().includes(medSearch.toLowerCase()))
+    ? medicinesList.filter(m => 
+        (m.medicineName || m.name || '').toLowerCase().includes(medSearch.toLowerCase())
+      )
     : [];
 
   if (loading) {
@@ -483,13 +485,16 @@ export default function DoctorSchedule() {
                             type="text"
                             placeholder="🔍 Tìm kiếm tên thuốc tại kho..."
                             value={medSearch}
-                            onChange={(e) => setMedSearch(e.target.value)}
+                            onChange={(e) => {
+                              setMedSearch(e.target.value);
+                              if (selectedMed) setSelectedMed(null);
+                            }}
                           />
-                          {medSearch && filteredMeds.length > 0 && (
+                          {medSearch && !selectedMed && filteredMeds.length > 0 && (
                             <ul className="search-dropdown-menu">
                               {filteredMeds.map((med) => (
-                                <li key={med._id} onClick={() => { setSelectedMed(med); setMedSearch(med.name); }}>
-                                  {med.name} ({med.dosageForm}) - Tồn kho: {med.stockQuantity} {med.unit}
+                                <li key={med._id} onClick={() => { setSelectedMed(med); setMedSearch(med.medicineName || med.name || ''); }}>
+                                  {med.medicineName || med.name} ({med.usageRoute || med.dosageForm || 'Uống'}) - Tồn kho: {med.stockQuantity} {med.unit}
                                 </li>
                               ))}
                             </ul>
@@ -499,7 +504,18 @@ export default function DoctorSchedule() {
 
                       {selectedMed && (
                         <div className="selected-medication-panel">
-                          <p>Đang kê: <strong>{selectedMed.name}</strong> ({selectedMed.dosageForm}) | Giá: {selectedMed.unitPrice}đ | Tồn: {selectedMed.stockQuantity}</p>
+                          <p>
+                            Đang kê: <strong>{selectedMed.medicineName || selectedMed.name}</strong> ({selectedMed.usageRoute || selectedMed.dosageForm}) 
+                            | Giá: {selectedMed.unitPrice}đ | Tồn: {selectedMed.stockQuantity} {selectedMed.unit}
+                            <button 
+                              type="button" 
+                              className="btn btn-ghost btn-xs" 
+                              style={{ marginLeft: '10px', color: '#ef4444', minHeight: '28px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center' }} 
+                              onClick={() => { setSelectedMed(null); setMedSearch(''); }}
+                            >
+                              ❌ Hủy chọn
+                            </button>
+                          </p>
                           <div className="med-fields-grid">
                             <div className="form-group-xs">
                               <label>Số lượng</label>
@@ -646,7 +662,7 @@ export default function DoctorSchedule() {
                                           <ul style="padding-left: 20px; margin: 0;">
                                             ${res.data.data.length === 0 
                                               ? '<li>Không kê đơn thuốc</li>' 
-                                              : res.data.data.map(p => `<li><strong>${p.medicineId?.name || 'Thuốc'}</strong>: ${p.quantity} viên (${p.dosage} - ${p.frequency} - Dùng ${p.durationDays} ngày)</li>`).join('')
+                                              : res.data.data.map(p => `<li><strong>${p.medicineId?.medicineName || p.medicineId?.name || 'Thuốc'}</strong>: ${p.quantity} viên (${p.dosage} - ${p.frequency} - Dùng ${p.durationDays} ngày)</li>`).join('')
                                             }
                                           </ul>
                                         </div>
