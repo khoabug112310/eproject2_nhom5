@@ -38,9 +38,14 @@ export default function RegisterModal({ show, onClose }) {
     } catch (err) {
       const status = err?.response?.status;
       const msg = err?.response?.data?.message || err.message;
+      const existingName = err?.response?.data?.data?.fullName || '';
       if (status === 409) {
         // Account exists in profiles but is not active
-        setMessage('Số điện thoại này đã tồn tại trong danh sách bệnh nhân. Vui lòng nhập mật khẩu mới để kích hoạt tài khoản khám trực tuyến.');
+        if (existingName) {
+          setMessage(`Chào anh/chị ${existingName}, số điện thoại này đã tồn tại trong danh sách bệnh nhân. Vui lòng nhập mật khẩu mới để kích hoạt tài khoản khám trực tuyến.`);
+        } else {
+          setMessage('Số điện thoại này đã tồn tại trong danh sách bệnh nhân. Vui lòng nhập mật khẩu mới để kích hoạt tài khoản khám trực tuyến.');
+        }
         setStep(2);
       } else if (status === 400) {
         // New registration required
@@ -105,7 +110,6 @@ export default function RegisterModal({ show, onClose }) {
         </button>
 
         <div className="modal-header">
-          <div className="modal-logo">🏥</div>
           <div className="modal-title">Đăng ký tài khoản</div>
           <div className="modal-subtitle">Đăng ký để đặt lịch hẹn và theo dõi hồ sơ bệnh án</div>
         </div>

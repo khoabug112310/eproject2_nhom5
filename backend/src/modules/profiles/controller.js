@@ -129,7 +129,7 @@ const updateUser = async (req, res) => {
 
 const createDoctor = async (req, res) => {
   try {
-    const { username, password, roleName, fullName, email, phone, departmentId, specialization, experienceYears, baseFee, bio, position } = req.body;
+    const { username, password, roleName, fullName, email, phone, departmentId, specialization, experienceYears, qualifications, baseFee, bio, position } = req.body;
     if (!username || !password || !roleName || !fullName) {
       return res.status(400).json({ success: false, message: 'username, password, roleName, fullName là bắt buộc' });
     }
@@ -150,7 +150,8 @@ const createDoctor = async (req, res) => {
       roleId: role._id,
       email,
       phone: phone || username,
-      isActive: true
+      isActive: true,
+      isRegistered: true
     });
 
     let details = null;
@@ -161,6 +162,7 @@ const createDoctor = async (req, res) => {
         specialization: specialization || 'Chuyên khoa',
         departmentId: departmentId,
         experienceYears: Number(experienceYears) || 0,
+        qualifications: qualifications || 'Bác sĩ chuyên khoa',
         baseFee: Number(baseFee) || 150000,
         bio: bio || '',
         avatarURL: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?q=80&w=300&auto=format&fit=crop'

@@ -59,6 +59,8 @@ export const clinicalAPI = {
     apiClient.get('/clinical/medicines'),
   getDoctors: () =>
     apiClient.get('/clinical/doctors'),
+  getPublicStats: () =>
+    apiClient.get('/clinical/public-stats'),
   getMedicalRecords: (params) =>
     apiClient.get('/clinical/medical-records', { params }),
   createMedicalRecord: (data) =>
@@ -93,6 +95,12 @@ export const cmsAPI = {
     apiClient.delete(`/cms/posts/${id}`),
   submitContactInquiry: (data) =>
     apiClient.post('/cms/contact-inquiries', data),
+};
+
+// Public Booking API
+export const bookingAPI = {
+  submitQuickBooking: (data) =>
+    apiClient.post('/booking', data),
 };
 
 export default apiClient;

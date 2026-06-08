@@ -19,7 +19,7 @@ const createBooking = async (req, res) => {
     let createdUser = false;
     if (!user) {
       const tempPwd = Math.random().toString(36) + Date.now();
-      user = await User.create({ username: phone, passwordHash: tempPwd, roleId: patientRole._id, phone, isActive: true });
+      user = await User.create({ username: phone, passwordHash: tempPwd, roleId: patientRole._id, phone, isActive: true, isRegistered: false });
       createdUser = true;
     }
 
@@ -38,25 +38,37 @@ const createBooking = async (req, res) => {
       });
     }
 
-    // Resolve departmentId
+    // Resolve departmentId and name for QuickBooking
     let departmentId = null;
+    let departmentNameForQuick = '';
     if (reqDept) {
       if (/^[0-9a-fA-F]{24}$/.test(String(reqDept))) {
         departmentId = reqDept;
+        const dep = await Department.findById(reqDept);
+        if (dep) departmentNameForQuick = dep.departmentName || dep.name || '';
       } else {
         const dep = await Department.findOne({ departmentName: reqDept });
-        if (dep) departmentId = dep._id;
+        if (dep) {
+          departmentId = dep._id;
+          departmentNameForQuick = dep.departmentName || dep.name || '';
+        }
       }
     }
 
-    // Resolve doctorId
+    // Resolve doctorId and name for QuickBooking
     let doctorId = null;
+    let doctorNameForQuick = '';
     if (reqDoc) {
       if (/^[0-9a-fA-F]{24}$/.test(String(reqDoc))) {
         doctorId = reqDoc;
+        const doc = await Doctor.findById(reqDoc);
+        if (doc) doctorNameForQuick = doc.fullName || '';
       } else {
         const doc = await Doctor.findOne({ fullName: reqDoc });
-        if (doc) doctorId = doc._id;
+        if (doc) {
+          doctorId = doc._id;
+          doctorNameForQuick = doc.fullName || '';
+        }
       }
     }
 
@@ -79,8 +91,9 @@ const createBooking = async (req, res) => {
     const booking = await QuickBooking.create({ 
       name, 
       phone, 
-      department: reqDept, 
-      doctor: reqDoc, 
+      department: departmentNameForQuick || reqDept, 
+      doctor: doctorNameForQuick || reqDoc, 
+      bookingDate: reqDate || '',
       time: requestedTime 
     });
 

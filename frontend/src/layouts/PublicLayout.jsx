@@ -8,11 +8,40 @@ import hero2 from '../images/hero2.jpg';
 import hero3 from '../images/hero3.jpg';
 import HeroSlideshow from './HeroSlideshow';
 import LoginModal from '../components/LoginModal';
+import QuickBookingModal from '../components/QuickBookingModal';
+import ChatbotWidget from '../components/ChatbotWidget';
 
 export default function PublicLayout({ children }) {
   const [showLogin, setShowLogin] = useState(false);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const [showBooking, setShowBooking] = useState(false);
   const location = useLocation();
   const isHome = location.pathname === '/';
+
+  useEffect(() => {
+    const handleOpenBooking = () => setShowBooking(true);
+    window.addEventListener('open-booking-modal', handleOpenBooking);
+    return () => window.removeEventListener('open-booking-modal', handleOpenBooking);
+  }, []);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > 300) {
+        setShowScrollTop(true);
+      } else {
+        setShowScrollTop(false);
+      }
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+  };
 
   return (
     <div className="public-layout">
@@ -35,14 +64,7 @@ export default function PublicLayout({ children }) {
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
               Đăng nhập
             </button>
-            <button className="btn btn-primary btn-quick" onClick={() => {
-              const bookingEl = document.getElementById('booking-section');
-              if (bookingEl) {
-                bookingEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-              } else {
-                window.location.href = '/#booking-section';
-              }
-            }}>
+            <button className="btn btn-primary btn-quick" onClick={() => setShowBooking(true)}>
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
               Đặt lịch nhanh
             </button>
@@ -62,10 +84,7 @@ export default function PublicLayout({ children }) {
               <h1>Chăm sóc sức khỏe tận tâm — đặt lịch nhanh, tiện lợi</h1>
               <p>Đội ngũ bác sĩ chuyên môn cao, trang thiết bị y tế hiện đại, kết hợp tinh hoa Y Học Cổ Truyền và Y Học Hiện Đại. Đặt lịch khám chỉ trong vài bước đơn giản.</p>
               <div className="hero-overlay-ctas">
-                <button className="btn btn-primary" onClick={() => {
-                  const bookingEl = document.getElementById('booking-section');
-                  bookingEl?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }}>
+                <button className="btn btn-primary" onClick={() => setShowBooking(true)}>
                   Đặt lịch ngay
                 </button>
                 <a className="btn btn-ghost" href="/departments" style={{ color: '#ffffff', borderColor: '#ffffff' }}>
@@ -78,6 +97,8 @@ export default function PublicLayout({ children }) {
       )}
 
       <LoginModal show={showLogin} onClose={() => setShowLogin(false)} />
+      <QuickBookingModal show={showBooking} onClose={() => setShowBooking(false)} />
+      <ChatbotWidget />
 
       <main className="container">{children}</main>
 
@@ -115,6 +136,60 @@ export default function PublicLayout({ children }) {
           &copy; {new Date().getFullYear()} Phòng Khám Đa Khoa Hợp Sơn Tài. Bảo lưu mọi quyền.
         </div>
       </footer>
+
+      {/* Back to Top button */}
+      <button
+        onClick={scrollToTop}
+        style={{
+          position: 'fixed',
+          bottom: '30px',
+          right: '30px',
+          width: '46px',
+          height: '46px',
+          borderRadius: '50%',
+          background: 'linear-gradient(135deg, var(--color-primary, #3b82f6) 0%, var(--color-secondary, #0f766e) 100%)',
+          color: 'white',
+          border: 'none',
+          outline: 'none',
+          cursor: 'pointer',
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          opacity: showScrollTop ? 1 : 0,
+          transform: showScrollTop ? 'scale(1)' : 'scale(0.8)',
+          pointerEvents: showScrollTop ? 'auto' : 'none',
+          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+        }}
+        onMouseEnter={(e) => {
+          if (showScrollTop) {
+            e.currentTarget.style.transform = 'scale(1.1)';
+            e.currentTarget.style.boxShadow = '0 6px 16px rgba(0, 0, 0, 0.25)';
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (showScrollTop) {
+            e.currentTarget.style.transform = 'scale(1)';
+            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+          }
+        }}
+        title="Lên đầu trang"
+      >
+        <svg 
+          xmlns="http://www.w3.org/2000/svg" 
+          width="20" 
+          height="20" 
+          viewBox="0 0 24 24" 
+          fill="none" 
+          stroke="currentColor" 
+          strokeWidth="3" 
+          strokeLinecap="round" 
+          strokeLinejoin="round"
+        >
+          <polyline points="18 15 12 9 6 15"></polyline>
+        </svg>
+      </button>
     </div>
   );
 }
