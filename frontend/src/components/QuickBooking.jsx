@@ -9,13 +9,30 @@ export default function QuickBooking({
   isInline = false,
   isModal = false
 }) {
+  const getFormattedLocalDate = (dateObj) => {
+    const year = dateObj.getFullYear();
+    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const day = String(dateObj.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const getMinBookingDate = () => {
+    const now = new Date();
+    const currentHour = now.getHours();
+    if (currentHour >= 17) {
+      const tomorrow = new Date(now);
+      tomorrow.setDate(now.getDate() + 1);
+      return getFormattedLocalDate(tomorrow);
+    }
+    return getFormattedLocalDate(now);
+  };
+
+  const minBookingDate = getMinBookingDate();
+
   const [department, setDepartment] = useState(initialDepartmentId);
   const [doctor, setDoctor] = useState(initialDoctorId);
   const [time, setTime] = useState('09:00');
-  const [date, setDate] = useState(() => {
-    const today = new Date();
-    return today.toISOString().split('T')[0];
-  });
+  const [date, setDate] = useState(() => getMinBookingDate());
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
@@ -29,6 +46,12 @@ export default function QuickBooking({
     const role = localStorage.getItem('userRole');
     const loggedIn = !!(token && role === 'patient');
     setIsPatientLoggedIn(loggedIn);
+    if (loggedIn) {
+      const storedName = localStorage.getItem('userDisplayName');
+      const storedPhone = localStorage.getItem('userName');
+      if (storedName) setName(storedName);
+      if (storedPhone) setPhone(storedPhone);
+    }
   }, []);
 
   const [localDepartments, setLocalDepartments] = useState([]);
@@ -116,6 +139,13 @@ export default function QuickBooking({
       return;
     }
 
+    // Validate working hours (09:00 - 17:00)
+    if (time < '09:00' || time > '17:00') {
+      setError('Khung giờ hẹn khám phải nằm trong khoảng từ 09:00 đến 17:00.');
+      setLoading(false);
+      return;
+    }
+
     try {
       const trimmedName = name.trim();
       const trimmedPhone = phone.trim();
@@ -132,9 +162,13 @@ export default function QuickBooking({
         const resp = await schedulingAPI.bookAppointment(payload);
         if (resp.data && resp.data.success) {
           setSuccess('Đặt lịch khám thành công! Nhân viên chăm sóc khách hàng sẽ liên hệ sớm.');
-          setDepartment(''); setDoctor(''); setTime('09:00'); setDate(new Date().toISOString().split('T')[0]);
-          setName('');
-          setPhone('');
+          setDepartment(''); setDoctor(''); setTime('09:00'); setDate(getMinBookingDate());
+          if (!isPatientLoggedIn) {
+            setName('');
+            setPhone('');
+          }
+          // Trigger event to refresh stats in real-time
+          window.dispatchEvent(new CustomEvent('booking-success'));
         } else {
           setError(resp.data?.message || 'Không thể đặt lịch');
         }
@@ -151,7 +185,13 @@ export default function QuickBooking({
         const resp = await bookingAPI.submitQuickBooking(payload);
         if (resp.data && resp.data.success) {
           setSuccess('Đã gửi yêu cầu đặt lịch! Phòng khám sẽ liên hệ lại với bạn sớm nhất.');
-          setName(''); setPhone(''); setDepartment(''); setDoctor(''); setTime('09:00'); setDate(new Date().toISOString().split('T')[0]);
+          setDepartment(''); setDoctor(''); setTime('09:00'); setDate(getMinBookingDate());
+          if (!isPatientLoggedIn) {
+            setName('');
+            setPhone('');
+          }
+          // Trigger event to refresh stats in real-time
+          window.dispatchEvent(new CustomEvent('booking-success'));
         } else {
           setError(resp.data?.message || 'Không thể gửi yêu cầu');
         }
@@ -256,7 +296,7 @@ export default function QuickBooking({
               <input 
                 type="date" 
                 value={date} 
-                min={new Date().toISOString().split('T')[0]}
+                min={minBookingDate}
                 onChange={e => setDate(e.target.value)} 
                 required 
               />
@@ -272,7 +312,14 @@ export default function QuickBooking({
                 <circle cx="12" cy="12" r="10"/>
                 <polyline points="12 6 12 12 16 14"/>
               </svg>
-              <input type="time" value={time} onChange={e => setTime(e.target.value)} required />
+              <input 
+                type="time" 
+                value={time} 
+                min="09:00"
+                max="17:00"
+                onChange={e => setTime(e.target.value)} 
+                required 
+              />
             </div>
           </div>
 
@@ -291,6 +338,8 @@ export default function QuickBooking({
                 onChange={e => setName(e.target.value)} 
                 required 
                 autoComplete="off"
+                disabled={isPatientLoggedIn}
+                style={isPatientLoggedIn ? { backgroundColor: '#e2e8f0', cursor: 'not-allowed', color: '#64748b' } : {}}
               />
             </div>
           </div>
@@ -310,6 +359,8 @@ export default function QuickBooking({
                 onChange={e => setPhone(e.target.value)} 
                 required 
                 autoComplete="off"
+                disabled={isPatientLoggedIn}
+                style={isPatientLoggedIn ? { backgroundColor: '#e2e8f0', cursor: 'not-allowed', color: '#64748b' } : {}}
               />
             </div>
           </div>

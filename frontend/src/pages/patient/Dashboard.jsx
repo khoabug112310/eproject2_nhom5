@@ -17,6 +17,24 @@ export default function PatientDashboard() {
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
+  const getFormattedLocalDate = (dateObj) => {
+    const year = dateObj.getFullYear();
+    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const day = String(dateObj.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const getMinBookingDate = () => {
+    const now = new Date();
+    const currentHour = now.getHours();
+    if (currentHour >= 17) {
+      const tomorrow = new Date(now);
+      tomorrow.setDate(now.getDate() + 1);
+      return getFormattedLocalDate(tomorrow);
+    }
+    return getFormattedLocalDate(now);
+  };
+
   // Booking Form State
   const [bookingForm, setBookingForm] = useState({
     departmentId: '',
@@ -256,6 +274,23 @@ export default function PatientDashboard() {
       return;
     }
 
+    // Check if patient already has a pending appointment
+    const hasPendingAppointment = appointments.some(
+      (appt) => appt.status === 'Pending'
+    );
+    if (hasPendingAppointment) {
+      setErrorMessage('Bạn đã có một lịch hẹn đang chờ xác nhận. Không thể đăng ký thêm lịch mới.');
+      return;
+    }
+
+    // Validate booking cutoff time (after 17:00, cannot book for today)
+    const selectedDateStr = bookingForm.requestedDate;
+    const todayStr = getMinBookingDate();
+    if (selectedDateStr < todayStr) {
+      setErrorMessage('Không thể đăng ký lịch khám cho ngày hôm nay sau 17:00. Vui lòng chọn từ ngày mai trở đi.');
+      return;
+    }
+
     setSubmitting(true);
     setErrorMessage('');
     setSuccessMessage('');
@@ -469,117 +504,196 @@ export default function PatientDashboard() {
               <h2>Đăng ký đặt lịch khám</h2>
               <p className="subtitle">Lựa chọn chuyên khoa, bác sĩ và thời gian khám phù hợp.</p>
 
-              <form onSubmit={handleBookingSubmit} className="grid-form">
-                <div className="form-group full-width">
-                  <label>Chuyên khoa khám *</label>
-                  <select
-                    value={bookingForm.departmentId}
-                    onChange={(e) => {
-                      const selectedId = e.target.value;
-                      // Tìm đối tượng chuyên khoa được chọn để lấy tên
-                      const selectedDepObj = departments.find(d => d._id === selectedId);
-                      const selectedDepName = selectedDepObj ? (selectedDepObj.departmentName || selectedDepObj.name) : '';
+              {appointments.some(appt => appt.status === 'Pending') ? (
+                (() => {
+                  const activeAppointment = appointments.find(
+                    (appt) => appt.status === 'Pending'
+                  );
+                  return (
+                    <div className="active-appointment-warning" style={{
+                      padding: '24px',
+                      borderRadius: 'var(--radius-card)',
+                      backgroundColor: 'var(--color-primary-light)',
+                      border: '1px solid rgba(0, 102, 204, 0.1)',
+                      textAlign: 'center',
+                      marginTop: '20px'
+                    }}>
+                      <div style={{ fontSize: '48px', marginBottom: '16px' }}>📅</div>
+                      <h3 style={{ marginBottom: '12px', color: 'var(--color-primary-dark)' }}>
+                        Bạn đang có một lịch hẹn chờ xác nhận
+                      </h3>
+                      <p style={{ color: 'var(--color-text-body)', marginBottom: '20px', fontSize: '14px' }}>
+                        Để đảm bảo chất lượng dịch vụ, mỗi bệnh nhân chỉ được đăng ký tối đa một lịch hẹn khám có trạng thái <strong>Chờ xác nhận</strong> tại một thời điểm.
+                      </p>
+                      
+                      <div style={{
+                        backgroundColor: 'rgba(255, 255, 255, 0.85)',
+                        borderRadius: '12px',
+                        padding: '16px',
+                        maxWidth: '500px',
+                        margin: '0 auto 24px auto',
+                        textAlign: 'left',
+                        boxShadow: 'var(--shadow-sm)',
+                        border: '1px solid var(--color-border)'
+                      }}>
+                        <h4 style={{ marginBottom: '12px', fontSize: '15px', color: 'var(--color-text-dark)', borderBottom: '1px solid var(--color-border)', paddingBottom: '8px' }}>
+                          Chi tiết lịch hẹn hiện tại:
+                        </h4>
+                        <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '8px', fontSize: '13px' }}>
+                          <strong>Ngày khám:</strong>
+                          <span>{new Date(activeAppointment.requestedDate).toLocaleDateString('vi-VN')}</span>
+                          
+                          <strong>Khung giờ:</strong>
+                          <span>{activeAppointment.requestedTime}</span>
+                          
+                          <strong>Chuyên khoa:</strong>
+                          <span>{activeAppointment.departmentId?.departmentName || 'Chung'}</span>
+                          
+                          <strong>Bác sĩ:</strong>
+                          <span>{activeAppointment.doctorId?.fullName || 'Bác sĩ bất kỳ'}</span>
+                          
+                          <strong>Trạng thái:</strong>
+                          <span>
+                            <span className="badge badge-warning">
+                              Chờ xác nhận
+                            </span>
+                          </span>
+                        </div>
+                      </div>
 
-                      setBookingForm({
-                        ...bookingForm,
-                        departmentId: selectedId,
-                        departmentName: selectedDepName, // Lưu thêm tên nếu cần dùng ở chỗ khác
-                        doctorId: '' // Reset bác sĩ khi đổi khoa
-                      });
-                    }}
-                    required
-                  >
-                    <option value="">-- Chọn chuyên khoa --</option>
-                    {departments.map((d) => (
-                      <option key={d._id} value={d._id}>{d.departmentName || d.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label>Bác sĩ (Không bắt buộc)</label>
-                  <select
-                    value={bookingForm.doctorId}
-                    onChange={(e) => setBookingForm({ ...bookingForm, doctorId: e.target.value })}
-                    disabled={!bookingForm.departmentId}
-                  >
-                    <option value="">-- Chọn bác sĩ (Bất kỳ) --</option>
-                    {doctors
-                      .filter((doc) => {
-                        // 1. Nếu người dùng chưa chọn khoa, hiển thị tất cả bác sĩ
-                        if (!bookingForm.departmentId) return true;
+                      <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+                        <button className="btn btn-primary" onClick={() => setActiveTab('appointments')}>
+                          Xem danh sách lịch hẹn
+                        </button>
+                        <button
+                          className="btn btn-danger"
+                          onClick={() => handleCancelAppointment(activeAppointment._id)}
+                        >
+                          Hủy lịch hẹn này
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })()
+              ) : (
+                <form onSubmit={handleBookingSubmit} className="grid-form">
+                  <div className="form-group full-width">
+                    <label>Chuyên khoa khám *</label>
+                    <select
+                      value={bookingForm.departmentId}
+                      onChange={(e) => {
+                        const selectedId = e.target.value;
+                        // Tìm đối tượng chuyên khoa được chọn để lấy tên
+                        const selectedDepObj = departments.find(d => d._id === selectedId);
+                        const selectedDepName = selectedDepObj ? (selectedDepObj.departmentName || selectedDepObj.name) : '';
 
-                        // 2. Lấy tên chuyên khoa đang được chọn từ danh sách departments
-                        const currentDepObj = departments.find(d => d._id === bookingForm.departmentId);
-                        const currentDepName = currentDepObj ? (currentDepObj.departmentName || currentDepObj.name) : '';
-
-                        // 3. Lấy tên chuyên khoa từ đối tượng bác sĩ (tùy thuộc backend trả về chuỗi text hay object)
-                        const docDepName = doc.department?.departmentName || doc.department?.name || doc.department;
-
-                        // 4. So sánh khớp tên chuyên khoa giống QuickBooking
-                        return docDepName === currentDepName;
-                      })
-                      .map((doc) => (
-                        <option key={doc._id || doc.id} value={doc._id || doc.id}>
-                          {doc.fullName} ({doc.specialization || 'Bác sĩ'})
-                        </option>
+                        setBookingForm({
+                          ...bookingForm,
+                          departmentId: selectedId,
+                          departmentName: selectedDepName, // Lưu thêm tên nếu cần dùng ở chỗ khác
+                          doctorId: '' // Reset bác sĩ khi đổi khoa
+                        });
+                      }}
+                      required
+                    >
+                      <option value="">-- Chọn chuyên khoa --</option>
+                      {departments.map((d) => (
+                        <option key={d._id} value={d._id}>{d.departmentName || d.name}</option>
                       ))}
-                  </select>
-                </div>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label>Bác sĩ (Không bắt buộc)</label>
+                    <select
+                      value={bookingForm.doctorId}
+                      onChange={(e) => setBookingForm({ ...bookingForm, doctorId: e.target.value })}
+                      disabled={!bookingForm.departmentId}
+                    >
+                      <option value="">-- Chọn bác sĩ (Bất kỳ) --</option>
+                      {doctors
+                        .filter((doc) => {
+                          // 1. Nếu người dùng chưa chọn khoa, hiển thị tất cả bác sĩ
+                          if (!bookingForm.departmentId) return true;
 
-                <div className="form-group">
-                  <label>Ngày khám bệnh *</label>
-                  <input
-                    type="date"
-                    min={new Date().toISOString().split('T')[0]}
-                    value={bookingForm.requestedDate}
-                    onChange={(e) => setBookingForm({ ...bookingForm, requestedDate: e.target.value })}
-                    required
-                  />
-                </div>
+                          // 2. Lấy tên chuyên khoa đang được chọn từ danh sách departments
+                          const currentDepObj = departments.find(d => d._id === bookingForm.departmentId);
+                          const currentDepName = currentDepObj ? (currentDepObj.departmentName || currentDepObj.name) : '';
 
-                <div className="form-group">
-                  <label>Khung giờ khám *</label>
-                  <select
-                    value={bookingForm.requestedTime}
-                    onChange={(e) => setBookingForm({ ...bookingForm, requestedTime: e.target.value })}
-                    required
-                  >
-                    <option value="">-- Chọn khung giờ --</option>
-                    {schedules.length > 0 ? (
-                      schedules.map((s) => (
-                        <option key={s._id} value={`${s.startTime} - ${s.endTime}`}>
-                          {s.startTime} - {s.endTime} (Còn trống: {s.maxPatients - s.currentBooked} chỗ)
-                        </option>
-                      ))
-                    ) : (
-                      <>
-                        <option value="08:00 - 09:00">08:00 - 09:00 (Sáng)</option>
-                        <option value="09:00 - 10:00">09:00 - 10:00 (Sáng)</option>
-                        <option value="10:00 - 11:00">10:00 - 11:00 (Sáng)</option>
-                        <option value="14:00 - 15:00">14:00 - 15:00 (Chiều)</option>
-                        <option value="15:00 - 16:00">15:00 - 16:00 (Chiều)</option>
-                        <option value="16:00 - 17:00">16:00 - 17:00 (Chiều)</option>
-                      </>
-                    )}
-                  </select>
-                </div>
+                          // 3. Lấy tên chuyên khoa từ đối tượng bác sĩ (tùy thuộc backend trả về chuỗi text hay object)
+                          const docDepName = doc.department?.departmentName || doc.department?.name || doc.department;
 
-                <div className="form-group full-width">
-                  <label>Triệu chứng lâm sàng / Lý do khám</label>
-                  <textarea
-                    rows="4"
-                    placeholder="Mô tả các triệu chứng của bạn để bác sĩ nắm bắt thông tin nhanh chóng..."
-                    value={bookingForm.symptoms}
-                    onChange={(e) => setBookingForm({ ...bookingForm, symptoms: e.target.value })}
-                  />
-                </div>
+                          // 4. So sánh khớp tên chuyên khoa giống QuickBooking
+                          return docDepName === currentDepName;
+                        })
+                        .map((doc) => (
+                          <option key={doc._id || doc.id} value={doc._id || doc.id}>
+                            {doc.fullName} ({doc.specialization || 'Bác sĩ'})
+                          </option>
+                        ))}
+                    </select>
+                  </div>
 
-                <div className="form-actions">
-                  <button type="submit" className="btn btn-primary" disabled={submitting}>
-                    {submitting ? 'Đang gửi...' : 'Gửi đăng ký lịch hẹn'}
-                  </button>
-                </div>
-              </form>
+                  <div className="form-group">
+                    <label>Ngày khám bệnh *</label>
+                    <input
+                      type="date"
+                      min={getMinBookingDate()}
+                      value={bookingForm.requestedDate}
+                      onChange={(e) => setBookingForm({ ...bookingForm, requestedDate: e.target.value })}
+                      required
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label>Khung giờ khám *</label>
+                    <select
+                      value={bookingForm.requestedTime}
+                      onChange={(e) => setBookingForm({ ...bookingForm, requestedTime: e.target.value })}
+                      required
+                    >
+                      <option value="">-- Chọn khung giờ --</option>
+                      {schedules.length > 0 ? (
+                        schedules
+                          .map((s) => {
+                            const displayStart = s.startTime < '09:00' ? '09:00' : s.startTime;
+                            const displayEnd = s.endTime > '17:00' ? '17:00' : s.endTime;
+                            if (displayStart >= displayEnd) return null;
+                            return (
+                              <option key={s._id} value={`${displayStart} - ${displayEnd}`}>
+                                {displayStart} - {displayEnd} (Còn trống: {s.maxPatients - s.currentBooked} chỗ)
+                              </option>
+                            );
+                          })
+                          .filter(Boolean)
+                      ) : (
+                        <>
+                          <option value="09:00 - 10:00">09:00 - 10:00 (Sáng)</option>
+                          <option value="10:00 - 11:00">10:00 - 11:00 (Sáng)</option>
+                          <option value="14:00 - 15:00">14:00 - 15:00 (Chiều)</option>
+                          <option value="15:00 - 16:00">15:00 - 16:00 (Chiều)</option>
+                          <option value="16:00 - 17:00">16:00 - 17:00 (Chiều)</option>
+                        </>
+                      )}
+                    </select>
+                  </div>
+
+                  <div className="form-group full-width">
+                    <label>Triệu chứng lâm sàng / Lý do khám</label>
+                    <textarea
+                      rows="4"
+                      placeholder="Mô tả các triệu chứng của bạn để bác sĩ nắm bắt thông tin nhanh chóng..."
+                      value={bookingForm.symptoms}
+                      onChange={(e) => setBookingForm({ ...bookingForm, symptoms: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="form-actions">
+                    <button type="submit" className="btn btn-primary" disabled={submitting}>
+                      {submitting ? 'Đang gửi...' : 'Gửi đăng ký lịch hẹn'}
+                    </button>
+                  </div>
+                </form>
+              )}
             </div>
           )}
 

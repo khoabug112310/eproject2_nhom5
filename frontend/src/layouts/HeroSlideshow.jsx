@@ -11,20 +11,85 @@ export default function HeroSlideshow({ images = [], interval = 5000, children }
     return () => clearInterval(id);
   }, [images, interval]);
 
-  const style = {
-    width: '100%',
-    height: '400px',
-    backgroundImage: `url(${images[index]})`,
-    backgroundSize: 'cover',
-    backgroundPosition: 'center',
-    transition: 'background-image 0.8s ease-in-out',
-    marginBottom: 24,
-    position: 'relative',
-  };
-
   return (
-    <div className="hero-full" style={style} role="img" aria-label="Hero image">
-      {children}
+    <div 
+      className="hero-full" 
+      style={{
+        width: '100%',
+        maxWidth: '1100px', // Restrict width so it doesn't stretch too wide
+        margin: '0 auto 24px auto', // Center it and add bottom margin
+        height: '270px', // Even more compact height (down from 340px)
+        position: 'relative',
+        borderRadius: '20px',
+        overflow: 'hidden',
+        background: '#0f172a',
+        boxShadow: '0 12px 30px rgba(15, 23, 42, 0.08)' // Premium shadow
+      }}
+    >
+      {/* Smooth Crossfade Image Layers */}
+      {images.map((img, i) => (
+        <div
+          key={i}
+          style={{
+            position: 'absolute',
+            inset: 0,
+            backgroundImage: `url(${img})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            opacity: i === index ? 1 : 0,
+            transition: 'opacity 1s cubic-bezier(0.4, 0, 0.2, 1)',
+            zIndex: 1
+          }}
+        />
+      ))}
+
+      {/* Content overlay container (Z-index 2) */}
+      <div 
+        className="hero-overlay-container" 
+        style={{ 
+          position: 'absolute',
+          inset: 0,
+          background: 'linear-gradient(90deg, rgba(15, 23, 42, 0.85) 0%, rgba(15, 23, 42, 0.5) 50%, rgba(15, 23, 42, 0.15) 100%)',
+          display: 'flex',
+          alignItems: 'center',
+          padding: '24px 32px', // Compact padding
+          zIndex: 2 
+        }}
+      >
+        {children}
+      </div>
+
+      {/* Navigation Dot Indicators */}
+      {images.length > 1 && (
+        <div style={{
+          position: 'absolute',
+          bottom: '20px',
+          right: '30px',
+          display: 'flex',
+          gap: '8px',
+          zIndex: 3
+        }}>
+          {images.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => setIndex(i)}
+              style={{
+                width: i === index ? '20px' : '8px',
+                height: '8px',
+                borderRadius: '999px',
+                border: 'none',
+                background: i === index ? '#ffffff' : 'rgba(255, 255, 255, 0.4)',
+                cursor: 'pointer',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                padding: 0,
+                outline: 'none',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.15)'
+              }}
+              title={`Slide ${i + 1}`}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

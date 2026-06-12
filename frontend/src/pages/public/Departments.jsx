@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import DepartmentCard from '../../components/cards/DepartmentCard';
 import { schedulingAPI } from '../../services/api';
 
@@ -27,6 +27,14 @@ export default function Departments() {
   const [activeTab, setActiveTab] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 6;
+  const sectionRef = useRef(null);
+
+  // Scroll to section when page changes so that the user sees the full content from the start
+  useEffect(() => {
+    if (sectionRef.current) {
+      sectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [currentPage]);
 
   // Reset page to 1 when filters or query changes
   useEffect(() => {
@@ -129,7 +137,7 @@ export default function Departments() {
       </section>
 
       {/* 2. MAIN GRID & FILTERS CONTAINER */}
-      <section style={{ padding: '60px 20px', maxWidth: '1200px', margin: '0 auto' }}>
+      <section ref={sectionRef} style={{ padding: '60px 20px', maxWidth: '1200px', margin: '0 auto' }}>
         
         {/* Search and Tabs Bar */}
         <div style={{

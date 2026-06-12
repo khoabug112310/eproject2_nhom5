@@ -24,9 +24,18 @@ export default function Hero() {
         if (active) setLoading(false);
       }
     };
+
     fetchStats();
+
+    const handleBookingSuccess = () => {
+      fetchStats();
+    };
+
+    window.addEventListener('booking-success', handleBookingSuccess);
+
     return () => {
       active = false;
+      window.removeEventListener('booking-success', handleBookingSuccess);
     };
   }, []);
 

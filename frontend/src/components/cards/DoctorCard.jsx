@@ -58,7 +58,7 @@ export default function DoctorCard({ avatar, fullName, specialization, departmen
         {/* Large Portrait Image Header */}
         <div style={{
           position: 'relative',
-          height: '200px',
+          height: '150px',
           width: '100%',
           overflow: 'hidden',
           background: '#0f172a', // Dark theme background fallback

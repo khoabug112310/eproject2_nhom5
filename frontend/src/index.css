@@ -164,6 +164,10 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* Navigation Menu */
+.header-separator {
+  height: 16px;
+}
+
 .site-header {
   background-color: transparent;
   padding: var(--space-3) 0;
@@ -3311,15 +3315,15 @@ h1, h2, h3, h4, h5, h6 {
 /* Chatbot Widget Styles */
 .chatbot-widget-container {
   position: fixed;
-  bottom: 96px; /* Sits directly above the back-to-top button which is at bottom: 30px */
-  right: 25px;  /* Centered horizontally with back-to-top button at right: 30px */
+  bottom: 30px;
+  right: 30px;
   z-index: 999;
   font-family: inherit;
 }
 
 .chatbot-trigger {
-  width: 56px;
-  height: 56px;
+  width: 46px;
+  height: 46px;
   border-radius: 50%;
   background: linear-gradient(135deg, var(--color-primary, #3b82f6) 0%, var(--color-secondary, #00a89d) 100%);
   color: white;
@@ -3340,21 +3344,32 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .chatbot-trigger-icon {
-  width: 26px;
-  height: 26px;
+  width: 22px;
+  height: 22px;
+}
+
+.chatbot-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background-color: #ef4444;
+  color: white;
+  font-size: 10px;
+  font-weight: 800;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid white;
+  animation: chatbot-pulse 2s infinite;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  box-sizing: border-box;
 }
 
 .chatbot-trigger.has-notification::after {
-  content: '';
-  position: absolute;
-  top: -2px;
-  right: -2px;
-  width: 14px;
-  height: 14px;
-  background-color: #ef4444;
-  border: 2px solid white;
-  border-radius: 50%;
-  animation: chatbot-pulse 2s infinite;
+  display: none; /* .chatbot-badge handles notifications with numbers and pulse animation */
 }
 
 @keyframes chatbot-pulse {
