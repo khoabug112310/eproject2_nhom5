@@ -156,13 +156,6 @@ export default function QuickBooking({
     }
 
     try {
-<<<<<<< HEAD
-      const token = localStorage.getItem('token');
-      if (token) {
-        const payload = { 
-          bookingDate: date, 
-          time, 
-=======
       const trimmedName = name.trim();
       const trimmedPhone = phone.trim();
 
