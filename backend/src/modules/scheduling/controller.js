@@ -198,21 +198,58 @@ const updateAppointmentStatus = async (req, res) => {
     const oldStatus = appt.status;
     const { APPOINTMENT_STATUS, INVOICE_TYPE, INVOICE_STATUS } = require('../../constants/enums');
 
+    // Detect whether doctor is being changed in this update
+    const newDoctorId = req.body.doctorId || appt.doctorId;
+    if (req.body.doctorId) {
+      appt.doctorId = req.body.doctorId;
+    }
+
+    const timeToMinutes = (time) => {
+      if (!time) return null;
+      const [hours, minutes] = time.split(':').map(Number);
+      return hours * 60 + minutes;
+    };
+
+    const isWithinSchedule = (time, startTime, endTime) => {
+      const minutes = timeToMinutes(time);
+      const start = timeToMinutes(startTime);
+      const end = timeToMinutes(endTime);
+      return minutes !== null && start !== null && end !== null && minutes >= start && minutes <= end;
+    };
+
     // If confirming, ensure schedule capacity
     if (oldStatus !== APPOINTMENT_STATUS.CONFIRMED && status === APPOINTMENT_STATUS.CONFIRMED) {
-      // try to find schedule
+      const dateOnly = new Date(appt.requestedDate);
+      dateOnly.setHours(0, 0, 0, 0);
+
+      // try to find schedule for the target doctor
       let schedule = null;
-      if (appt.scheduleId) schedule = await Doctor_Schedule.findById(appt.scheduleId);
-      if (!schedule) {
-        schedule = await Doctor_Schedule.findOne({ doctorId: appt.doctorId, workDate: appt.requestedDate });
+      if (appt.scheduleId) {
+        const existingSchedule = await Doctor_Schedule.findById(appt.scheduleId);
+        if (
+          existingSchedule &&
+          String(existingSchedule.doctorId) === String(newDoctorId) &&
+          new Date(existingSchedule.workDate).toISOString().split('T')[0] === dateOnly.toISOString().split('T')[0]
+        ) {
+          schedule = existingSchedule;
+        }
       }
+      if (!schedule) {
+        schedule = await Doctor_Schedule.findOne({ doctorId: newDoctorId, workDate: dateOnly });
+      }
+
       if (schedule) {
+        if (!isWithinSchedule(appt.requestedTime, schedule.startTime, schedule.endTime)) {
+          return res.status(409).json({ success: false, message: 'Giờ khám không nằm trong ca làm việc này.' });
+        }
+
         if (typeof schedule.currentBooked !== 'number') schedule.currentBooked = 0;
         if (schedule.maxPatients && schedule.currentBooked >= schedule.maxPatients) {
-          return res.status(409).json({ success: false, message: 'Lịch đã kín, không thể xác nhận' });
+          return res.status(409).json({ success: false, message: 'Ca khám đã đầy, không thể xác nhận thêm.' });
         }
         schedule.currentBooked = (schedule.currentBooked || 0) + 1;
         await schedule.save();
+        appt.scheduleId = schedule._id;
       }
 
       // Auto-create Consultation Invoice (Unpaid) if it doesn't exist

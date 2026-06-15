@@ -19,13 +19,19 @@ const getMedicines = async (req, res) => {
 // Public: list doctors for frontend
 const getDoctorsPublic = async (req, res) => {
   try {
-    const docs = await Doctor.find({ isActive: true }).limit(50).populate('departmentId').lean();
+    const query = { isActive: true };
+    if (req.query.department) {
+      query.departmentId = req.query.department;
+    }
+    const docs = await Doctor.find(query).limit(50).populate('departmentId').lean();
     // Map to frontend-friendly fields
     const mapped = docs.map(d => ({
+      _id: d._id,
       id: d._id,
       fullName: d.fullName,
       avatar: d.avatarURL || null,
       specialization: d.specialization,
+      departmentId: d.departmentId ? d.departmentId._id : null,
       department: d.departmentId ? d.departmentId.departmentName : null,
       experienceYears: d.experienceYears,
       qualifications: d.qualifications,

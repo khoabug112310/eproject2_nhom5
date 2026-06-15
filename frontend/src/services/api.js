@@ -54,6 +54,9 @@ export const profilesAPI = {
   updateUser: (id, data) =>
     apiClient.put(`/profiles/profile/${id}`, data),
   getPatients: () => apiClient.get('/profiles/patients'),
+  getMyPatientProfile: () => apiClient.get('/profiles/patient/me'),
+  createMyPatientProfile: (data) => apiClient.post('/profiles/patient/me', data),
+  updateMyPatientProfile: (data) => apiClient.put('/profiles/patient/me', data),
   createUser: (data) => apiClient.post('/profiles/users', data),
   getAdminStats: () => apiClient.get('/profiles/admin/stats'),
   queryClinicAI: (query) => apiClient.post('/profiles/admin/ai-query', { query }),
@@ -67,8 +70,8 @@ export const profilesAPI = {
 export const schedulingAPI = {
   getDepartments: () =>
     apiClient.get('/scheduling/departments'),
-  getSchedules: (doctorId) =>
-    apiClient.get(`/scheduling/schedules?doctor=${doctorId}`),
+  getSchedules: (doctorId, date) =>
+    apiClient.get(`/scheduling/schedules?doctor=${doctorId}${date ? `&date=${date}` : ''}`),
   bookAppointment: (data) =>
     apiClient.post('/scheduling/appointments', data),
   getAppointments: () =>
@@ -81,8 +84,8 @@ export const schedulingAPI = {
 export const clinicalAPI = {
   getMedicines: () =>
     apiClient.get('/clinical/medicines'),
-  getDoctors: () =>
-    apiClient.get('/clinical/doctors'),
+  getDoctors: (params) =>
+    apiClient.get('/clinical/doctors', { params }),
   getPublicStats: () =>
     apiClient.get('/clinical/public-stats'),
   getMedicalRecords: (params) =>
