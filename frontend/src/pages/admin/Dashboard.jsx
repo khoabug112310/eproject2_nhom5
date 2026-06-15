@@ -86,6 +86,7 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
     baseFee: 150000,
     bio: '',
     position: '',
+    qualifications: '',
   });
 
   // CMS Post Creation/Edit Form State
@@ -183,6 +184,7 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
         experienceYears: userForm.roleName === 'doctor' ? Number(userForm.experienceYears) : undefined,
         baseFee: userForm.roleName === 'doctor' ? Number(userForm.baseFee) : undefined,
         bio: userForm.roleName === 'doctor' ? userForm.bio : undefined,
+        qualifications: userForm.roleName === 'doctor' ? userForm.qualifications : undefined,
         position: (userForm.roleName === 'staff' || userForm.roleName === 'accountant') ? userForm.position : undefined,
       });
 
@@ -200,6 +202,7 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
         baseFee: 150000,
         bio: '',
         position: '',
+        qualifications: '',
       });
       fetchAdminData();
     } catch (err) {
@@ -1705,6 +1708,16 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                           value={userForm.baseFee}
                           onChange={(e) => setUserForm({ ...userForm, baseFee: e.target.value })}
                           required
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Học vị / Học hàm *</label>
+                        <input
+                          type="text"
+                          placeholder="VD: Thạc sĩ, Tiến sĩ, Bác sĩ CKI..."
+                          value={userForm.qualifications}
+                          onChange={(e) => setUserForm({ ...userForm, qualifications: e.target.value })}
+                          required={userForm.roleName === 'doctor'}
                         />
                       </div>
                       <div className="form-group full-width">

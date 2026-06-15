@@ -82,6 +82,19 @@ const bookAppointment = async (req, res) => {
     }
     if (!patientId) return res.status(400).json({ success: false, message: 'Patient identity required' });
 
+    // Check if patient already has a pending appointment
+    const pendingAppointment = await Appointment.findOne({
+      patientId,
+      status: APPOINTMENT_STATUS.PENDING
+    });
+
+    if (pendingAppointment) {
+      return res.status(400).json({
+        success: false,
+        message: 'Bạn đã có một lịch hẹn đang chờ xác nhận. Không thể đăng ký thêm lịch mới.'
+      });
+    }
+
     // Normalize date (strip time) for day-based matching
     const dateOnly = new Date(requestedDate);
     dateOnly.setHours(0, 0, 0, 0);

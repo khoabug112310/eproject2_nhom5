@@ -78,6 +78,7 @@ async function seedDatabase() {
       email: 'admin@clinic.com',
       phone: '0901234567',
       isActive: true,
+      isRegistered: true,
     });
     console.log('✓ Created admin user');
 
@@ -231,15 +232,15 @@ async function seedDatabase() {
     const doctorPasswordHash = await bcrypt.hash('doctor123', 10);
 
     const doctorUsersData = [
-      { username: '0911111111', passwordHash: doctorPasswordHash, roleId: doctorRole._id, email: 'dr.hung@clinic.com', phone: '0911111111', isActive: true },
-      { username: '0912222222', passwordHash: doctorPasswordHash, roleId: doctorRole._id, email: 'dr.linh@clinic.com', phone: '0912222222', isActive: true },
-      { username: '0910000001', passwordHash: doctorPasswordHash, roleId: doctorRole._id, email: 'dr.an@clinic.com', phone: '0910000001', isActive: true },
-      { username: '0910000002', passwordHash: doctorPasswordHash, roleId: doctorRole._id, email: 'dr.nam@clinic.com', phone: '0910000002', isActive: true },
-      { username: '0910000003', passwordHash: doctorPasswordHash, roleId: doctorRole._id, email: 'dr.thuy@clinic.com', phone: '0910000003', isActive: true },
-      { username: '0910000004', passwordHash: doctorPasswordHash, roleId: doctorRole._id, email: 'dr.quochung@clinic.com', phone: '0910000004', isActive: true },
-      { username: '0910000005', passwordHash: doctorPasswordHash, roleId: doctorRole._id, email: 'dr.lien@clinic.com', phone: '0910000005', isActive: true },
-      { username: '0910000006', passwordHash: doctorPasswordHash, roleId: doctorRole._id, email: 'dr.minh@clinic.com', phone: '0910000006', isActive: true },
-      { username: '0910000007', passwordHash: doctorPasswordHash, roleId: doctorRole._id, email: 'dr.dung@clinic.com', phone: '0910000007', isActive: true }
+      { username: '0911111111', passwordHash: doctorPasswordHash, roleId: doctorRole._id, email: 'dr.hung@clinic.com', phone: '0911111111', isActive: true, isRegistered: true },
+      { username: '0912222222', passwordHash: doctorPasswordHash, roleId: doctorRole._id, email: 'dr.linh@clinic.com', phone: '0912222222', isActive: true, isRegistered: true },
+      { username: '0910000001', passwordHash: doctorPasswordHash, roleId: doctorRole._id, email: 'dr.an@clinic.com', phone: '0910000001', isActive: true, isRegistered: true },
+      { username: '0910000002', passwordHash: doctorPasswordHash, roleId: doctorRole._id, email: 'dr.nam@clinic.com', phone: '0910000002', isActive: true, isRegistered: true },
+      { username: '0910000003', passwordHash: doctorPasswordHash, roleId: doctorRole._id, email: 'dr.thuy@clinic.com', phone: '0910000003', isActive: true, isRegistered: true },
+      { username: '0910000004', passwordHash: doctorPasswordHash, roleId: doctorRole._id, email: 'dr.quochung@clinic.com', phone: '0910000004', isActive: true, isRegistered: true },
+      { username: '0910000005', passwordHash: doctorPasswordHash, roleId: doctorRole._id, email: 'dr.lien@clinic.com', phone: '0910000005', isActive: true, isRegistered: true },
+      { username: '0910000006', passwordHash: doctorPasswordHash, roleId: doctorRole._id, email: 'dr.minh@clinic.com', phone: '0910000006', isActive: true, isRegistered: true },
+      { username: '0910000007', passwordHash: doctorPasswordHash, roleId: doctorRole._id, email: 'dr.dung@clinic.com', phone: '0910000007', isActive: true, isRegistered: true }
     ];
 
     const doctorUsers = await User.insertMany(doctorUsersData);
@@ -367,6 +368,7 @@ async function seedDatabase() {
       email: 'staff@clinic.com',
       phone: '0913333333',
       isActive: true,
+      isRegistered: true,
     });
 
     await Staff.create({
@@ -385,6 +387,7 @@ async function seedDatabase() {
       email: 'accountant@clinic.com',
       phone: '0915555555',
       isActive: true,
+      isRegistered: true,
     });
 
     await Staff.create({
@@ -403,6 +406,7 @@ async function seedDatabase() {
       email: 'patient@clinic.com',
       phone: '0914444444',
       isActive: true,
+      isRegistered: true,
     });
 
     await Patient.create({

@@ -83,6 +83,8 @@ export const clinicalAPI = {
     apiClient.get('/clinical/medicines'),
   getDoctors: () =>
     apiClient.get('/clinical/doctors'),
+  getPublicStats: () =>
+    apiClient.get('/clinical/public-stats'),
   getMedicalRecords: (params) =>
     apiClient.get('/clinical/medical-records', { params }),
   createMedicalRecord: (data) =>
@@ -119,6 +121,12 @@ export const cmsAPI = {
     apiClient.post('/cms/contact-inquiries', data),
   uploadImage: (image) =>
     apiClient.post('/cms/upload', { image }),
+};
+
+// Public Booking API
+export const bookingAPI = {
+  submitQuickBooking: (data) =>
+    apiClient.post('/booking', data),
 };
 
 export default apiClient;

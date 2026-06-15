@@ -32,6 +32,10 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: true,
   },
+  isRegistered: {
+    type: Boolean,
+    default: false,
+  },
   lastLoginAt: Date,
   createdAt: {
     type: Date,

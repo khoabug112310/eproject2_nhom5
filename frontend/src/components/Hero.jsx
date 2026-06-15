@@ -1,11 +1,49 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { clinicalAPI } from '../services/api';
 
 export default function Hero() {
+  const [statsData, setStatsData] = useState({
+    departments: 0,
+    doctors: 0,
+    patients: 0,
+    appointments: 0
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    const fetchStats = async () => {
+      try {
+        const res = await clinicalAPI.getPublicStats();
+        if (res.data?.success && active) {
+          setStatsData(res.data.data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch public stats', err);
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+
+    fetchStats();
+
+    const handleBookingSuccess = () => {
+      fetchStats();
+    };
+
+    window.addEventListener('booking-success', handleBookingSuccess);
+
+    return () => {
+      active = false;
+      window.removeEventListener('booking-success', handleBookingSuccess);
+    };
+  }, []);
+
   const stats = [
-    { number: '15+', label: 'Chuyên khoa sâu' },
-    { number: '50+', label: 'Bác sĩ chuyên khoa' },
-    { number: '10K+', label: 'Bệnh nhân tin tưởng' },
-    { number: '24/7', label: 'Tư vấn trực tuyến' },
+    { number: loading ? '...' : `${statsData.departments}`, label: 'Chuyên khoa sâu' },
+    { number: loading ? '...' : `${statsData.doctors}`, label: 'Bác sĩ chuyên khoa' },
+    { number: loading ? '...' : `${statsData.patients}`, label: 'Bệnh nhân tin tưởng' },
+    { number: loading ? '...' : `${statsData.appointments}`, label: 'Lượt khám y khoa' },
   ];
 
   return (

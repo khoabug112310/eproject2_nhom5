@@ -137,10 +137,10 @@ const createContactInquiry = async (req, res) => {
     }
 
     const item = await Contact_Inquiry.create({
-      senderName,
-      senderPhone,
-      senderEmail,
-      message,
+      senderName: String(senderName).trim(),
+      senderPhone: String(senderPhone).trim(),
+      senderEmail: senderEmail ? String(senderEmail).trim() : undefined,
+      message: String(message).trim(),
       isResolved: false
     });
 

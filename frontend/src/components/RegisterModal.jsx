@@ -5,6 +5,7 @@ export default function RegisterModal({ show, onClose }) {
   const [step, setStep] = useState(1);
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [gender, setGender] = useState('');
@@ -16,6 +17,7 @@ export default function RegisterModal({ show, onClose }) {
       setStep(1); 
       setPhone(''); 
       setPassword(''); 
+      setConfirmPassword('');
       setFullName(''); 
       setDateOfBirth(''); 
       setGender(''); 
@@ -25,6 +27,15 @@ export default function RegisterModal({ show, onClose }) {
   }, [show]);
 
   if (!show) return null;
+
+  // DOB Limits for age 18 to 100
+  const today = new Date();
+  const maxYear = today.getFullYear() - 18;
+  const minYear = today.getFullYear() - 100;
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  const maxDate = `${maxYear}-${month}-${day}`;
+  const minDate = `${minYear}-${month}-${day}`;
 
   const handleCheckPhone = async (e) => {
     e.preventDefault();
@@ -38,9 +49,14 @@ export default function RegisterModal({ show, onClose }) {
     } catch (err) {
       const status = err?.response?.status;
       const msg = err?.response?.data?.message || err.message;
+      const existingName = err?.response?.data?.data?.fullName || '';
       if (status === 409) {
         // Account exists in profiles but is not active
-        setMessage('Số điện thoại này đã tồn tại trong danh sách bệnh nhân. Vui lòng nhập mật khẩu mới để kích hoạt tài khoản khám trực tuyến.');
+        if (existingName) {
+          setMessage(`Chào anh/chị ${existingName}, số điện thoại này đã tồn tại trong danh sách bệnh nhân. Vui lòng nhập mật khẩu mới để kích hoạt tài khoản khám trực tuyến.`);
+        } else {
+          setMessage('Số điện thoại này đã tồn tại trong danh sách bệnh nhân. Vui lòng nhập mật khẩu mới để kích hoạt tài khoản khám trực tuyến.');
+        }
         setStep(2);
       } else if (status === 400) {
         // New registration required
@@ -56,6 +72,52 @@ export default function RegisterModal({ show, onClose }) {
     e.preventDefault();
     setMessage('');
     setIsError(false);
+
+    // Validate password match
+    if (password !== confirmPassword) {
+      setMessage('Mật khẩu nhập lại không khớp. Vui lòng kiểm tra lại.');
+      setIsError(true);
+      return;
+    }
+
+    // Validate age for step 3 registration
+    if (step === 3) {
+      if (!dateOfBirth) {
+        setMessage('Vui lòng chọn ngày sinh.');
+        setIsError(true);
+        return;
+      }
+
+      const dobDate = new Date(dateOfBirth);
+      const today = new Date();
+      
+      let age = today.getFullYear() - dobDate.getFullYear();
+      const monthDiff = today.getMonth() - dobDate.getMonth();
+      const dayDiff = today.getDate() - dobDate.getDate();
+      
+      if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) {
+        age--;
+      }
+
+      if (age < 18) {
+        setMessage('Đăng ký không thành công. Bạn phải từ 18 tuổi trở lên.');
+        setIsError(true);
+        return;
+      }
+
+      if (age > 100) {
+        setMessage('Đăng ký không thành công. Ngày sinh không hợp lệ (tuổi phải dưới 100).');
+        setIsError(true);
+        return;
+      }
+
+      if (!gender) {
+        setMessage('Đăng ký không thành công. Vui lòng chọn giới tính.');
+        setIsError(true);
+        return;
+      }
+    }
+
     try {
       const res = await authAPI.register({ phone, password, fullName, dateOfBirth, gender });
       setMessage('Đăng ký tài khoản thành công.');
@@ -105,7 +167,6 @@ export default function RegisterModal({ show, onClose }) {
         </button>
 
         <div className="modal-header">
-          <div className="modal-logo">🏥</div>
           <div className="modal-title">Đăng ký tài khoản</div>
           <div className="modal-subtitle">Đăng ký để đặt lịch hẹn và theo dõi hồ sơ bệnh án</div>
         </div>
@@ -168,6 +229,17 @@ export default function RegisterModal({ show, onClose }) {
                 required 
               />
             </div>
+            <div className="form-group-outline">
+              <label htmlFor="reg-activate-confirm-password">Nhập lại mật khẩu mới</label>
+              <input 
+                id="reg-activate-confirm-password"
+                type="password" 
+                placeholder="Nhập lại mật khẩu mới"
+                value={confirmPassword} 
+                onChange={(e) => setConfirmPassword(e.target.value)} 
+                required 
+              />
+            </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '20px' }}>
               <button 
                 type="button" 
@@ -207,6 +279,9 @@ export default function RegisterModal({ show, onClose }) {
                   type="date" 
                   value={dateOfBirth} 
                   onChange={(e) => setDateOfBirth(e.target.value)} 
+                  min={minDate}
+                  max={maxDate}
+                  required
                 />
               </div>
 
@@ -216,8 +291,9 @@ export default function RegisterModal({ show, onClose }) {
                   id="reg-gender"
                   value={gender} 
                   onChange={(e) => setGender(e.target.value)}
+                  required
                 >
-                  <option value="">Không chọn</option>
+                  <option value="">-- Chọn giới tính --</option>
                   <option value="Nam">Nam</option>
                   <option value="Nữ">Nữ</option>
                   <option value="Khác">Khác</option>
@@ -233,6 +309,17 @@ export default function RegisterModal({ show, onClose }) {
                 placeholder="Đặt mật khẩu truy cập"
                 value={password} 
                 onChange={(e) => setPassword(e.target.value)} 
+                required 
+              />
+            </div>
+            <div className="form-group-outline">
+              <label htmlFor="reg-confirm-password">Nhập lại mật khẩu</label>
+              <input 
+                id="reg-confirm-password"
+                type="password" 
+                placeholder="Nhập lại mật khẩu truy cập"
+                value={confirmPassword} 
+                onChange={(e) => setConfirmPassword(e.target.value)} 
                 required 
               />
             </div>

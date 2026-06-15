@@ -27,6 +27,10 @@ const getDoctorsPublic = async (req, res) => {
       avatar: d.avatarURL || null,
       specialization: d.specialization,
       department: d.departmentId ? d.departmentId.departmentName : null,
+      experienceYears: d.experienceYears,
+      qualifications: d.qualifications,
+      baseFee: d.baseFee,
+      bio: d.bio,
     }));
     const { success: ok, fail } = require('../../utils/response');
     return ok(res, mapped, 'Lấy danh sách bác sĩ thành công');
@@ -237,4 +241,30 @@ const getPrescriptions = async (req, res) => {
   }
 };
 
-module.exports = { getMedicines, createMedicalRecord, getMedicalRecords, createPrescription, getPrescriptions, getDoctorsPublic };
+const getPublicStats = async (req, res) => {
+  try {
+    const Department = require('../../models/Department');
+    const Doctor = require('../../models/Doctor');
+    const Patient = require('../../models/Patient');
+    const Appointment = require('../../models/Appointment');
+
+    const departmentCount = await Department.countDocuments();
+    const doctorCount = await Doctor.countDocuments({ isActive: true });
+    const patientCount = await Patient.countDocuments();
+    const appointmentCount = await Appointment.countDocuments();
+
+    const { success: ok } = require('../../utils/response');
+    return ok(res, {
+      departments: departmentCount,
+      doctors: doctorCount,
+      patients: patientCount,
+      appointments: appointmentCount
+    }, 'Lấy số liệu thống kê công khai thành công');
+  } catch (err) {
+    console.error('getPublicStats error', err);
+    const { fail } = require('../../utils/response');
+    return fail(res, 'Lỗi khi lấy số liệu thống kê công khai', 500, err.message);
+  }
+};
+
+module.exports = { getMedicines, createMedicalRecord, getMedicalRecords, createPrescription, getPrescriptions, getDoctorsPublic, getPublicStats };

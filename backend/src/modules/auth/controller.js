@@ -57,9 +57,22 @@ const register = async (req, res) => {
 
     let user = await User.findOne({ $or: [{ username: phone }, { phone }] });
     if (user) {
-      // Account exists: if password provided, update password (activate)
-      if (!password) return fail(res, 'Account exists. Please provide password to activate.', 409);
+      if (user.isRegistered) {
+        return fail(res, 'Số điện thoại này đã được đăng ký tài khoản. Vui lòng đăng nhập.', 422);
+      }
+
+      // Account exists but not registered: if password provided, update password (activate)
+      if (!password) {
+        const patient = await Patient.findOne({ userId: user._id });
+        const patientName = patient ? patient.fullName : '';
+        return res.status(409).json({
+          success: false,
+          message: 'Account exists. Please provide password to activate.',
+          data: { fullName: patientName }
+        });
+      }
       user.passwordHash = password;
+      user.isRegistered = true;
       await user.save();
 
       // Update/create patient record if info provided
@@ -84,7 +97,7 @@ const register = async (req, res) => {
 
     // Create new user
     if (!password) return fail(res, 'Password required for new registration', 400);
-    const newUser = await User.create({ username: phone, passwordHash: password, roleId: patientRole._id, phone, isActive: true });
+    const newUser = await User.create({ username: phone, passwordHash: password, roleId: patientRole._id, phone, isActive: true, isRegistered: true });
 
     // Create patient record (fill placeholders if not provided)
     const dob = dateOfBirth ? new Date(dateOfBirth) : new Date('1900-01-01');
