@@ -15,7 +15,7 @@ export default function LoginModal({ show, onClose }) {
       setPhone('');
       setPassword('');
       setError('');
-      // Tự động focus ô nhập số điện thoại khi mở modal
+      // Auto-focus the phone input when the modal opens
       setTimeout(() => {
         phoneInputRef.current?.focus();
       }, 50);
@@ -31,14 +31,14 @@ export default function LoginModal({ show, onClose }) {
     e.preventDefault();
     setError('');
 
-    // 1. Kiểm tra cấu trúc số điện thoại Việt Nam trước khi gửi lên Back-end
+    // 1. Validate the phone number format before calling the back-end
     const phoneRegex = /(84|0[3|5|7|8|9])+([0-9]{8})\b/;
     if (!phoneRegex.test(phone)) {
-      setError('Số điện thoại không đúng định dạng. Vui lòng nhập lại (Ví dụ: 0912345678).');
-      return; // Dừng lại ở đây, chặn không cho gọi API login
+      setError('Invalid phone number format. Please try again (e.g. 0912345678).');
+      return; // Stop here, do not call the login API
     }
 
-    // 2. Nếu cấu trúc hợp lệ thì mới tiến hành gọi API xử lý đăng nhập
+    // 2. Only call the login API if the format is valid
     authAPI.login(phone, password)
       .then((res) => {
         const { token, role, username, displayName } = res.data.data;
@@ -48,7 +48,7 @@ export default function LoginModal({ show, onClose }) {
         localStorage.setItem('userDisplayName', displayName || username || phone || '');
         onClose();
         
-        // Điều hướng phân quyền dựa trên Role nhận về
+        // Redirect based on the returned role
         if (role === 'admin') window.location.href = '/admin/dashboard';
         else if (role === 'doctor') window.location.href = '/doctor/schedule';
         else if (role === 'staff') window.location.href = '/staff/dashboard';
@@ -56,8 +56,8 @@ export default function LoginModal({ show, onClose }) {
         else window.location.href = '/patient/dashboard';
       })
       .catch((err) => {
-        // Luôn hiển thị thông báo tiếng Việt, bỏ qua "Invalid credentials" từ backend
-        setError('Số điện thoại hoặc mật khẩu không đúng. Vui lòng kiểm tra và nhập lại!');
+        // Show a friendly message regardless of the backend error text
+        setError('Incorrect phone number or password. Please check and try again!');
         setPassword('');
         if (passwordInputRef.current) {
           passwordInputRef.current.focus();
@@ -103,7 +103,7 @@ export default function LoginModal({ show, onClose }) {
           }}
           onMouseEnter={(e) => e.currentTarget.style.color = '#475569'}
           onMouseLeave={(e) => e.currentTarget.style.color = '#94a3b8'}
-          aria-label="Đóng"
+          aria-label="Close"
         >
           &times;
         </button>
@@ -116,19 +116,19 @@ export default function LoginModal({ show, onClose }) {
             margin: '0 0 6px 0',
             letterSpacing: '-0.5px'
           }}>
-            Đăng Nhập
+            Log In
           </h3>
-          <p style={{ 
-            fontSize: '13px', 
-            color: '#64748b', 
+          <p style={{
+            fontSize: '13px',
+            color: '#64748b',
             margin: 0,
             lineHeight: '1.5'
           }}>
-            Nhập số điện thoại để truy cập hệ thống khám bệnh trực tuyến
+            Enter your phone number to access the online clinic system
           </p>
         </div>
  
-        {/* Khu vực hiển thị thông báo lỗi (Lỗi cấu trúc hoặc sai tài khoản) */}
+        {/* Error message area (format error or wrong credentials) */}
         {error && (
           <div 
             role="alert" 
@@ -158,13 +158,13 @@ export default function LoginModal({ show, onClose }) {
                 color: '#334155' 
               }}
             >
-              Số Điện Thoại
+              Phone Number
             </label>
             <input
               id="login-phone"
-              type="text" // Đổi từ "tel" sang "text" để Regex kiểm tra chuẩn xác hơn khi nhập chữ
+              type="text"
               ref={phoneInputRef}
-              placeholder="Nhập số điện thoại của bạn"
+              placeholder="Enter your phone number"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               required
@@ -200,13 +200,13 @@ export default function LoginModal({ show, onClose }) {
                 color: '#334155' 
               }}
             >
-              Mật Khẩu
+              Password
             </label>
             <input
               id="login-password"
               type="password"
               ref={passwordInputRef}
-              placeholder="Nhập mật khẩu"
+              placeholder="Enter your password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
@@ -262,7 +262,7 @@ export default function LoginModal({ show, onClose }) {
                 e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.2)';
               }}
             >
-              Đăng Nhập
+              Log In
             </button>
 
             <button 
@@ -284,7 +284,7 @@ export default function LoginModal({ show, onClose }) {
               onMouseEnter={(e) => e.currentTarget.style.color = 'var(--color-secondary, #00a89d)'}
               onMouseLeave={(e) => e.currentTarget.style.color = 'var(--color-primary, #3b82f6)'}
             >
-              Chưa có tài khoản? Đăng ký ngay
+              Don't have an account? Sign up now
             </button>
           </div>
         </form>
@@ -295,7 +295,7 @@ export default function LoginModal({ show, onClose }) {
           show={showRegister} 
           onClose={() => {
             setShowRegister(false);
-            onClose(); // Đóng modal đăng nhập khi họ hoàn tất đăng ký
+            onClose(); // Close the login modal once registration is complete
           }} 
         />
       )}

@@ -53,9 +53,9 @@ export default function RegisterModal({ show, onClose }) {
       if (status === 409) {
         // Account exists in profiles but is not active
         if (existingName) {
-          setMessage(`Chào anh/chị ${existingName}, số điện thoại này đã tồn tại trong danh sách bệnh nhân. Vui lòng nhập mật khẩu mới để kích hoạt tài khoản khám trực tuyến.`);
+          setMessage(`Hello ${existingName}, this phone number already exists in our patient records. Please set a new password to activate your online account.`);
         } else {
-          setMessage('Số điện thoại này đã tồn tại trong danh sách bệnh nhân. Vui lòng nhập mật khẩu mới để kích hoạt tài khoản khám trực tuyến.');
+          setMessage('This phone number already exists in our patient records. Please set a new password to activate your online account.');
         }
         setStep(2);
       } else if (status === 400) {
@@ -75,7 +75,7 @@ export default function RegisterModal({ show, onClose }) {
 
     // Validate password match
     if (password !== confirmPassword) {
-      setMessage('Mật khẩu nhập lại không khớp. Vui lòng kiểm tra lại.');
+      setMessage('Passwords do not match. Please check again.');
       setIsError(true);
       return;
     }
@@ -83,7 +83,7 @@ export default function RegisterModal({ show, onClose }) {
     // Validate age for step 3 registration
     if (step === 3) {
       if (!dateOfBirth) {
-        setMessage('Vui lòng chọn ngày sinh.');
+        setMessage('Please select your date of birth.');
         setIsError(true);
         return;
       }
@@ -100,19 +100,19 @@ export default function RegisterModal({ show, onClose }) {
       }
 
       if (age < 18) {
-        setMessage('Đăng ký không thành công. Bạn phải từ 18 tuổi trở lên.');
+        setMessage('Registration failed. You must be at least 18 years old.');
         setIsError(true);
         return;
       }
 
       if (age > 100) {
-        setMessage('Đăng ký không thành công. Ngày sinh không hợp lệ (tuổi phải dưới 100).');
+        setMessage('Registration failed. Invalid date of birth (age must be under 100).');
         setIsError(true);
         return;
       }
 
       if (!gender) {
-        setMessage('Đăng ký không thành công. Vui lòng chọn giới tính.');
+        setMessage('Registration failed. Please select your gender.');
         setIsError(true);
         return;
       }
@@ -120,7 +120,7 @@ export default function RegisterModal({ show, onClose }) {
 
     try {
       const res = await authAPI.register({ phone, password, fullName, dateOfBirth, gender });
-      setMessage('Đăng ký tài khoản thành công.');
+      setMessage('Account registered successfully.');
       // Auto login after registration
       const lg = await authAPI.login(phone, password);
       const { token, role, username, displayName } = lg.data.data;
@@ -161,14 +161,14 @@ export default function RegisterModal({ show, onClose }) {
             color: 'var(--color-text-muted)',
             lineHeight: 1
           }}
-          aria-label="Đóng"
+          aria-label="Close"
         >
           ×
         </button>
 
         <div className="modal-header">
-          <div className="modal-title">Đăng ký tài khoản</div>
-          <div className="modal-subtitle">Đăng ký để đặt lịch hẹn và theo dõi hồ sơ bệnh án</div>
+          <div className="modal-title">Create an account</div>
+          <div className="modal-subtitle">Sign up to book appointments and track your medical records</div>
         </div>
 
         {/* Stepper Progress bar */}
@@ -194,22 +194,22 @@ export default function RegisterModal({ show, onClose }) {
         {step === 1 && (
           <form onSubmit={handleCheckPhone}>
             <div className="form-group-outline">
-              <label htmlFor="reg-phone">Số điện thoại</label>
-              <input 
+              <label htmlFor="reg-phone">Phone number</label>
+              <input
                 id="reg-phone"
                 type="tel"
-                placeholder="Nhập số điện thoại để tiếp tục" 
-                value={phone} 
-                onChange={(e) => setPhone(e.target.value)} 
-                required 
+                placeholder="Enter your phone number to continue"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                required
               />
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '20px' }}>
               <button type="button" className="btn btn-ghost" onClick={onClose} style={{ fontSize: '13px', padding: '8px 12px' }}>
-                Hủy
+                Cancel
               </button>
               <button type="submit" className="btn btn-primary" style={{ fontSize: '13px', padding: '8px 16px' }}>
-                Tiếp tục
+                Continue
               </button>
             </div>
           </form>
@@ -219,38 +219,38 @@ export default function RegisterModal({ show, onClose }) {
         {step === 2 && (
           <form onSubmit={handleActivate}>
             <div className="form-group-outline">
-              <label htmlFor="reg-activate-password">Mật khẩu mới</label>
-              <input 
+              <label htmlFor="reg-activate-password">New password</label>
+              <input
                 id="reg-activate-password"
-                type="password" 
-                placeholder="Đặt mật khẩu của bạn"
-                value={password} 
-                onChange={(e) => setPassword(e.target.value)} 
-                required 
+                type="password"
+                placeholder="Set your password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
               />
             </div>
             <div className="form-group-outline">
-              <label htmlFor="reg-activate-confirm-password">Nhập lại mật khẩu mới</label>
-              <input 
+              <label htmlFor="reg-activate-confirm-password">Confirm new password</label>
+              <input
                 id="reg-activate-confirm-password"
-                type="password" 
-                placeholder="Nhập lại mật khẩu mới"
-                value={confirmPassword} 
-                onChange={(e) => setConfirmPassword(e.target.value)} 
-                required 
+                type="password"
+                placeholder="Re-enter your new password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
               />
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '20px' }}>
-              <button 
-                type="button" 
-                className="btn btn-ghost" 
-                onClick={() => setStep(1)} 
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => setStep(1)}
                 style={{ fontSize: '13px', padding: '8px 12px' }}
               >
-                Quay lại
+                Back
               </button>
               <button type="submit" className="btn btn-primary" style={{ fontSize: '13px', padding: '8px 16px' }}>
-                Kích hoạt tài khoản
+                Activate account
               </button>
             </div>
           </form>
@@ -260,12 +260,12 @@ export default function RegisterModal({ show, onClose }) {
         {step === 3 && (
           <form onSubmit={handleActivate}>
             <div className="form-group-outline">
-              <label htmlFor="reg-name">Họ và tên</label>
-              <input 
+              <label htmlFor="reg-name">Full name</label>
+              <input
                 id="reg-name"
                 type="text"
-                placeholder="Nguyễn Văn A"
-                value={fullName} 
+                placeholder="e.g. John Smith"
+                value={fullName}
                 onChange={(e) => setFullName(e.target.value)} 
                 required 
               />
@@ -273,7 +273,7 @@ export default function RegisterModal({ show, onClose }) {
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               <div className="form-group-outline">
-                <label htmlFor="reg-dob">Ngày sinh</label>
+                <label htmlFor="reg-dob">Date of birth</label>
                 <input 
                   id="reg-dob"
                   type="date" 
@@ -286,55 +286,55 @@ export default function RegisterModal({ show, onClose }) {
               </div>
 
               <div className="form-group-outline">
-                <label htmlFor="reg-gender">Giới tính</label>
-                <select 
+                <label htmlFor="reg-gender">Gender</label>
+                <select
                   id="reg-gender"
-                  value={gender} 
+                  value={gender}
                   onChange={(e) => setGender(e.target.value)}
                   required
                 >
-                  <option value="">-- Chọn giới tính --</option>
-                  <option value="Nam">Nam</option>
-                  <option value="Nữ">Nữ</option>
-                  <option value="Khác">Khác</option>
+                  <option value="">-- Select gender --</option>
+                  <option value="Nam">Male</option>
+                  <option value="Nữ">Female</option>
+                  <option value="Khác">Other</option>
                 </select>
               </div>
             </div>
 
             <div className="form-group-outline">
-              <label htmlFor="reg-password">Mật khẩu</label>
-              <input 
+              <label htmlFor="reg-password">Password</label>
+              <input
                 id="reg-password"
-                type="password" 
-                placeholder="Đặt mật khẩu truy cập"
-                value={password} 
-                onChange={(e) => setPassword(e.target.value)} 
-                required 
+                type="password"
+                placeholder="Set your access password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
               />
             </div>
             <div className="form-group-outline">
-              <label htmlFor="reg-confirm-password">Nhập lại mật khẩu</label>
-              <input 
+              <label htmlFor="reg-confirm-password">Confirm password</label>
+              <input
                 id="reg-confirm-password"
-                type="password" 
-                placeholder="Nhập lại mật khẩu truy cập"
-                value={confirmPassword} 
-                onChange={(e) => setConfirmPassword(e.target.value)} 
-                required 
+                type="password"
+                placeholder="Re-enter your access password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
               />
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '20px' }}>
-              <button 
-                type="button" 
-                className="btn btn-ghost" 
-                onClick={() => setStep(1)} 
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => setStep(1)}
                 style={{ fontSize: '13px', padding: '8px 12px' }}
               >
-                Quay lại
+                Back
               </button>
               <button type="submit" className="btn btn-primary" style={{ fontSize: '13px', padding: '8px 16px' }}>
-                Hoàn tất đăng ký
+                Complete registration
               </button>
             </div>
           </form>

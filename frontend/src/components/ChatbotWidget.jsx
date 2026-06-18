@@ -6,7 +6,7 @@ export default function ChatbotWidget() {
     {
       id: 1,
       sender: 'bot',
-      text: 'Xin chào! Tôi là Trợ lý ảo của Phòng khám Hợp Sơn Tài. Tôi có thể giúp gì cho bạn hôm nay?',
+      text: 'Hello! I am the virtual assistant of Hopsontai Clinic. How can I help you today?',
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     }
   ]);
@@ -23,45 +23,45 @@ export default function ChatbotWidget() {
   }, [messages, isTyping]);
 
   const quickReplies = [
-    { text: '🗓️ Đặt lịch khám', query: 'dat_lich' },
-    { text: '🕒 Giờ làm việc', query: 'gio_lam_viec' },
-    { text: '📍 Địa chỉ & Hotline', query: 'dia_chi' },
-    { text: '🩺 Các chuyên khoa', query: 'chuyen_khoa' }
+    { text: '🗓️ Book an appointment', query: 'dat_lich' },
+    { text: '🕒 Working hours', query: 'gio_lam_viec' },
+    { text: '📍 Address & Hotline', query: 'dia_chi' },
+    { text: '🩺 Our specialties', query: 'chuyen_khoa' }
   ];
 
   const getBotResponse = (query, userText) => {
     const textLower = userText.toLowerCase();
-    
-    if (query === 'dat_lich' || textLower.includes('đặt') || textLower.includes('lịch') || textLower.includes('hẹn') || textLower.includes('booking')) {
+
+    if (query === 'dat_lich' || textLower.includes('book') || textLower.includes('appointment') || textLower.includes('schedule')) {
       return {
-        text: 'Bạn có thể gửi yêu cầu đặt lịch khám nhanh ngay lập tức bằng cách click vào nút dưới đây để điền thông tin:',
+        text: 'You can submit a quick booking request right away by clicking the button below to fill in your details:',
         cta: {
-          label: '🗓️ Đặt Lịch Khám Ngay',
+          label: '🗓️ Book an Appointment Now',
           action: 'open_booking'
         }
       };
     }
-    
-    if (query === 'gio_lam_viec' || textLower.includes('giờ') || textLower.includes('mấy giờ') || textLower.includes('lịch làm') || textLower.includes('mở cửa')) {
+
+    if (query === 'gio_lam_viec' || textLower.includes('hour') || textLower.includes('time') || textLower.includes('open')) {
       return {
-        text: 'Phòng khám Hợp Sơn Tài làm việc liên tục tất cả các ngày trong tuần (từ Thứ 2 đến Chủ Nhật, kể cả các ngày lễ):\n\n🕒 **Giờ mở cửa:** 07:00 – 20:00 hàng ngày\n🏥 Chúng tôi có hỗ trợ khám ngoài giờ hành chính và có bác sĩ trực tư vấn 24/7.'
+        text: 'Hopsontai Clinic is open every day of the week (Monday to Sunday, including public holidays):\n\n🕒 **Opening hours:** 07:00 – 20:00 daily\n🏥 We also support after-hours visits and have doctors on call for consultation 24/7.'
       };
     }
-    
-    if (query === 'dia_chi' || textLower.includes('địa chỉ') || textLower.includes('ở đâu') || textLower.includes('đường') || textLower.includes('hotline') || textLower.includes('sđt') || textLower.includes('liên hệ') || textLower.includes('điện thoại')) {
+
+    if (query === 'dia_chi' || textLower.includes('address') || textLower.includes('where') || textLower.includes('hotline') || textLower.includes('phone') || textLower.includes('contact')) {
       return {
-        text: 'Thông tin liên hệ chính thức của phòng khám Hợp Sơn Tài:\n\n📍 **Địa chỉ:** 123 Đường Nguyễn Trãi, Quận 5, TP. Hồ Chí Minh\n📞 **Hotline hỗ trợ & Đặt lịch:** 091-444-4444\n✉️ **Email:** contact@hopsontai.vn'
+        text: 'Official contact information for Hopsontai Clinic:\n\n📍 **Address:** 123 Nguyen Trai Street, District 5, Ho Chi Minh City\n📞 **Support & booking hotline:** 091-444-4444\n✉️ **Email:** contact@hopsontai.vn'
       };
     }
-    
-    if (query === 'chuyen_khoa' || textLower.includes('chuyên khoa') || textLower.includes('khoa') || textLower.includes('khám gì') || textLower.includes('chữa gì')) {
+
+    if (query === 'chuyen_khoa' || textLower.includes('specialt') || textLower.includes('department') || textLower.includes('treat')) {
       return {
-        text: 'Phòng khám chúng tôi sở hữu các chuyên khoa thế mạnh với trang thiết bị hiện đại:\n\n1. **Châm cứu & Y học cổ truyền** (Thế mạnh đặc biệt)\n2. **Cơ xương khớp** (Trị liệu đau nhức, cột sống)\n3. **Nhi khoa** (Khám bệnh trẻ em thân thiện)\n4. **Sản phụ khoa** (Theo dõi thai kỳ, khám phụ khoa)\n5. **Da liễu & Thẩm mỹ da**\n6. **Khám tổng quát & Xét nghiệm**'
+        text: 'Our clinic offers leading specialties with modern equipment:\n\n1. **Acupuncture & Traditional Medicine** (Our specialty)\n2. **Musculoskeletal** (Pain and spine therapy)\n3. **Pediatrics** (Child-friendly care)\n4. **Obstetrics & Gynecology** (Prenatal and gynecological care)\n5. **Dermatology & Skin Aesthetics**\n6. **General Check-up & Laboratory Tests**'
       };
     }
 
     return {
-      text: 'Cảm ơn bạn đã gửi câu hỏi. Hiện tại Trợ lý ảo chưa hiểu ý của bạn. Để được hỗ trợ tốt nhất, bạn có thể:\n\n📞 Gọi trực tiếp Hotline: **091-444-4444**\n🗓️ Hoặc sử dụng tính năng **Đặt lịch nhanh** trên trang web.'
+      text: 'Thank you for your question. The virtual assistant did not quite understand. For the best support, you can:\n\n📞 Call our hotline directly: **091-444-4444**\n🗓️ Or use the **Quick Booking** feature on the website.'
     };
   };
 
@@ -115,7 +115,7 @@ export default function ChatbotWidget() {
         type="button" 
         className={`chatbot-trigger ${hasNewMessage && !isOpen ? 'has-notification' : ''}`}
         onClick={toggleChat}
-        aria-label="Trợ lý ảo tư vấn"
+        aria-label="Virtual assistant"
       >
         {isOpen ? (
           <svg className="chatbot-trigger-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
@@ -140,14 +140,14 @@ export default function ChatbotWidget() {
               </svg>
             </div>
             <div className="chatbot-header-text">
-              <h4>Trợ Lý Hợp Sơn Tài</h4>
+              <h4>Hopsontai Assistant</h4>
               <div className="chatbot-status">
                 <span className="status-dot"></span>
-                <span>Trực tuyến</span>
+                <span>Online</span>
               </div>
             </div>
           </div>
-          <button type="button" className="chatbot-close-btn" onClick={toggleChat} aria-label="Đóng">
+          <button type="button" className="chatbot-close-btn" onClick={toggleChat} aria-label="Close">
             &times;
           </button>
         </div>
@@ -229,12 +229,12 @@ export default function ChatbotWidget() {
         >
           <input
             type="text"
-            placeholder="Nhập tin nhắn..."
+            placeholder="Type a message..."
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             disabled={isTyping}
           />
-          <button type="submit" disabled={!inputValue.trim() || isTyping} aria-label="Gửi">
+          <button type="submit" disabled={!inputValue.trim() || isTyping} aria-label="Send">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" style={{ width: '18px', height: '18px' }}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
             </svg>

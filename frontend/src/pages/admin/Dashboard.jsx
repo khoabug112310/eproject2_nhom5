@@ -1,7 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { profilesAPI, schedulingAPI, cmsAPI, billingAPI, authAPI } from '../../services/api';
+import { profilesAPI, schedulingAPI, cmsAPI, billingAPI, authAPI, clinicalAPI } from '../../services/api';
 import { useAuth } from '../../store/authContext';
 import Swal from 'sweetalert2';
+import {
+  BarChart3, Activity, Users, Newspaper, CalendarDays, Pill,
+  Building2, Cpu, LogOut, TrendingUp, Clock, Zap, BarChart2,
+  CalendarCheck, Shield, FileText, RefreshCw, Plus, X, Search,
+  ChevronRight, Send, HeartPulse
+} from 'lucide-react';
 import './AdminDashboard.css';
 
 export default function AdminDashboard() {
@@ -13,6 +19,9 @@ export default function AdminDashboard() {
   const [departments, setDepartments] = useState([]);
   const [usersList, setUsersList] = useState([]);
   const [postsList, setPostsList] = useState([]);
+  const [medicinesList, setMedicinesList] = useState([]);
+  const [doctorSchedules, setDoctorSchedules] = useState([]);
+  const [doctorsList, setDoctorsList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
@@ -53,15 +62,15 @@ export default function AdminDashboard() {
   const [chatMessages, setChatMessages] = useState([
     {
       sender: 'ai',
-      text: `### 🧠 TRỢ LÝ PHÂN TÍCH HỆ THỐNG AI
-Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tích hợp trực tiếp để theo dõi hoạt động phòng khám.
+      text: `### 🧠 AI SYSTEM ANALYSIS ASSISTANT
+Hello Administrator! I am the AI assistant integrated directly to monitor clinic operations.
 
-**Tôi có thể hỗ trợ bạn phân tích các dữ liệu thực tế sau:**
-1. 👥 **"Phân tích nhân sự và an ninh tài khoản"**: Kiểm tra cơ cấu, an ninh bảo mật và trạng thái khóa tài khoản.
-2. 📰 **"Tối ưu hóa bài viết CMS"**: Đánh giá SEO, đề xuất từ khóa và quản lý bản nháp tin tức.
-3. 💰 **"Đánh giá doanh thu và vận hành"**: Phân tích giờ cao điểm, cấu trúc nguồn thu và xử lý điểm nghẽn quy trình.
+**I can help you analyze the following real-time data:**
+1. 👥 **"Staff and account security analysis"**: Review structure, security, and account lock status.
+2. 📰 **"Optimize CMS articles"**: Evaluate SEO, suggest keywords, and manage news drafts.
+3. 💰 **"Assess revenue and operations"**: Analyze peak hours, revenue structure, and resolve workflow bottlenecks.
 `,
-      time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+      time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
     }
   ]);
   const [chatInput, setChatInput] = useState('');
@@ -81,13 +90,28 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
     email: '',
     phone: '',
     departmentId: '',
-    specialization: 'Chuyên khoa',
+    specialization: 'Specialist',
     experienceYears: 5,
     baseFee: 150000,
     bio: '',
     position: '',
     qualifications: '',
   });
+
+  // Medicine CRUD State
+  const [medicineForm, setMedicineForm] = useState({ medicineName: '', medicineCode: '', activeIngredient: '', usageRoute: 'Uống', unit: 'tablet', unitPrice: 0, stockQuantity: 0 });
+  const [editingMedicine, setEditingMedicine] = useState(null);
+  const [isMedicineModalOpen, setIsMedicineModalOpen] = useState(false);
+  const [medicineSearch, setMedicineSearch] = useState('');
+
+  // Doctor Schedule CRUD State
+  const [scheduleForm, setScheduleForm] = useState({ doctorId: '', workDate: '', startTime: '07:30', endTime: '11:30', maxPatients: 20 });
+  const [scheduleSearch, setScheduleSearch] = useState('');
+
+  // Department CRUD State
+  const [deptForm, setDeptForm] = useState({ departmentName: '', description: '', contactPhone: '' });
+  const [editingDept, setEditingDept] = useState(null);
+  const [isDeptModalOpen, setIsDeptModalOpen] = useState(false);
 
   // CMS Post Creation/Edit Form State
   const [editingPost, setEditingPost] = useState(null);
@@ -158,9 +182,21 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
       // 6. Get news articles
       const postsRes = await cmsAPI.getPosts();
       setPostsList(postsRes.data.data);
+
+      // 7. Get medicines list
+      const medsRes = await clinicalAPI.getMedicines();
+      setMedicinesList(medsRes.data.data);
+
+      // 8. Get all doctor schedules
+      const schedsRes = await schedulingAPI.getAllDoctorSchedules();
+      setDoctorSchedules(schedsRes.data.data);
+
+      // 9. Get doctors for schedule form
+      const docsRes = await clinicalAPI.getDoctors();
+      setDoctorsList(docsRes.data.data);
     } catch (err) {
       console.error(err);
-      setErrorMessage('Lỗi khi tải thông tin quản trị hệ thống.');
+      setErrorMessage('Error loading admin dashboard data.');
     } finally {
       setLoading(false);
     }
@@ -188,7 +224,7 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
         position: (userForm.roleName === 'staff' || userForm.roleName === 'accountant') ? userForm.position : undefined,
       });
 
-      setSuccessMessage(`Đã đăng ký tài khoản ${userForm.fullName} (${userForm.roleName}) thành công!`);
+      setSuccessMessage(`Account ${userForm.fullName} (${userForm.roleName}) registered successfully!`);
       setUserForm({
         username: '',
         password: '',
@@ -197,7 +233,7 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
         email: '',
         phone: '',
         departmentId: '',
-        specialization: 'Chuyên khoa',
+        specialization: 'Specialist',
         experienceYears: 5,
         baseFee: 150000,
         bio: '',
@@ -206,7 +242,7 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
       });
       fetchAdminData();
     } catch (err) {
-      setErrorMessage(err?.response?.data?.message || 'Lỗi đăng ký tài khoản.');
+      setErrorMessage(err?.response?.data?.message || 'Error registering the account.');
     } finally {
       setSubmitting(false);
     }
@@ -218,10 +254,10 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
       setErrorMessage('');
       setSuccessMessage('');
       await profilesAPI.updateUser(userId, { isActive: !currentStatus });
-      setSuccessMessage('Đã cập nhật trạng thái tài khoản thành công!');
+      setSuccessMessage('Account status updated successfully!');
       fetchAdminData();
     } catch (err) {
-      setErrorMessage(err?.response?.data?.message || 'Không thể cập nhật trạng thái tài khoản.');
+      setErrorMessage(err?.response?.data?.message || 'Could not update account status.');
     } finally {
       setSubmitting(false);
     }
@@ -235,17 +271,17 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
     try {
       if (editingPost) {
         await cmsAPI.updatePost(editingPost._id, postForm);
-        setSuccessMessage('Đã cập nhật bài viết thành công!');
+        setSuccessMessage('Article updated successfully!');
       } else {
         await cmsAPI.createPost(postForm);
-        setSuccessMessage('Đã tạo bài viết mới thành công!');
+        setSuccessMessage('New article created successfully!');
       }
       setEditingPost(null);
       setPostForm({ title: '', content: '', thumbnailURL: '', status: 'Published' });
       setIsPostModalOpen(false);
       fetchAdminData();
     } catch (err) {
-      setErrorMessage(err?.response?.data?.message || 'Lỗi khi lưu bài viết.');
+      setErrorMessage(err?.response?.data?.message || 'Error saving the article.');
     } finally {
       setSubmitting(false);
     }
@@ -264,22 +300,22 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
 
   const handleDeletePost = async (postId) => {
     const result = await Swal.fire({
-      title: 'Xác nhận xóa',
-      text: 'Bạn có chắc chắn muốn xóa bài viết này không?',
+      title: 'Confirm deletion',
+      text: 'Are you sure you want to delete this article?',
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#ef4444',
       cancelButtonColor: '#64748b',
-      confirmButtonText: 'Xóa',
-      cancelButtonText: 'Hủy'
+      confirmButtonText: 'Delete',
+      cancelButtonText: 'Cancel'
     });
     if (!result.isConfirmed) return;
     try {
       await cmsAPI.deletePost(postId);
-      setSuccessMessage('Đã xóa bài viết thành công.');
+      setSuccessMessage('Article deleted successfully.');
       fetchAdminData();
     } catch (err) {
-      setErrorMessage('Không thể xóa bài viết.');
+      setErrorMessage('Could not delete the article.');
     }
   };
 
@@ -307,11 +343,11 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
     setSuccessMessage('');
     try {
       await profilesAPI.editUserAdmin(editingUser._id, editUserForm);
-      setSuccessMessage('Đã cập nhật thông tin tài khoản thành công!');
+      setSuccessMessage('Account information updated successfully!');
       setEditingUser(null);
       fetchAdminData();
     } catch (err) {
-      setErrorMessage(err?.response?.data?.message || 'Lỗi khi cập nhật tài khoản.');
+      setErrorMessage(err?.response?.data?.message || 'Error updating the account.');
     } finally {
       setSubmitting(false);
     }
@@ -319,14 +355,14 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
 
   const handleDeleteUserClick = async (userId) => {
     const result = await Swal.fire({
-      title: 'Xác nhận xóa',
-      text: 'Bạn có chắc chắn muốn xóa tài khoản này và mọi thông tin liên quan?',
+      title: 'Confirm deletion',
+      text: 'Are you sure you want to delete this account and all related information?',
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#ef4444',
       cancelButtonColor: '#64748b',
-      confirmButtonText: 'Xóa',
-      cancelButtonText: 'Hủy'
+      confirmButtonText: 'Delete',
+      cancelButtonText: 'Cancel'
     });
     if (!result.isConfirmed) return;
     try {
@@ -334,10 +370,10 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
       setErrorMessage('');
       setSuccessMessage('');
       await profilesAPI.deleteUserAdmin(userId);
-      setSuccessMessage('Đã xóa tài khoản thành công!');
+      setSuccessMessage('Account deleted successfully!');
       fetchAdminData();
     } catch (err) {
-      setErrorMessage(err?.response?.data?.message || 'Lỗi khi xóa tài khoản.');
+      setErrorMessage(err?.response?.data?.message || 'Error deleting the account.');
     } finally {
       setSubmitting(false);
     }
@@ -360,7 +396,7 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
       const dest = homeByRole[role] || '/';
       window.location.href = dest;
     } catch (err) {
-      setErrorMessage('Đăng nhập hộ thất bại. Vui lòng thử lại.');
+      setErrorMessage('Impersonation failed. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -372,10 +408,10 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
       setErrorMessage('');
       setSuccessMessage('');
       await profilesAPI.updateTimelineStepAdmin({ appointmentId, stepIndex, action, status });
-      setSuccessMessage('Đã cập nhật bước quy trình thành công!');
+      setSuccessMessage('Workflow step updated successfully!');
       fetchAdminData();
     } catch (err) {
-      setErrorMessage(err?.response?.data?.message || 'Lỗi khi cập nhật bước quy trình.');
+      setErrorMessage(err?.response?.data?.message || 'Error updating the workflow step.');
     } finally {
       setSubmitting(false);
     }
@@ -383,14 +419,14 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
 
   const handleDeleteAppointment = async (appointmentId) => {
     const result = await Swal.fire({
-      title: 'Xác nhận xóa',
-      text: 'Bạn có chắc chắn muốn xóa lịch hẹn này và toàn bộ hóa đơn/bệnh án liên quan?',
+      title: 'Confirm deletion',
+      text: 'Are you sure you want to delete this appointment and all related invoices/records?',
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#ef4444',
       cancelButtonColor: '#64748b',
-      confirmButtonText: 'Xóa',
-      cancelButtonText: 'Hủy'
+      confirmButtonText: 'Delete',
+      cancelButtonText: 'Cancel'
     });
     if (!result.isConfirmed) return;
     try {
@@ -398,13 +434,99 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
       setErrorMessage('');
       setSuccessMessage('');
       await profilesAPI.deleteAppointmentAdmin(appointmentId);
-      setSuccessMessage('Đã xóa lịch hẹn thành công!');
+      setSuccessMessage('Appointment deleted successfully!');
       fetchAdminData();
     } catch (err) {
-      setErrorMessage('Không thể xóa lịch hẹn.');
+      setErrorMessage('Could not delete the appointment.');
     } finally {
       setSubmitting(false);
     }
+  };
+
+  // --- Medicine handlers ---
+  const handleSaveMedicine = async (e) => {
+    e.preventDefault();
+    setSubmitting(true); setErrorMessage(''); setSuccessMessage('');
+    try {
+      if (editingMedicine) {
+        await clinicalAPI.updateMedicine(editingMedicine._id, medicineForm);
+        setSuccessMessage('Medicine updated successfully!');
+      } else {
+        await clinicalAPI.createMedicine(medicineForm);
+        setSuccessMessage('Medicine added to stock successfully!');
+      }
+      setEditingMedicine(null);
+      setMedicineForm({ medicineName: '', medicineCode: '', activeIngredient: '', usageRoute: 'Uống', unit: 'tablet', unitPrice: 0, stockQuantity: 0 });
+      setIsMedicineModalOpen(false);
+      fetchAdminData();
+    } catch (err) {
+      setErrorMessage(err?.response?.data?.message || 'Error saving the medicine.');
+    } finally { setSubmitting(false); }
+  };
+
+  const handleDeleteMedicine = async (id) => {
+    const result = await Swal.fire({ title: 'Deactivate medicine?', text: 'This medicine will no longer appear in the prescription list.', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444', cancelButtonColor: '#64748b', confirmButtonText: 'Confirm', cancelButtonText: 'Cancel' });
+    if (!result.isConfirmed) return;
+    try {
+      await clinicalAPI.deleteMedicine(id);
+      setSuccessMessage('Medicine deactivated.');
+      fetchAdminData();
+    } catch (err) { setErrorMessage('Could not delete the medicine.'); }
+  };
+
+  // --- Department handlers ---
+  const handleSaveDept = async (e) => {
+    e.preventDefault();
+    setSubmitting(true); setErrorMessage(''); setSuccessMessage('');
+    try {
+      if (editingDept) {
+        await schedulingAPI.updateDepartment(editingDept._id, deptForm);
+        setSuccessMessage('Department updated successfully!');
+      } else {
+        await schedulingAPI.createDepartment(deptForm);
+        setSuccessMessage('New department added successfully!');
+      }
+      setEditingDept(null);
+      setDeptForm({ departmentName: '', description: '', contactPhone: '' });
+      setIsDeptModalOpen(false);
+      fetchAdminData();
+    } catch (err) {
+      setErrorMessage(err?.response?.data?.message || 'Error saving the department.');
+    } finally { setSubmitting(false); }
+  };
+
+  const handleDeleteDept = async (id) => {
+    const result = await Swal.fire({ title: 'Delete this department?', text: 'Related data may be affected.', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444', cancelButtonColor: '#64748b', confirmButtonText: 'Delete', cancelButtonText: 'Cancel' });
+    if (!result.isConfirmed) return;
+    try {
+      await schedulingAPI.deleteDepartment(id);
+      setSuccessMessage('Department deleted.');
+      fetchAdminData();
+    } catch (err) { setErrorMessage('Could not delete the department.'); }
+  };
+
+  // --- Doctor Schedule handlers ---
+  const handleCreateSchedule = async (e) => {
+    e.preventDefault();
+    setSubmitting(true); setErrorMessage(''); setSuccessMessage('');
+    try {
+      await schedulingAPI.createDoctorSchedule(scheduleForm);
+      setSuccessMessage('Shift created successfully!');
+      setScheduleForm({ doctorId: '', workDate: '', startTime: '07:30', endTime: '11:30', maxPatients: 20 });
+      fetchAdminData();
+    } catch (err) {
+      setErrorMessage(err?.response?.data?.message || 'Error creating the shift.');
+    } finally { setSubmitting(false); }
+  };
+
+  const handleDeleteSchedule = async (id) => {
+    const result = await Swal.fire({ title: 'Delete shift?', text: 'This shift will be removed from the schedule.', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444', cancelButtonColor: '#64748b', confirmButtonText: 'Delete', cancelButtonText: 'Cancel' });
+    if (!result.isConfirmed) return;
+    try {
+      await schedulingAPI.deleteDoctorSchedule(id);
+      setSuccessMessage('Shift deleted.');
+      fetchAdminData();
+    } catch (err) { setErrorMessage('Could not delete the shift.'); }
   };
 
   const handleImageUpload = async (e) => {
@@ -412,11 +534,11 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) {
       Swal.fire({
-        title: 'Ảnh quá lớn',
-        text: 'Kích thước ảnh không được vượt quá 5MB',
+        title: 'Image too large',
+        text: 'Image size must not exceed 5MB',
         icon: 'error',
         confirmButtonColor: '#3085d6',
-        confirmButtonText: 'Đồng ý'
+        confirmButtonText: 'OK'
       });
       return;
     }
@@ -427,9 +549,9 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
         const base64Data = reader.result;
         const res = await cmsAPI.uploadImage(base64Data);
         setPostForm(prev => ({ ...prev, thumbnailURL: res.data.data.url }));
-        setSuccessMessage('Tải ảnh lên thành công!');
+        setSuccessMessage('Image uploaded successfully!');
       } catch (err) {
-        setErrorMessage('Lỗi khi tải ảnh lên server.');
+        setErrorMessage('Error uploading image to the server.');
       } finally {
         setSubmitting(false);
       }
@@ -447,7 +569,7 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
     const newMsg = {
       sender: 'user',
       text: userText,
-      time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+      time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
     };
     setChatMessages(prev => [...prev, newMsg]);
     setChatLoading(true);
@@ -458,33 +580,33 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
       setChatMessages(prev => [...prev, {
         sender: 'ai',
         text: aiText,
-        time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+        time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
       }]);
     } catch (err) {
       console.warn('AI API Call failed, falling back to local diagnostics', err);
       setTimeout(() => {
         let fallbackText = '';
         const q = userText.toLowerCase();
-        if (q.includes('nhân sự') || q.includes('tài khoản') || q.includes('bảo mật')) {
-          fallbackText = `### 🧠 KẾT QUẢ PHÂN TÍCH NHÂN SỰ & AN NINH
-Hệ thống phát hiện **${usersList.length} tài khoản**. Có **${usersList.filter(u => !u.isActive).length} tài khoản đang bị khóa**.
-Định kỳ 30 ngày khuyên dùng việc thay đổi mật khẩu để tăng tính bảo mật.`;
-        } else if (q.includes('bài viết') || q.includes('cms') || q.includes('seo')) {
-          fallbackText = `### 🧠 BÁO CÁO TỐI ƯU SEO CMS
-Tìm thấy **${postsList.length} bài viết** (${postsList.filter(p => p.status === 'Published').length} đã đăng, ${postsList.filter(p => p.status === 'Draft').length} bản nháp).
-Khuyến nghị bổ sung thẻ ALT hình ảnh và nâng độ dài bài viết lên > 600 từ.`;
-        } else if (q.includes('doanh thu') || q.includes('thống kê') || q.includes('tiền')) {
+        if (q.includes('staff') || q.includes('account') || q.includes('security')) {
+          fallbackText = `### 🧠 STAFF & SECURITY ANALYSIS
+The system detected **${usersList.length} accounts**, with **${usersList.filter(u => !u.isActive).length} accounts currently locked**.
+We recommend changing passwords every 30 days to improve security.`;
+        } else if (q.includes('article') || q.includes('cms') || q.includes('seo')) {
+          fallbackText = `### 🧠 CMS SEO OPTIMIZATION REPORT
+Found **${postsList.length} articles** (${postsList.filter(p => p.status === 'Published').length} published, ${postsList.filter(p => p.status === 'Draft').length} drafts).
+We recommend adding image ALT tags and increasing article length to over 600 words.`;
+        } else if (q.includes('revenue') || q.includes('statistic') || q.includes('finance')) {
           const rev = stats?.revenue?.month || 0;
-          fallbackText = `### 🧠 PHÂN TÍCH DOANH THU & VẬN HÀNH
-Doanh thu tháng này đạt **${formatVND(rev)}**.
-Phí khám lâm sàng chiếm ${consultationPct}%, nhà thuốc chiếm ${pharmacyPct}%.`;
+          fallbackText = `### 🧠 REVENUE & OPERATIONS ANALYSIS
+This month's revenue reached **${formatVND(rev)}**.
+Consultation fees account for ${consultationPct}%, pharmacy for ${pharmacyPct}%.`;
         } else {
-          fallbackText = `Tôi là trợ lý AI của bạn. Rất vui được hỗ trợ! Bạn có câu hỏi nào khác về hoạt động của phòng khám không?`;
+          fallbackText = `I am your AI assistant. Happy to help! Do you have any other questions about the clinic's operations?`;
         }
         setChatMessages(prev => [...prev, {
           sender: 'ai',
           text: fallbackText,
-          time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+          time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
         }]);
       }, 800);
     } finally {
@@ -498,16 +620,16 @@ Phí khám lâm sàng chiếm ${consultationPct}%, nhà thuốc chiếm ${pharma
     const pharmacyInvoice = invoices.find(inv => inv.appointmentId?._id === appt._id && inv.invoiceType === 'Pharmacy');
 
     return [
-      { label: 'Yêu cầu đặt', done: true, desc: 'Lịch hẹn đã đăng ký' },
-      { label: 'CSKH Duyệt', done: appt.status !== 'Pending' && appt.status !== 'Canceled', desc: appt.status === 'Pending' ? 'Đang chờ' : 'Đã duyệt' },
-      { label: 'Phí lâm sàng', done: patientInvoice?.status === 'Paid', desc: patientInvoice?.status === 'Paid' ? 'Đã thu' : 'Chưa đóng' },
-      { label: 'Bác sĩ khám', done: appt.status === 'Completed', desc: appt.status === 'Completed' ? 'Đã khám xong' : 'Chưa khám' },
-      { label: 'Tiền thuốc', done: pharmacyInvoice ? pharmacyInvoice.status === 'Paid' : null, desc: pharmacyInvoice ? (pharmacyInvoice.status === 'Paid' ? 'Đã thanh toán' : 'Chờ thu tiền thuốc') : 'Không thuốc' },
+      { label: 'Booking request', done: true, desc: 'Appointment requested' },
+      { label: 'Care Approval', done: appt.status !== 'Pending' && appt.status !== 'Canceled', desc: appt.status === 'Pending' ? 'Pending' : 'Approved' },
+      { label: 'Consultation fee', done: patientInvoice?.status === 'Paid', desc: patientInvoice?.status === 'Paid' ? 'Collected' : 'Unpaid' },
+      { label: 'Examination', done: appt.status === 'Completed', desc: appt.status === 'Completed' ? 'Examined' : 'Not examined' },
+      { label: 'Pharmacy fee', done: pharmacyInvoice ? pharmacyInvoice.status === 'Paid' : null, desc: pharmacyInvoice ? (pharmacyInvoice.status === 'Paid' ? 'Paid' : 'Awaiting payment') : 'No medicine' },
     ];
   };
 
   const formatVND = (num) => {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(num);
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'VND', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(num);
   };
   const formatCompactVND = (val) => {
     if (val >= 1000000) return `${(val / 1000000).toFixed(1)}M`;
@@ -529,16 +651,16 @@ Phí khám lâm sàng chiếm ${consultationPct}%, nhà thuốc chiếm ${pharma
     // If the query is empty, we just show the default greetings locally without querying the API
     if (!query.trim()) {
       setTimeout(() => {
-        const response = `### 🧠 TRỢ LÝ PHÂN TÍCH HỆ THỐNG AI
+        const response = `### 🧠 AI SYSTEM ANALYSIS ASSISTANT
         
-Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tích hợp trực tiếp để theo dõi hoạt động phòng khám.
+Hello Administrator! I am the AI assistant integrated directly to monitor clinic operations.
 
-**Tôi có thể hỗ trợ bạn phân tích các dữ liệu thực tế sau:**
-1. 👥 **"Phân tích tài khoản và nhân sự"**: Kiểm tra cơ cấu, an ninh bảo mật và trạng thái khóa tài khoản.
-2. 📰 **"Tối ưu hóa bài viết CMS"**: Đánh giá SEO, đề xuất từ khóa và quản lý bản nháp tin tức.
-3. 💰 **"Đánh giá doanh thu và vận hành"**: Phân tích giờ cao điểm, cấu trúc nguồn thu và xử lý điểm nghẽn quy trình.
+**I can help you analyze the following real-time data:**
+1. 👥 **"Account and staff analysis"**: Review structure, security, and account lock status.
+2. 📰 **"Optimize CMS articles"**: Evaluate SEO, suggest keywords, and manage news drafts.
+3. 💰 **"Assess revenue and operations"**: Analyze peak hours, revenue structure, and resolve workflow bottlenecks.
 
-*Hãy thử nhấn vào các phím tắt nhanh bên dưới hoặc nhập câu hỏi cụ thể của bạn!*`;
+*Try clicking a quick shortcut below or type your specific question!*`;
         setAiResponse(response);
         setAiLoading(false);
       }, 600);
@@ -559,76 +681,66 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
         const consultationPct = totalBreakdown > 0 ? ((stats.breakdown.consultation / totalBreakdown) * 100).toFixed(0) : 50;
         const pharmacyPct = totalBreakdown > 0 ? ((stats.breakdown.pharmacy / totalBreakdown) * 100).toFixed(0) : 50;
 
-        if (q.includes('nhân sự') || q.includes('tài khoản') || q.includes('bảo mật') || q.includes('cảnh báo') || q.includes('khóa')) {
+        if (q.includes('staff') || q.includes('account') || q.includes('security') || q.includes('alert') || q.includes('lock')) {
           const inactiveCount = usersList.filter(u => !u.isActive).length;
           const doctorsCount = usersList.filter(u => u.role === 'doctor').length;
           const staffCount = usersList.filter(u => u.role === 'staff' || u.role === 'accountant').length;
           
-          response = `### 🧠 KẾT QUẢ PHÂN TÍCH NHÂN SỰ & AN NINH TÀI KHOẢN
-          
-Hệ thống AI đã quét toàn bộ **${usersList.length} tài khoản** trong cơ sở dữ liệu:
+          response = `## Staff & Security Analysis
 
-1. **Cơ cấu nhân sự hoạt động:**
-   - **Bác sĩ chuyên khoa:** ${doctorsCount} tài khoản hoạt động.
-   - **Nhân viên CSKH/Kế toán:** ${staffCount} tài khoản hoạt động.
-   - **Đánh giá:** CSKH phân bổ đồng đều ở các quầy lễ tân. Đề xuất bổ sung thêm 1 nhân sự trực phụ trong khung giờ cao điểm.
+Scanned **${usersList.length} accounts** in the system.
 
-2. **Rủi ro An ninh & Khóa tài khoản:**
-   - **Tài khoản đang bị khóa:** ${inactiveCount} tài khoản. 
-   - **Trạng thái khóa tài khoản:** Các tài khoản bị khóa đã được vô hiệu hóa quyền đăng nhập thành công. Bác sĩ/Nhân viên bị khóa không thể truy cập bất kỳ trang nghiệp vụ nào.
-   
-**Khuyến nghị AI:** Định kỳ 30 ngày yêu cầu nhân sự đổi mật khẩu cấp 2 để bảo mật dữ liệu bệnh án điện tử.`;
+**Staffing structure:**
+- Specialist doctors: **${doctorsCount}** active
+- Care/Accounting staff: **${staffCount}** active
+- Locked accounts: **${inactiveCount}**
+
+**Security status:** ${inactiveCount > 0 ? `${inactiveCount} accounts are locked — login access disabled.` : 'All accounts are active. No anomalies detected.'}
+
+**Recommendation:** Enforce periodic password rotation every 30 days to protect electronic medical records.`;
         } 
-        else if (q.includes('bài viết') || q.includes('cms') || q.includes('seo') || q.includes('tin tức') || q.includes('nháp')) {
+        else if (q.includes('article') || q.includes('cms') || q.includes('seo') || q.includes('news') || q.includes('draft')) {
           const draftCount = postsList.filter(p => p.status === 'Draft').length;
           const publishedCount = postsList.filter(p => p.status === 'Published').length;
           
-          response = `### 🧠 BÁO CÁO PHÂN TÍCH NỘI DUNG CMS & TỐI ƯU SEO
-          
-AI đã phân tích danh mục tin tức y khoa y tế gồm **${postsList.length} bài viết**:
+          response = `## Content & CMS Status
 
-1. **Trạng thái xuất bản:**
-   - **Đã phát hành:** ${publishedCount} bài viết (Tiếp cận tốt).
-   - **Bản nháp chưa công bố:** ${draftCount} bài viết.
-   
-2. **Điểm tối ưu hóa SEO:**
-   - **Độ dài bài viết:** Trung bình đạt 450 từ (Mức khá). Đề xuất viết trên 600 từ để tăng thứ hạng tìm kiếm Google.
-   - **Hình ảnh đại diện:** Một số ảnh thumbnail có định dạng chưa tối ưu hoặc thiếu thẻ ALT.
-   
-**Đề xuất SEO tiêu biểu:**
-- *Bài viết cần chỉnh sửa:* Cập nhật hình ảnh chất lượng cao cho bài viết nháp trước khi chuyển sang trạng thái "Published".
-- *Từ khóa đề xuất:* Tập trung vào 'Khám sức khỏe tổng quát', 'Đặt lịch khám trực tuyến'.`;
+Total articles in catalog: **${postsList.length}**
+
+**Publication status:**
+- Published: **${publishedCount}**
+- Drafts pending: **${draftCount}**
+
+${draftCount > 0 ? `**Action needed:** ${draftCount} draft article(s) have not been published. Review and publish to improve site coverage.` : '**Content status:** All articles are published — good coverage.'}
+
+**Recommendation:** Ensure article thumbnails have descriptive alt tags and target 600+ words for optimal search visibility.`;
         }
-        else if (q.includes('doanh thu') || q.includes('thống kê') || q.includes('hiệu suất') || q.includes('cao điểm') || q.includes('tiền') || q.includes('chất lượng')) {
+        else if (q.includes('revenue') || q.includes('statistic') || q.includes('performance') || q.includes('peak') || q.includes('finance') || q.includes('quality')) {
           const revVal = stats?.revenue?.month || 0;
           const peakTime = stats?.qualityMetrics?.peakHours?.[0]?.time || 'N/A';
           const peakCount = stats?.qualityMetrics?.peakHours?.[0]?.count || 0;
           
-          response = `### 🧠 PHÂN TÍCH DOANH THU & ĐIỀU PHỐI VẬN HÀNH
-          
-Dựa trên dữ liệu tài chính thu phí lâm sàng & nhà thuốc tháng này:
+          response = `## Revenue & Operations Analysis
 
-1. **Phân tích tài chính:**
-   - **Doanh thu tích lũy:** ${formatVND(revVal)}
-   - **Cơ cấu nguồn thu:** Phí khám lâm sàng chiếm ${consultationPct}%, doanh thu nhà thuốc chiếm ${pharmacyPct}%. 
-   
-2. **Khung giờ cao điểm:**
-   - **Thời điểm bận rộn nhất:** Khung giờ **${peakTime}** (${peakCount} lượt đăng ký).
-   - **Đánh giá quy trình:** Có hiện tượng nghẽn nhẹ tại khâu thanh toán tiền thuốc.
-   
-**Giải pháp tối ưu từ AI:** Đề xuất mở rộng cổng thu ngân trực tuyến và khuyến khích bệnh nhân thanh toán QR-code ngay tại bàn khám của Bác sĩ để rút ngắn 12% thời gian chờ đợi ở timeline.`;
+**This month's revenue:** ${formatVND(revVal)}
+
+**Revenue breakdown:**
+- Consultation fees: **${consultationPct}%**
+- Pharmacy: **${pharmacyPct}%**
+
+**Peak hours:** ${peakTime} (${peakCount} registrations)
+
+**Operational note:** Review pharmacy payment workflow during peak windows — consider enabling QR-code payment at the examination desk to reduce patient wait time.`;
         }
         else {
-          response = `### 🧠 TRỢ LÝ PHÂN TÍCH HỆ THỐNG AI
-          
-Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tích hợp trực tiếp để theo dõi hoạt động phòng khám.
+          response = `## AI System Assistant
 
-**Tôi có thể hỗ trợ bạn phân tích các dữ liệu thực tế sau:**
-1. 👥 **"Phân tích tài khoản và nhân sự"**: Kiểm tra cơ cấu, an ninh bảo mật và trạng thái khóa tài khoản.
-2. 📰 **"Tối ưu hóa bài viết CMS"**: Đánh giá SEO, đề xuất từ khóa và quản lý bản nháp tin tức.
-3. 💰 **"Đánh giá doanh thu và vận hành"**: Phân tích giờ cao điểm, cấu trúc nguồn thu và xử lý điểm nghẽn quy trình.
+Ready to analyze your clinic data. Select a category or type a specific question.
 
-*Hãy thử nhấn vào các phím tắt nhanh bên dưới hoặc nhập câu hỏi cụ thể của bạn!*`;
+**Available queries:**
+- Staff & Security — account status, locked accounts, staffing breakdown
+- Content review — CMS articles, draft status, publication coverage
+- Revenue analysis — monthly revenue, breakdown, peak hours`;
         }
         setAiResponse(response);
       }, 1000);
@@ -680,7 +792,7 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
     return (
       <div className="dashboard-loading">
         <div className="spinner"></div>
-        <p>Đang tải bảng điều khiển quản trị viên...</p>
+        <p>Loading the admin dashboard...</p>
       </div>
     );
   }
@@ -698,12 +810,12 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
   const maxRevenue = Math.max(...chartRevenue, 1000000);
   const maxTraffic = Math.max(...chartTraffic, 5);
 
-  const chartHeight = 220;
-  const chartWidth = 400;
-  const paddingLeft = 50;
-  const paddingRight = 45;
-  const paddingTop = 25;
-  const paddingBottom = 30;
+  const chartHeight = 300;
+  const chartWidth = 600;
+  const paddingLeft = 55;
+  const paddingRight = 50;
+  const paddingTop = 28;
+  const paddingBottom = 36;
 
   const innerWidth = chartWidth - paddingLeft - paddingRight;
   const innerHeight = chartHeight - paddingTop - paddingBottom;
@@ -764,11 +876,23 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
     <div className="admin-dashboard-container">
       {/* Sidebar Nav */}
       <aside className="admin-sidebar">
+        {/* Logo */}
+        <div className="admin-sidebar-logo">
+          <div className="admin-sidebar-logo-icon">
+            <Plus size={18} color="#fff" strokeWidth={2.5} />
+          </div>
+          <div>
+            <div className="admin-sidebar-logo-text">MediCare</div>
+            <div className="admin-sidebar-logo-sub">Admin Console</div>
+          </div>
+        </div>
+
+        {/* User profile */}
         <div className="admin-user-profile">
-          <div className="admin-avatar">👑</div>
+          <div className="admin-avatar">AD</div>
           <div className="admin-profile-info">
-            <h4>Quản trị viên</h4>
-            <p>Quản trị toàn hệ thống</p>
+            <h4>Administrator</h4>
+            <p>System-wide access</p>
           </div>
         </div>
 
@@ -777,25 +901,43 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
             onClick={() => setActiveTab('analytics')}
             className={`admin-nav-btn ${activeTab === 'analytics' ? 'active' : ''}`}
           >
-            📊 Báo cáo & Thống kê
+            <BarChart3 size={16} /> Reports & Statistics
           </button>
           <button
             onClick={() => setActiveTab('timeline')}
             className={`admin-nav-btn ${activeTab === 'timeline' ? 'active' : ''}`}
           >
-            🔄 Giám sát quy trình
+            <Activity size={16} /> Workflow Monitor
           </button>
           <button
             onClick={() => setActiveTab('users')}
             className={`admin-nav-btn ${activeTab === 'users' ? 'active' : ''}`}
           >
-            👥 Quản lý tài khoản
+            <Users size={16} /> Account Management
           </button>
           <button
             onClick={() => setActiveTab('cms')}
             className={`admin-nav-btn ${activeTab === 'cms' ? 'active' : ''}`}
           >
-            📰 Quản trị tin tức CMS
+            <Newspaper size={16} /> News Management
+          </button>
+          <button
+            onClick={() => setActiveTab('schedules')}
+            className={`admin-nav-btn ${activeTab === 'schedules' ? 'active' : ''}`}
+          >
+            <CalendarDays size={16} /> Doctor Shifts
+          </button>
+          <button
+            onClick={() => setActiveTab('medicines')}
+            className={`admin-nav-btn ${activeTab === 'medicines' ? 'active' : ''}`}
+          >
+            <Pill size={16} /> Medicine Inventory
+          </button>
+          <button
+            onClick={() => setActiveTab('departments')}
+            className={`admin-nav-btn ${activeTab === 'departments' ? 'active' : ''}`}
+          >
+            <Building2 size={16} /> Departments
           </button>
           <button
             onClick={() => {
@@ -804,13 +946,13 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
             }}
             className={`admin-nav-btn ${activeTab === 'ai-analysis' ? 'active' : ''}`}
           >
-            🧠 Phân tích Hệ thống AI
+            <Cpu size={16} /> System Health
           </button>
         </nav>
 
         <div className="admin-sidebar-footer">
           <button onClick={logout} className="admin-logout-btn">
-            🚪 Đăng xuất
+            <LogOut size={15} /> Log out
           </button>
         </div>
       </aside>
@@ -820,16 +962,26 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
         <header className="admin-top-header">
           <div className="admin-header-title">
             <h2>
-              {activeTab === 'analytics' && '📊 Báo cáo & Thống kê'}
-              {activeTab === 'timeline' && '🔄 Giám sát quy trình khám'}
-              {activeTab === 'users' && '👥 Quản lý tài khoản nội bộ'}
-              {activeTab === 'cms' && '📰 Quản trị tin tức y khoa (CMS)'}
-              {activeTab === 'ai-analysis' && '🧠 Trợ lý Phân tích AI'}
+              {activeTab === 'analytics' && 'Reports & Statistics'}
+              {activeTab === 'timeline' && 'Examination Workflow'}
+              {activeTab === 'users' && 'Account Management'}
+              {activeTab === 'cms' && 'Medical News (CMS)'}
+              {activeTab === 'schedules' && 'Doctor Shift Management'}
+              {activeTab === 'medicines' && 'Medicine Inventory'}
+              {activeTab === 'departments' && 'Department Management'}
+              {activeTab === 'ai-analysis' && 'System Health'}
             </h2>
           </div>
           <div className="admin-header-actions">
-            <span style={{ fontSize: '13px', color: '#64748b' }}>Hệ thống trực tuyến</span>
-            <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#10b981', display: 'inline-block' }}></span>
+            <div className="admin-status-dot"></div>
+            <span>System online</span>
+            <button
+              onClick={fetchAdminData}
+              style={{ background: 'none', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '5px 8px', cursor: 'pointer', color: '#64748b', display: 'flex', alignItems: 'center' }}
+              title="Refresh data"
+            >
+              <RefreshCw size={13} />
+            </button>
           </div>
         </header>
 
@@ -842,27 +994,27 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
             <div className="admin-card animate-fade-in">
               <div className="card-header md-row flex-column" style={{ marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 15 }}>
                 <div>
-                  <h2 style={{ margin: 0 }}>Báo cáo tổng quan phòng khám</h2>
-                  <p className="subtitle" style={{ margin: '4px 0 0 0' }}>Thống kê hoạt động đăng ký, lượt khám và doanh thu thực tế.</p>
+                  <h2 style={{ margin: 0 }}>Clinic overview report</h2>
+                  <p className="subtitle" style={{ margin: '4px 0 0 0' }}>Statistics on registrations, examinations, and actual revenue.</p>
                 </div>
                 <div className="stats-period-toggles">
                   <button
                     onClick={() => setStatsPeriod('day')}
                     className={statsPeriod === 'day' ? 'active' : ''}
                   >
-                    Hôm nay
+                    Today
                   </button>
                   <button
                     onClick={() => setStatsPeriod('week')}
                     className={statsPeriod === 'week' ? 'active' : ''}
                   >
-                    Tuần này
+                    This week
                   </button>
                   <button
                     onClick={() => setStatsPeriod('month')}
                     className={statsPeriod === 'month' ? 'active' : ''}
                   >
-                    Tháng này
+                    This month
                   </button>
                 </div>
               </div>
@@ -870,68 +1022,68 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
               {/* Stat Cards */}
               <div className="admin-stats-grid">
                 <div className="admin-stat-card">
-                  <div className="admin-stat-icon-wrap">📅</div>
+                  <div className="admin-stat-icon-wrap"><CalendarCheck size={20} /></div>
                   <div className="admin-stat-info">
                     <h3>{activeRegistrations}</h3>
-                    <p>Lượt đăng ký lịch hẹn</p>
+                    <p>Appointment registrations</p>
                   </div>
                 </div>
                 <div className="admin-stat-card">
-                  <div className="admin-stat-icon-wrap">🩺</div>
+                  <div className="admin-stat-icon-wrap" style={{ backgroundColor: 'rgba(22,163,74,0.08)', color: '#16a34a' }}><HeartPulse size={20} /></div>
                   <div className="admin-stat-info">
                     <h3>{activeExaminations}</h3>
-                    <p>Ca khám lâm sàng hoàn tất</p>
+                    <p>Completed examinations</p>
                   </div>
                 </div>
                 <div className="admin-stat-card">
-                  <div className="admin-stat-icon-wrap">💰</div>
+                  <div className="admin-stat-icon-wrap" style={{ backgroundColor: 'rgba(8,145,178,0.08)', color: '#0891b2' }}><TrendingUp size={20} /></div>
                   <div className="admin-stat-info">
                     <h3>{formatVND(activeRevenue)}</h3>
-                    <p>Tổng doanh thu thực nhận</p>
+                    <p>Total revenue collected</p>
                   </div>
                 </div>
               </div>
 
               {/* Quality & Efficiency Metrics */}
-              <div className="admin-stats-grid" style={{ marginBottom: 30 }}>
+              <div className="admin-stats-grid" style={{ marginBottom: 24 }}>
                 <div className="admin-stat-card">
-                  <div className="admin-stat-icon-wrap" style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6' }}>⏱️</div>
+                  <div className="admin-stat-icon-wrap"><Clock size={20} /></div>
                   <div className="admin-stat-info">
-                    <h3>{stats?.qualityMetrics?.avgConfirmationTime || 15} phút</h3>
-                    <p>Thời gian duyệt trung bình (CSKH)</p>
+                    <h3>{stats?.qualityMetrics?.avgConfirmationTime || 15} min</h3>
+                    <p>Avg. approval time</p>
                   </div>
                 </div>
 
                 <div className="admin-stat-card">
-                  <div className="admin-stat-icon-wrap" style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', color: '#10b981' }}>📊</div>
+                  <div className="admin-stat-icon-wrap" style={{ backgroundColor: 'rgba(22,163,74,0.08)', color: '#16a34a' }}><BarChart2 size={20} /></div>
                   <div className="admin-stat-info" style={{ width: '100%' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                      <span className="admin-progress-text">Lịch thành công: <strong style={{ color: '#10b981' }}>{stats?.qualityMetrics?.rates?.success || 0}%</strong></span>
-                      <span className="admin-progress-text">Hủy: <strong style={{ color: '#ef4444' }}>{stats?.qualityMetrics?.rates?.canceled || 0}%</strong></span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                      <span className="admin-progress-text">Completed: <strong style={{ color: '#16a34a' }}>{stats?.qualityMetrics?.rates?.success || 0}%</strong></span>
+                      <span className="admin-progress-text">Cancelled: <strong style={{ color: '#dc2626' }}>{stats?.qualityMetrics?.rates?.canceled || 0}%</strong></span>
                     </div>
-                    <div className="admin-progress-track" style={{ height: '8px', borderRadius: '4px', overflow: 'hidden', display: 'flex' }}>
-                      <div style={{ width: `${stats?.qualityMetrics?.rates?.success || 0}%`, backgroundColor: '#10b981', height: '100%' }}></div>
-                      <div style={{ width: `${stats?.qualityMetrics?.rates?.canceled || 0}%`, backgroundColor: '#ef4444', height: '100%' }}></div>
-                      <div style={{ width: `${stats?.qualityMetrics?.rates?.pending || 0}%`, backgroundColor: '#f59e0b', height: '100%' }}></div>
+                    <div className="admin-progress-track" style={{ height: '6px', borderRadius: '3px', overflow: 'hidden', display: 'flex' }}>
+                      <div style={{ width: `${stats?.qualityMetrics?.rates?.success || 0}%`, backgroundColor: '#16a34a', height: '100%' }}></div>
+                      <div style={{ width: `${stats?.qualityMetrics?.rates?.canceled || 0}%`, backgroundColor: '#dc2626', height: '100%' }}></div>
+                      <div style={{ width: `${stats?.qualityMetrics?.rates?.pending || 0}%`, backgroundColor: '#d97706', height: '100%' }}></div>
                     </div>
                     <p style={{ margin: '4px 0 0 0', fontSize: '11px', color: '#64748b' }}>
-                      Đã duyệt: {stats?.qualityMetrics?.rates?.counts?.success || 0} | Đã hủy: {stats?.qualityMetrics?.rates?.counts?.canceled || 0}
+                      {stats?.qualityMetrics?.rates?.counts?.success || 0} completed · {stats?.qualityMetrics?.rates?.counts?.canceled || 0} cancelled
                     </p>
                   </div>
                 </div>
 
                 <div className="admin-stat-card">
-                  <div className="admin-stat-icon-wrap" style={{ backgroundColor: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b' }}>🔥</div>
+                  <div className="admin-stat-icon-wrap" style={{ backgroundColor: 'rgba(217,119,6,0.08)', color: '#d97706' }}><Zap size={20} /></div>
                   <div className="admin-stat-info">
                     <h3>
-                      {stats?.qualityMetrics?.peakHours?.[0]?.time || 'Chưa có'} 
+                      {stats?.qualityMetrics?.peakHours?.[0]?.time || 'N/A'}
                       {stats?.qualityMetrics?.peakHours?.[0]?.count ? (
-                        <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 'normal', marginLeft: '6px' }}>
-                          ({stats.qualityMetrics.peakHours[0].count} ca)
+                        <span style={{ fontSize: '12px', color: '#64748b', fontWeight: '500', marginLeft: '6px' }}>
+                          {stats.qualityMetrics.peakHours[0].count} cases
                         </span>
                       ) : null}
                     </h3>
-                    <p>Khung giờ khám cao điểm</p>
+                    <p>Peak examination hours</p>
                   </div>
                 </div>
               </div>
@@ -942,8 +1094,8 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                 <div className="admin-chart-panel">
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, flexWrap: 'wrap', gap: 10 }}>
                     <div>
-                      <h3 className="admin-chart-title">Biểu đồ hiệu suất phòng khám</h3>
-                      <p className="subtitle" style={{ margin: 0, fontSize: '12px' }}>Doanh thu (Cột xanh) & Bệnh nhân (Đường xanh dương)</p>
+                      <h3 className="admin-chart-title">Clinic performance chart</h3>
+                      <p className="subtitle" style={{ margin: 0, fontSize: '12px' }}>Revenue (bars) · Patients (line)</p>
                     </div>
                     <div className="stats-period-toggles" style={{ display: 'flex' }}>
                       <button
@@ -951,26 +1103,26 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                         className={chartPeriod === 'week' ? 'active' : ''}
                         style={{ padding: '4px 10px', fontSize: 11 }}
                       >
-                        Tuần
+                        Week
                       </button>
                       <button
                         onClick={() => setChartPeriod('month')}
                         className={chartPeriod === 'month' ? 'active' : ''}
                         style={{ padding: '4px 10px', fontSize: 11 }}
                       >
-                        Tháng
+                        Month
                       </button>
                       <button
                         onClick={() => setChartPeriod('year')}
                         className={chartPeriod === 'year' ? 'active' : ''}
                         style={{ padding: '4px 10px', fontSize: 11 }}
                       >
-                        Năm
+                        Year
                       </button>
                     </div>
                   </div>
                   
-                  <div className="chart-wrapper" style={{ position: 'relative', minHeight: 220 }}>
+                  <div className="chart-wrapper" style={{ position: 'relative', minHeight: 300 }}>
                     <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="svg-chart" style={{ width: '100%', height: 'auto' }}>
                       {/* Grid Lines */}
                       {[0, 0.33, 0.66, 1].map((ratio, index) => {
@@ -979,11 +1131,11 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                           <g key={index}>
                             <line x1={paddingLeft} y1={y} x2={chartWidth - paddingRight} y2={y} className="admin-chart-gridline" strokeDasharray="3,3" />
                             {/* Left Axis: Revenue */}
-                            <text x={paddingLeft - 8} y={y + 3} textAnchor="end" fontSize="8" className="admin-chart-axis-text">
+                            <text x={paddingLeft - 8} y={y + 3} textAnchor="end" fontSize="10" className="admin-chart-axis-text">
                               {formatCompactVND(ratio * maxRevenue)}
                             </text>
                             {/* Right Axis: Patients */}
-                            <text x={chartWidth - paddingRight + 8} y={y + 3} textAnchor="start" fontSize="8" className="admin-chart-axis-text-cyan">
+                            <text x={chartWidth - paddingRight + 8} y={y + 3} textAnchor="start" fontSize="10" className="admin-chart-axis-text-cyan">
                               {Math.round(ratio * maxTraffic)}
                             </text>
                           </g>
@@ -1017,7 +1169,7 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                           <polyline
                             fill="none"
                             stroke="url(#grad-line-cyan)"
-                            strokeWidth="2.5"
+                            strokeWidth="2"
                             points={linePoints}
                           />
                           {chartTraffic.map((t, idx) => {
@@ -1028,10 +1180,10 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                                 <circle
                                   cx={lx}
                                   cy={ly}
-                                  r={hoveredIdx === idx ? "6" : "4"}
+                                  r={hoveredIdx === idx ? "5" : "3.5"}
                                   fill="#fff"
-                                  stroke="#06b6d4"
-                                  strokeWidth="2"
+                                  stroke="#0891b2"
+                                  strokeWidth="1.5"
                                   style={{ cursor: 'pointer', transition: 'all 0.2s' }}
                                 />
                               </g>
@@ -1044,7 +1196,7 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                       {chartLabels.map((lbl, idx) => {
                         const lx = paddingLeft + (idx + 0.5) * (innerWidth / chartLabels.length);
                         return (
-                          <text key={idx} x={lx} y={chartHeight - 8} textAnchor="middle" fontSize="8" className="admin-chart-axis-text">
+                          <text key={idx} x={lx} y={chartHeight - 8} textAnchor="middle" fontSize="10" className="admin-chart-axis-text">
                             {lbl}
                           </text>
                         );
@@ -1053,12 +1205,12 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                       {/* Gradients Definitions */}
                       <defs>
                         <linearGradient id="grad-revenue" x1="0%" y1="0%" x2="0%" y2="100%">
-                          <stop offset="0%" stopColor="#10b981" />
-                          <stop offset="100%" stopColor="#059669" />
+                          <stop offset="0%" stopColor="#3b82f6" />
+                          <stop offset="100%" stopColor="#2563eb" />
                         </linearGradient>
                         <linearGradient id="grad-line-cyan" x1="0%" y1="0%" x2="100%" y2="0%">
-                          <stop offset="0%" stopColor="#06b6d4" />
-                          <stop offset="100%" stopColor="#3b82f6" />
+                          <stop offset="0%" stopColor="#0891b2" />
+                          <stop offset="100%" stopColor="#0369a1" />
                         </linearGradient>
                       </defs>
                     </svg>
@@ -1085,13 +1237,13 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                         }}
                       >
                         <div>
-                          <strong>Thời gian:</strong> <span style={{ color: '#06b6d4' }}>{chartLabels[hoveredIdx]}</span>
+                          <strong>Time:</strong> <span style={{ color: '#06b6d4' }}>{chartLabels[hoveredIdx]}</span>
                         </div>
                         <div>
-                          <strong>Doanh thu:</strong> <span style={{ color: '#10b981' }}>{formatVND(chartRevenue[hoveredIdx]).replace(/,00\s₫/g, ' đ')}</span>
+                          <strong>Revenue:</strong> <span style={{ color: '#10b981' }}>{formatVND(chartRevenue[hoveredIdx]).replace(/,00\s₫/g, ' VND')}</span>
                         </div>
                         <div>
-                          <strong>Bệnh nhân:</strong> <span style={{ color: '#3b82f6' }}>{chartTraffic[hoveredIdx]} lượt</span>
+                          <strong>Patients:</strong> <span style={{ color: '#3b82f6' }}>{chartTraffic[hoveredIdx]} visits</span>
                         </div>
                       </div>
                     )}
@@ -1100,28 +1252,28 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
 
                 {/* Pie/Gauge Revenue breakdown */}
                 <div className="admin-chart-panel">
-                  <h3 className="admin-chart-title">Cơ cấu nguồn thu (Tháng này)</h3>
-                  <p className="subtitle" style={{ margin: '4px 0 16px 0', fontSize: '12px' }}>Tỷ lệ doanh thu giữa Khám bệnh lâm sàng & Doanh thu nhà thuốc</p>
+                  <h3 className="admin-chart-title">Revenue breakdown (This month)</h3>
+                  <p className="subtitle" style={{ margin: '4px 0 16px 0', fontSize: '12px' }}>Revenue split between consultations & pharmacy</p>
 
                   <div className="breakdown-gauge-container">
                     <div className="horizontal-gauge">
                       <div className="gauge-segment consult" style={{ width: `${consultationPct}%` }}>
-                        {consultationPct}% Phí khám
+                        {consultationPct}% Consultation
                       </div>
                       <div className="gauge-segment pharmacy" style={{ width: `${pharmacyPct}%` }}>
-                        {pharmacyPct}% Thuốc đơn
+                        {pharmacyPct}% Pharmacy
                       </div>
                     </div>
 
                     <div className="gauge-legend">
                       <div>
                         <span className="dot dot-consult"></span>
-                        <strong>Khám lâm sàng: </strong>
+                        <strong>Consultation: </strong>
                         <span>{formatVND(stats?.breakdown?.consultation)}</span>
                       </div>
                       <div>
                         <span className="dot dot-pharmacy"></span>
-                        <strong>Nhà thuốc đơn: </strong>
+                        <strong>Pharmacy: </strong>
                         <span>{formatVND(stats?.breakdown?.pharmacy)}</span>
                       </div>
                     </div>
@@ -1130,30 +1282,30 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
 
                 {/* Staff Performance Panel */}
                 <div className="admin-chart-panel admin-full-width-panel">
-                  <h3 className="admin-chart-title">So sánh hiệu suất hoạt động nhân sự</h3>
-                  <p className="subtitle" style={{ margin: '4px 0 16px 0', fontSize: '12px' }}>Đo lường số ca khám hoàn thành của Bác sĩ và số lịch duyệt thành công của CSKH</p>
+                  <h3 className="admin-chart-title">Staff performance comparison</h3>
+                  <p className="subtitle" style={{ margin: '4px 0 16px 0', fontSize: '12px' }}>Measures completed examinations by doctors and approved appointments by care staff</p>
 
                   <div className="admin-performance-comparison-grid">
                     {/* Doctors Column */}
                     <div>
                       <h4 className="admin-performance-header">
-                        Top Bác Sĩ Xuất Sắc (Ca đã khám hoàn thành)
+                        Top Doctors — Completed Examinations
                       </h4>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                         {!stats?.qualityMetrics?.performance?.doctors || stats.qualityMetrics.performance.doctors.length === 0 ? (
-                          <p className="admin-performance-empty">Chưa có ca khám hoàn thành nào.</p>
+                          <p className="admin-performance-empty">No completed examinations yet.</p>
                         ) : (
                           stats.qualityMetrics.performance.doctors.map((doc, i) => {
                             const maxVal = Math.max(...stats.qualityMetrics.performance.doctors.map(d => d.count), 1);
                             const pct = Math.round((doc.count / maxVal) * 100);
                             return (
                               <div key={i}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '3px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
                                   <span className="admin-performance-name">{doc.name}</span>
-                                  <span style={{ color: '#10b981', fontWeight: 'bold' }}>{doc.count} ca</span>
+                                  <span style={{ color: '#2563eb', fontWeight: '600' }}>{doc.count} {doc.count === 1 ? 'case' : 'cases'}</span>
                                 </div>
                                 <div className="admin-performance-bar-track">
-                                  <div style={{ width: `${pct}%`, backgroundColor: '#10b981', height: '100%' }}></div>
+                                  <div style={{ width: `${pct}%`, backgroundColor: '#2563eb', height: '100%', borderRadius: '3px' }}></div>
                                 </div>
                               </div>
                             );
@@ -1165,23 +1317,23 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                     {/* CSKH Column */}
                     <div>
                       <h4 className="admin-performance-header">
-                        Top Nhân Viên CSKH (Lịch đã duyệt thành công)
+                        Top Care Staff — Approved Appointments
                       </h4>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                         {!stats?.qualityMetrics?.performance?.cskh || stats.qualityMetrics.performance.cskh.length === 0 ? (
-                          <p className="admin-performance-empty">Chưa có lịch hẹn nào được duyệt.</p>
+                          <p className="admin-performance-empty">No appointments approved yet.</p>
                         ) : (
                           stats.qualityMetrics.performance.cskh.map((staff, i) => {
                             const maxVal = Math.max(...stats.qualityMetrics.performance.cskh.map(s => s.count), 1);
                             const pct = Math.round((staff.count / maxVal) * 100);
                             return (
                               <div key={i}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '3px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
                                   <span className="admin-performance-name">{staff.name}</span>
-                                  <span style={{ color: '#06b6d4', fontWeight: 'bold' }}>{staff.count} đơn</span>
+                                  <span style={{ color: '#0891b2', fontWeight: '600' }}>{staff.count} appts</span>
                                 </div>
                                 <div className="admin-performance-bar-track">
-                                  <div style={{ width: `${pct}%`, backgroundColor: '#06b6d4', height: '100%' }}></div>
+                                  <div style={{ width: `${pct}%`, backgroundColor: '#0891b2', height: '100%', borderRadius: '3px' }}></div>
                                 </div>
                               </div>
                             );
@@ -1198,15 +1350,15 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
           {/* Tab: Timeline Audit */}
           {activeTab === 'timeline' && (
             <div className="admin-card">
-              <h2>Giám sát quy trình khám của bệnh nhân</h2>
-              <p className="subtitle">Kiểm soát trực quan toàn bộ tiến trình từ khi gửi yêu cầu khám đến khi thanh toán phát thuốc.</p>
+              <h2>Patient examination workflow monitor</h2>
+              <p className="subtitle">Visually track the entire process from booking request to medication payment.</p>
 
               {/* Search & Filter Controls */}
               <div className="admin-dark-form" style={{ display: 'flex', gap: 15, marginBottom: 25, flexWrap: 'wrap' }}>
                 <div style={{ flex: 1, minWidth: 250 }}>
                   <input
                     type="text"
-                    placeholder="🔍 Tìm kiếm bệnh nhân theo tên hoặc số điện thoại..."
+                    placeholder="Search by patient name or phone..."
                     value={timelineSearch}
                     onChange={(e) => setTimelineSearch(e.target.value)}
                   />
@@ -1217,20 +1369,20 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                     onChange={(e) => setTimelineFilter(e.target.value)}
                     style={{ cursor: 'pointer' }}
                   >
-                    <option value="all">🔄 Tất cả tiến trình</option>
-                    <option value="pending_cskh">1. Chờ CSKH Duyệt</option>
-                    <option value="pending_consultation_fee">2. Chờ Đóng Phí Lâm Sàng</option>
-                    <option value="pending_exam">3. Chờ Bác Sĩ Khám</option>
-                    <option value="pending_pharmacy_fee">4. Chờ Đóng Tiền Thuốc</option>
-                    <option value="completed">5. Đã Hoàn Thành Khám</option>
-                    <option value="canceled">❌ Đã Hủy Lịch</option>
+                    <option value="all">All stages</option>
+                    <option value="pending_cskh">1. Awaiting Care Approval</option>
+                    <option value="pending_consultation_fee">2. Awaiting Consultation Fee</option>
+                    <option value="pending_exam">3. Awaiting Examination</option>
+                    <option value="pending_pharmacy_fee">4. Awaiting Pharmacy Payment</option>
+                    <option value="completed">5. Examination Completed</option>
+                    <option value="canceled">Cancelled</option>
                   </select>
                 </div>
               </div>
 
               {filteredAppointments.length === 0 ? (
                 <div className="empty-state" style={{ padding: '40px 20px', textAlign: 'center', color: '#64748b' }}>
-                  <p>Không tìm thấy lượt khám nào khớp với tiêu chí tìm kiếm/lọc.</p>
+                  <p>No examinations match your search/filter criteria.</p>
                 </div>
               ) : (
                 <div className="admin-timeline-list">
@@ -1242,29 +1394,27 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                     return (
                       <div className="admin-timeline-row" key={appt._id}>
                         <div className="admin-timeline-meta">
-                          <strong>{appt.patientId?.fullName || 'Khách vãng lai'}</strong>
-                          <span>CCCD: {appt.patientId?.identityCard || 'Chưa cập nhật'}</span>
-                          <span>
-                            📅 {new Date(appt.requestedDate).toLocaleDateString('vi-VN')} ({appt.requestedTime})
-                          </span>
+                          <strong>{appt.patientId?.fullName || 'Walk-in guest'}</strong>
+                          <span>ID: {appt.patientId?.identityCard || 'Not updated'}</span>
+                          <span>{new Date(appt.requestedDate).toLocaleDateString('en-US')} · {appt.requestedTime}</span>
                           <span className="admin-badge admin-badge-primary" style={{ marginTop: 6, display: 'inline-block', width: 'fit-content' }}>
-                            🩺 Khoa: {appt.departmentId?.departmentName || 'Chưa phân khoa'}
+                            {appt.departmentId?.departmentName || 'Unassigned'}
                           </span>
                           <button
                             onClick={() => handleDeleteAppointment(appt._id)}
-                            className="admin-btn-danger"
-                            style={{ marginTop: '12px', padding: '6px 12px', fontSize: '12px', width: 'fit-content' }}
+                            className="btn-danger btn-xs"
+                            style={{ marginTop: '10px', width: 'fit-content' }}
                             disabled={submitting}
                           >
-                            🗑️ Xóa quy trình
+                            Delete record
                           </button>
                         </div>
                         <div className="admin-timeline-steps">
                           {/* Step 1: Requested */}
                           <div className="admin-timeline-step">
                             <div className="admin-step-dot done">✓</div>
-                            <span className="admin-step-label">Yêu cầu đặt</span>
-                            <span className="admin-step-desc">BN: {appt.patientId?.fullName || 'Bệnh nhân'}</span>
+                            <span className="admin-step-label">Booking request</span>
+                            <span className="admin-step-desc">Patient: {appt.patientId?.fullName || 'Patient'}</span>
                           </div>
 
                           {/* Step 2: CSKH Approved */}
@@ -1272,17 +1422,17 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                             <div className={`admin-step-dot ${appt.status !== 'Pending' && appt.status !== 'Canceled' ? 'done' : appt.status === 'Canceled' ? 'warn' : 'waiting'}`}>
                               {appt.status !== 'Pending' && appt.status !== 'Canceled' ? '✓' : appt.status === 'Canceled' ? '!' : '○'}
                             </div>
-                            <span className="admin-step-label">CSKH Duyệt</span>
+                            <span className="admin-step-label">Care Approval</span>
                             <span className="admin-step-desc">
-                              {appt.status === 'Pending' ? 'Đang chờ' : `Bởi: ${appt.confirmedBy?.fullName || appt.confirmedBy?.username || 'CSKH'}`}
+                              {appt.status === 'Pending' ? 'Pending' : `By: ${appt.confirmedBy?.fullName || appt.confirmedBy?.username || 'Care'}`}
                             </span>
                             <div className="admin-timeline-actions">
                               {appt.status === 'Pending' ? (
-                                <button onClick={() => handleUpdateStep(appt._id, 2, 'update', 'Confirmed')} className="action-link-btn green">Duyệt</button>
+                                <button onClick={() => handleUpdateStep(appt._id, 2, 'update', 'Confirmed')} className="action-link-btn green">Approve</button>
                               ) : (
                                 <button onClick={() => handleUpdateStep(appt._id, 2, 'update', 'Pending')} className="action-link-btn orange">Reset</button>
                               )}
-                              <button onClick={() => handleUpdateStep(appt._id, 2, 'update', 'Canceled')} className="action-link-btn red">Hủy</button>
+                              <button onClick={() => handleUpdateStep(appt._id, 2, 'update', 'Canceled')} className="action-link-btn red">Cancel</button>
                             </div>
                           </div>
 
@@ -1291,17 +1441,17 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                             <div className={`admin-step-dot ${patientInvoice?.status === 'Paid' ? 'done' : 'waiting'}`}>
                               {patientInvoice?.status === 'Paid' ? '✓' : '○'}
                             </div>
-                            <span className="admin-step-label">Phí lâm sàng</span>
+                            <span className="admin-step-label">Consultation fee</span>
                             <span className="admin-step-desc">
-                              {patientInvoice?.status === 'Paid' ? `Bởi: ${patientInvoice.processedBy?.fullName || 'Kế toán'}` : 'Chưa đóng'}
+                              {patientInvoice?.status === 'Paid' ? `By: ${patientInvoice.processedBy?.fullName || 'Accountant'}` : 'Unpaid'}
                             </span>
                             <div className="admin-timeline-actions">
                               {patientInvoice?.status === 'Paid' ? (
                                 <button onClick={() => handleUpdateStep(appt._id, 3, 'update', 'Unpaid')} className="action-link-btn orange">Unpaid</button>
                               ) : (
-                                <button onClick={() => handleUpdateStep(appt._id, 3, 'update', 'Paid')} className="action-link-btn green">Thanh toán</button>
+                                <button onClick={() => handleUpdateStep(appt._id, 3, 'update', 'Paid')} className="action-link-btn green">Pay</button>
                               )}
-                              <button onClick={() => handleUpdateStep(appt._id, 3, 'delete')} className="action-link-btn red">Xóa HĐ</button>
+                              <button onClick={() => handleUpdateStep(appt._id, 3, 'delete')} className="action-link-btn red">Delete invoice</button>
                             </div>
                           </div>
 
@@ -1310,15 +1460,15 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                             <div className={`admin-step-dot ${appt.status === 'Completed' ? 'done' : 'waiting'}`}>
                               {appt.status === 'Completed' ? '✓' : '○'}
                             </div>
-                            <span className="admin-step-label">Bác sĩ khám</span>
+                            <span className="admin-step-label">Examination</span>
                             <span className="admin-step-desc">
-                              {appt.status === 'Completed' ? `Khám xong bởi: ${appt.doctorId?.fullName || 'Bác sĩ'}` : 'Chưa khám'}
+                              {appt.status === 'Completed' ? `Examined by: ${appt.doctorId?.fullName || 'Doctor'}` : 'Not examined'}
                             </span>
                             <div className="admin-timeline-actions">
                               {appt.status === 'Completed' ? (
                                 <button onClick={() => handleUpdateStep(appt._id, 4, 'update', 'Confirmed')} className="action-link-btn orange">Reset</button>
                               ) : (
-                                <button onClick={() => handleUpdateStep(appt._id, 4, 'update', 'Completed')} className="action-link-btn green">Xác nhận</button>
+                                <button onClick={() => handleUpdateStep(appt._id, 4, 'update', 'Completed')} className="action-link-btn green">Confirm</button>
                               )}
                             </div>
                           </div>
@@ -1328,9 +1478,9 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                             <div className={`admin-step-dot ${pharmacyInvoice ? (pharmacyInvoice.status === 'Paid' ? 'done' : 'warn') : 'waiting'}`}>
                               {pharmacyInvoice ? (pharmacyInvoice.status === 'Paid' ? '✓' : '!') : '○'}
                             </div>
-                            <span className="admin-step-label">Tiền thuốc</span>
+                            <span className="admin-step-label">Pharmacy fee</span>
                             <span className="admin-step-desc">
-                              {pharmacyInvoice ? (pharmacyInvoice.status === 'Paid' ? `Bởi: ${pharmacyInvoice.processedBy?.fullName || 'Kế toán'}` : 'Chờ thu tiền') : 'Không thuốc'}
+                              {pharmacyInvoice ? (pharmacyInvoice.status === 'Paid' ? `By: ${pharmacyInvoice.processedBy?.fullName || 'Accountant'}` : 'Awaiting payment') : 'No medicine'}
                             </span>
                             <div className="admin-timeline-actions">
                               {pharmacyInvoice ? (
@@ -1338,12 +1488,12 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                                   {pharmacyInvoice.status === 'Paid' ? (
                                     <button onClick={() => handleUpdateStep(appt._id, 5, 'update', 'Unpaid')} className="action-link-btn orange">Unpaid</button>
                                   ) : (
-                                    <button onClick={() => handleUpdateStep(appt._id, 5, 'update', 'Paid')} className="action-link-btn green">Thanh toán</button>
+                                    <button onClick={() => handleUpdateStep(appt._id, 5, 'update', 'Paid')} className="action-link-btn green">Pay</button>
                                   )}
-                                  <button onClick={() => handleUpdateStep(appt._id, 5, 'delete')} className="action-link-btn red">Xóa</button>
+                                  <button onClick={() => handleUpdateStep(appt._id, 5, 'delete')} className="action-link-btn red">Delete</button>
                                 </>
                               ) : (
-                                <button onClick={() => handleUpdateStep(appt._id, 5, 'update', 'Unpaid')} className="action-link-btn blue">+ Tạo HĐ</button>
+                                <button onClick={() => handleUpdateStep(appt._id, 5, 'update', 'Unpaid')} className="action-link-btn blue">+ Create invoice</button>
                               )}
                             </div>
                           </div>
@@ -1361,8 +1511,8 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
             <div className="admin-card">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
                 <div>
-                  <h2>Quản lý tài khoản nội bộ</h2>
-                  <p className="subtitle" style={{ margin: 0 }}>Xem danh sách nhân viên phòng khám, cấp quyền và quản lý tài khoản.</p>
+                  <h2>Internal account management</h2>
+                  <p className="subtitle" style={{ margin: 0 }}>View clinic staff, assign permissions, and manage accounts.</p>
                 </div>
                 <div className="stats-period-toggles" style={{ display: 'flex' }}>
                   <button
@@ -1370,14 +1520,14 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                     className={userSubTab === 'list' ? 'active' : ''}
                     style={{ padding: '6px 12px', fontSize: 13 }}
                   >
-                    👥 Danh sách nhân viên
+                    Staff list
                   </button>
                   <button
                     onClick={() => setUserSubTab('create')}
                     className={userSubTab === 'create' ? 'active' : ''}
                     style={{ padding: '6px 12px', fontSize: 13 }}
                   >
-                    ➕ Tạo tài khoản mới
+                    + New account
                   </button>
                 </div>
               </div>
@@ -1388,7 +1538,7 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                   <div className="admin-dark-form" style={{ marginBottom: 20, display: 'flex', gap: 15 }}>
                     <input
                       type="text"
-                      placeholder="🔍 Tìm nhân viên/người dùng theo tên, số điện thoại..."
+                      placeholder="Search by name or phone..."
                       value={userSearch}
                       onChange={(e) => setUserSearch(e.target.value)}
                       style={{ flex: 1 }}
@@ -1398,11 +1548,11 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                       onChange={(e) => setRoleFilter(e.target.value)}
                       style={{ width: 220, cursor: 'pointer' }}
                     >
-                      <option value="all">👥 Tất cả vai trò</option>
-                      <option value="doctor">🩺 Bác sĩ</option>
-                      <option value="staff">接待 Lễ tân / CSKH</option>
-                      <option value="accountant">💰 Kế toán</option>
-                      <option value="patient">👤 Bệnh nhân</option>
+                      <option value="all">All roles</option>
+                      <option value="doctor">Doctor</option>
+                      <option value="staff">Reception / Care</option>
+                      <option value="accountant">Accountant</option>
+                      <option value="patient">Patient</option>
                     </select>
                   </div>
 
@@ -1411,12 +1561,12 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                     <table className="admin-dark-table">
                       <thead>
                         <tr>
-                          <th>Tên đăng nhập (SĐT)</th>
-                          <th>Họ và tên</th>
-                          <th>Vai trò</th>
-                          <th>Chuyên khoa / Vị trí</th>
-                          <th>Trạng thái</th>
-                          <th>Thao tác</th>
+                          <th>Username (Phone)</th>
+                          <th>Full name</th>
+                          <th>Role</th>
+                          <th>Specialty / Position</th>
+                          <th>Status</th>
+                          <th>Actions</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1432,20 +1582,20 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                           })
                           .map((u) => {
                             let roleLabel = '';
-                            if (u.role === 'admin') roleLabel = 'Quản trị viên';
-                            else if (u.role === 'doctor') roleLabel = 'Bác sĩ';
-                            else if (u.role === 'staff') roleLabel = 'Lễ tân/CSKH';
-                            else if (u.role === 'accountant') roleLabel = 'Kế toán';
-                            else if (u.role === 'patient') roleLabel = 'Bệnh nhân';
+                            if (u.role === 'admin') roleLabel = 'Administrator';
+                            else if (u.role === 'doctor') roleLabel = 'Doctor';
+                            else if (u.role === 'staff') roleLabel = 'Reception/Care';
+                            else if (u.role === 'accountant') roleLabel = 'Accountant';
+                            else if (u.role === 'patient') roleLabel = 'Patient';
 
                             const position = u.role === 'doctor' 
                               ? u.profile?.specialization 
-                              : (u.profile?.position || (u.role === 'admin' ? 'Quản lý hệ thống' : u.role === 'patient' ? 'Khách hàng' : 'Nhân sự'));
+                              : (u.profile?.position || (u.role === 'admin' ? 'System manager' : u.role === 'patient' ? 'Customer' : 'Staff'));
 
                             return (
                               <tr key={u._id}>
                                 <td><strong>{u.username}</strong></td>
-                                <td>{u.profile?.fullName || (u.role === 'admin' ? 'Admin' : 'Chưa thiết lập')}</td>
+                                <td>{u.profile?.fullName || (u.role === 'admin' ? 'Admin' : 'Not set')}</td>
                                 <td>
                                   <span className={`admin-badge admin-badge-${u.role === 'admin' ? 'danger' : u.role === 'doctor' ? 'primary' : u.role === 'patient' ? 'info' : 'success'}`}>
                                     {roleLabel}
@@ -1454,19 +1604,19 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                                 <td>{position}</td>
                                 <td>
                                   <span className={`admin-badge ${u.isActive ? 'admin-badge-success' : 'admin-badge-warning'}`}>
-                                    {u.isActive ? 'Đang hoạt động' : 'Đã khóa'}
+                                    {u.isActive ? 'Active' : 'Locked'}
                                   </span>
                                 </td>
                                 <td>
                                   {u.role !== 'admin' && (
                                     <div className="btn-cell">
                                       <button
-                                        className={u.isActive ? 'admin-btn-danger' : 'admin-btn-emerald'}
+                                        className={u.isActive ? 'btn-danger btn-xs' : 'btn-primary btn-xs'}
                                         onClick={() => handleToggleActive(u._id, u.isActive)}
                                         disabled={submitting}
                                         style={{ padding: '4px 8px', fontSize: '12px' }}
                                       >
-                                        {u.isActive ? '🔒 Khóa' : '🔓 Mở'}
+                                        {u.isActive ? 'Lock' : 'Unlock'}
                                       </button>
                                       <button
                                         className="admin-btn-secondary"
@@ -1474,7 +1624,7 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                                         disabled={submitting}
                                         style={{ padding: '4px 8px', fontSize: '12px' }}
                                       >
-                                        ✏️ Sửa
+                                        Edit
                                       </button>
                                       <button
                                         className="admin-btn-danger"
@@ -1482,15 +1632,14 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                                         disabled={submitting}
                                         style={{ padding: '4px 8px', fontSize: '12px' }}
                                       >
-                                        🗑️ Xóa
+                                        Delete
                                       </button>
                                       <button
-                                        className="admin-btn-secondary"
+                                        className="btn-impersonate"
                                         onClick={() => handleImpersonateClick(u._id)}
                                         disabled={submitting}
-                                        style={{ padding: '4px 8px', fontSize: '12px', backgroundColor: '#3b82f6', color: '#fff', borderColor: '#2563eb' }}
                                       >
-                                        👤 Vào vai
+                                        View as user
                                       </button>
                                     </div>
                                   )}
@@ -1507,12 +1656,12 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                     <div className="admin-modal-overlay">
                       <div className="admin-modal-content">
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
-                          <h3 style={{ margin: 0 }}>✏️ Chỉnh sửa tài khoản người dùng</h3>
+                          <h3 style={{ margin: 0 }}>Edit account</h3>
                           <button className="admin-close-modal-btn" onClick={() => setEditingUser(null)}>×</button>
                         </div>
                         <form onSubmit={handleSaveUserEdit} className="admin-dark-form grid-form">
                           <div className="form-group">
-                            <label>Tên đăng nhập (SĐT)</label>
+                            <label>Username (Phone)</label>
                             <input
                               type="text"
                               value={editUserForm.username}
@@ -1521,16 +1670,16 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                             />
                           </div>
                           <div className="form-group">
-                            <label>Mật khẩu mới (Để trống nếu không đổi)</label>
+                            <label>New password (leave blank to keep current)</label>
                             <input
                               type="password"
                               value={editUserForm.password}
                               onChange={(e) => setEditUserForm({ ...editUserForm, password: e.target.value })}
-                              placeholder="Nhập mật khẩu mới..."
+                              placeholder="Enter a new password..."
                             />
                           </div>
                           <div className="form-group">
-                            <label>Họ và tên *</label>
+                            <label>Full name *</label>
                             <input
                               type="text"
                               value={editUserForm.fullName}
@@ -1547,7 +1696,7 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                             />
                           </div>
                           <div className="form-group">
-                            <label>Số điện thoại</label>
+                            <label>Phone number</label>
                             <input
                               type="text"
                               value={editUserForm.phone}
@@ -1557,7 +1706,7 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                           {editingUser.role === 'doctor' && (
                             <>
                               <div className="form-group">
-                                <label>Chuyên khoa *</label>
+                                <label>Specialty *</label>
                                 <input
                                   type="text"
                                   value={editUserForm.specialization}
@@ -1566,20 +1715,20 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                                 />
                               </div>
                               <div className="form-group">
-                                <label>Khoa chỉ định *</label>
+                                <label>Assigned department *</label>
                                 <select
                                   value={editUserForm.departmentId}
                                   onChange={(e) => setEditUserForm({ ...editUserForm, departmentId: e.target.value })}
                                   required
                                 >
-                                  <option value="">-- Chọn khoa --</option>
+                                  <option value="">-- Select department --</option>
                                   {departments.map((d) => (
                                     <option key={d._id} value={d._id}>{d.departmentName}</option>
                                   ))}
                                 </select>
                               </div>
                               <div className="form-group">
-                                <label>Số năm kinh nghiệm</label>
+                                <label>Years of experience</label>
                                 <input
                                   type="number"
                                   value={editUserForm.experienceYears}
@@ -1587,7 +1736,7 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                                 />
                               </div>
                               <div className="form-group">
-                                <label>Phí khám lâm sàng *</label>
+                                <label>Consultation fee *</label>
                                 <input
                                   type="number"
                                   value={editUserForm.baseFee}
@@ -1599,7 +1748,7 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                           )}
                           {(editingUser.role === 'staff' || editingUser.role === 'accountant') && (
                             <div className="form-group">
-                              <label>Vị trí / Nhiệm vụ</label>
+                              <label>Position / Duties</label>
                               <input
                                 type="text"
                                 value={editUserForm.position}
@@ -1609,10 +1758,10 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                           )}
                           <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', gridColumn: 'span 2', marginTop: '15px' }}>
                             <button type="button" className="admin-btn-secondary" onClick={() => setEditingUser(null)}>
-                              Hủy
+                              Cancel
                             </button>
-                            <button type="submit" className="admin-btn-emerald" disabled={submitting}>
-                              Lưu thay đổi
+                            <button type="submit" className="btn-primary" disabled={submitting}>
+                              Save changes
                             </button>
                           </div>
                         </form>
@@ -1623,7 +1772,7 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
               ) : (
                 <form onSubmit={handleCreateUser} className="admin-dark-form grid-form">
                   <div className="form-group">
-                    <label>Tên tài khoản (Số điện thoại) *</label>
+                    <label>Account name (Phone number) *</label>
                     <input
                       type="text"
                       placeholder="VD: 0912222222"
@@ -1634,10 +1783,10 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                   </div>
 
                   <div className="form-group">
-                    <label>Mật khẩu khởi tạo *</label>
+                    <label>Initial password *</label>
                     <input
                       type="password"
-                      placeholder="Mật khẩu bảo mật"
+                      placeholder="Secure password"
                       value={userForm.password}
                       onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
                       required
@@ -1645,23 +1794,23 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                   </div>
 
                   <div className="form-group">
-                    <label>Vai trò chức năng *</label>
+                    <label>Functional role *</label>
                     <select
                       value={userForm.roleName}
                       onChange={(e) => setUserForm({ ...userForm, roleName: e.target.value })}
                       required
                     >
-                      <option value="doctor">Bác sĩ chuyên khoa</option>
-                      <option value="staff">Nhân viên CSKH / Lễ tân</option>
-                      <option value="accountant">Kế toán / Thu ngân</option>
+                      <option value="doctor">Specialist doctor</option>
+                      <option value="staff">Care staff / Receptionist</option>
+                      <option value="accountant">Accountant / Cashier</option>
                     </select>
                   </div>
 
                   <div className="form-group">
-                    <label>Họ và tên nhân viên *</label>
+                    <label>Staff full name *</label>
                     <input
                       type="text"
-                      placeholder="VD: Nguyễn Văn C"
+                      placeholder="e.g. John Smith"
                       value={userForm.fullName}
                       onChange={(e) => setUserForm({ ...userForm, fullName: e.target.value })}
                       required
@@ -1672,7 +1821,7 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                   {userForm.roleName === 'doctor' && (
                     <>
                       <div className="form-group">
-                        <label>Chuyên khoa lâm sàng *</label>
+                        <label>Clinical specialty *</label>
                         <input
                           type="text"
                           value={userForm.specialization}
@@ -1681,20 +1830,20 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                         />
                       </div>
                       <div className="form-group">
-                        <label>Khoa chỉ định *</label>
+                        <label>Assigned department *</label>
                         <select
                           value={userForm.departmentId}
                           onChange={(e) => setUserForm({ ...userForm, departmentId: e.target.value })}
                           required
                         >
-                          <option value="">-- Chọn khoa --</option>
+                          <option value="">-- Select department --</option>
                           {departments.map((d) => (
                             <option key={d._id} value={d._id}>{d.departmentName}</option>
                           ))}
                         </select>
                       </div>
                       <div className="form-group">
-                        <label>Số năm kinh nghiệm</label>
+                        <label>Years of experience</label>
                         <input
                           type="number"
                           value={userForm.experienceYears}
@@ -1702,7 +1851,7 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                         />
                       </div>
                       <div className="form-group">
-                        <label>Phí khám lâm sàng (baseFee) *</label>
+                        <label>Consultation fee (baseFee) *</label>
                         <input
                           type="number"
                           value={userForm.baseFee}
@@ -1711,17 +1860,17 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                         />
                       </div>
                       <div className="form-group">
-                        <label>Học vị / Học hàm *</label>
+                        <label>Qualifications / Title *</label>
                         <input
                           type="text"
-                          placeholder="VD: Thạc sĩ, Tiến sĩ, Bác sĩ CKI..."
+                          placeholder="e.g. MSc, PhD, Specialist Level I..."
                           value={userForm.qualifications}
                           onChange={(e) => setUserForm({ ...userForm, qualifications: e.target.value })}
                           required={userForm.roleName === 'doctor'}
                         />
                       </div>
                       <div className="form-group full-width">
-                        <label>Giới thiệu tóm tắt tiểu sử bác sĩ</label>
+                        <label>Short doctor bio</label>
                         <textarea
                           rows="3"
                           value={userForm.bio}
@@ -1734,10 +1883,10 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                   {/* Staff / Accountant special fields */}
                   {userForm.roleName !== 'doctor' && (
                     <div className="form-group full-width">
-                      <label>Chức vụ / Vị trí phân công</label>
+                      <label>Position / Assignment</label>
                       <input
                         type="text"
-                        placeholder={userForm.roleName === 'accountant' ? 'Thu ngân nhà thuốc' : 'Lễ tân sảnh A'}
+                        placeholder={userForm.roleName === 'accountant' ? 'Pharmacy cashier' : 'Lobby A receptionist'}
                         value={userForm.position}
                         onChange={(e) => setUserForm({ ...userForm, position: e.target.value })}
                       />
@@ -1745,8 +1894,8 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                   )}
 
                   <div className="form-actions">
-                    <button type="submit" className="admin-btn-emerald" disabled={submitting}>
-                      {submitting ? 'Đang tạo...' : '💾 Tạo tài khoản nhân sự'}
+                    <button type="submit" className="btn-primary" disabled={submitting}>
+                      {submitting ? 'Creating...' : 'Create account'}
                     </button>
                   </div>
                 </form>
@@ -1758,17 +1907,17 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
           {activeTab === 'cms' && (
             <div className="admin-card">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
-                <h3 className="admin-card-section-title" style={{ margin: 0 }}>Danh sách các bài viết hiện tại</h3>
+                <h3 className="admin-card-section-title" style={{ margin: 0 }}>Current articles</h3>
                 <button
                   onClick={() => {
                     setEditingPost(null);
                     setPostForm({ title: '', content: '', thumbnailURL: '', status: 'Published' });
                     setIsPostModalOpen(true);
                   }}
-                  className="admin-btn-emerald"
+                  className="btn-primary"
                   style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
                 >
-                  ➕ Tạo bài viết mới
+                  + New article
                 </button>
               </div>
 
@@ -1777,7 +1926,7 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                 <div className="admin-modal-overlay">
                   <div className="admin-modal-content" style={{ maxWidth: '800px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
-                      <h3 style={{ margin: 0 }}>{editingPost ? '📝 Chỉnh sửa bài viết' : '➕ Tạo bài viết mới'}</h3>
+                      <h3 style={{ margin: 0 }}>{editingPost ? 'Edit article' : 'New article'}</h3>
                       <button className="admin-close-modal-btn" onClick={() => {
                         setIsPostModalOpen(false);
                         setEditingPost(null);
@@ -1788,18 +1937,18 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                     <form onSubmit={handleSavePost} className="admin-dark-form">
                       <div className="post-form-grid">
                         <div className="form-group">
-                          <label>Tiêu đề bài viết *</label>
+                          <label>Article title *</label>
                           <input
                             type="text"
                             value={postForm.title}
                             onChange={(e) => setPostForm({ ...postForm, title: e.target.value })}
-                            placeholder="VD: Cách phòng tránh dịch sốt xuất huyết mùa hè"
+                            placeholder="e.g. How to prevent dengue fever in summer"
                             required
                           />
                         </div>
 
                         <div className="form-group">
-                          <label>Ảnh bìa bài viết *</label>
+                          <label>Article cover image *</label>
                           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
                             <input
                               type="text"
@@ -1809,7 +1958,7 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                               style={{ flex: 1 }}
                               required
                             />
-                            <span style={{ color: '#64748b', fontSize: '13px', whiteSpace: 'nowrap' }}>hoặc Tải lên:</span>
+                            <span style={{ color: '#64748b', fontSize: '13px', whiteSpace: 'nowrap' }}>or Upload:</span>
                             <input
                               type="file"
                               accept="image/*"
@@ -1820,24 +1969,24 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                         </div>
 
                         <div className="form-group">
-                          <label>Trạng thái phát hành</label>
+                          <label>Publication status</label>
                           <select
                             value={postForm.status}
                             onChange={(e) => setPostForm({ ...postForm, status: e.target.value })}
                           >
-                            <option value="Published">Phát hành công khai (Published)</option>
-                            <option value="Draft">Bản nháp (Draft)</option>
+                            <option value="Published">Published</option>
+                            <option value="Draft">Draft</option>
                           </select>
                         </div>
                       </div>
 
                       <div className="form-group">
-                        <label>Nội dung chi tiết bài viết (Markdown hoặc Text)*</label>
+                        <label>Article content (Markdown or text) *</label>
                         <textarea
                           rows="8"
                           value={postForm.content}
                           onChange={(e) => setPostForm({ ...postForm, content: e.target.value })}
-                          placeholder="Nhập nội dung bài viết sức khỏe tại đây..."
+                          placeholder="Enter the health article content here..."
                           required
                         />
                       </div>
@@ -1852,10 +2001,10 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                             setPostForm({ title: '', content: '', thumbnailURL: '', status: 'Published' });
                           }}
                         >
-                          Hủy
+                          Cancel
                         </button>
-                        <button type="submit" className="admin-btn-emerald" disabled={submitting}>
-                          {submitting ? 'Đang lưu...' : 'Lưu bài viết'}
+                        <button type="submit" className="btn-primary" disabled={submitting}>
+                          {submitting ? 'Saving...' : 'Save article'}
                         </button>
                       </div>
                     </form>
@@ -1869,7 +2018,7 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
               <div className="admin-dark-form" style={{ marginBottom: 20, display: 'flex', gap: 15 }}>
                 <input
                   type="text"
-                  placeholder="🔍 Tìm kiếm bài viết theo tiêu đề..."
+                  placeholder="Search by article title..."
                   value={postSearch}
                   onChange={(e) => setPostSearch(e.target.value)}
                   style={{ flex: 1 }}
@@ -1879,9 +2028,9 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                   onChange={(e) => setPostStatusFilter(e.target.value)}
                   style={{ width: 220, cursor: 'pointer' }}
                 >
-                  <option value="All">📰 Tất cả bài viết</option>
-                  <option value="Published">🟢 Đã công bố (Published)</option>
-                  <option value="Draft">🟡 Bản nháp (Draft)</option>
+                  <option value="All">All articles</option>
+                  <option value="Published">Published</option>
+                  <option value="Draft">Draft</option>
                 </select>
               </div>
 
@@ -1890,17 +2039,17 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                 const matchesFilter = postStatusFilter === 'All' || post.status === postStatusFilter;
                 return matchesSearch && matchesFilter;
               }).length === 0 ? (
-                <p style={{ color: '#64748b' }}>Không tìm thấy bài viết nào khớp với tiêu chí tìm kiếm/lọc.</p>
+                <p style={{ color: '#64748b' }}>No articles match your search/filter criteria.</p>
               ) : (
                 <div className="table-responsive">
                   <table className="admin-dark-table">
                     <thead>
                       <tr>
-                        <th>Ảnh</th>
-                        <th>Tiêu đề bài viết</th>
-                        <th>Ngày đăng</th>
-                        <th>Trạng thái</th>
-                        <th>Thao tác</th>
+                        <th>Image</th>
+                        <th>Article title</th>
+                        <th>Published date</th>
+                        <th>Status</th>
+                        <th>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1916,19 +2065,19 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                               <img src={post.thumbnailURL} alt="" style={{ width: 60, height: 40, objectFit: 'cover', borderRadius: 4 }} />
                             </td>
                             <td className="admin-table-title-cell">{post.title}</td>
-                            <td>{new Date(post.publishedAt || post.createdAt).toLocaleDateString('vi-VN')}</td>
+                            <td>{new Date(post.publishedAt || post.createdAt).toLocaleDateString('en-US')}</td>
                             <td>
                               <span className={`admin-badge ${post.status === 'Published' ? 'admin-badge-success' : 'admin-badge-warning'}`}>
-                                {post.status === 'Published' ? 'Đã công bố' : 'Bản nháp'}
+                                {post.status === 'Published' ? 'Published' : 'Draft'}
                               </span>
                             </td>
                             <td>
                               <div className="btn-cell">
                                 <button className="admin-btn-secondary" style={{ padding: '6px 12px', fontSize: '12px' }} onClick={() => handleEditPost(post)}>
-                                  Chỉnh sửa
+                                  Edit
                                 </button>
                                 <button className="admin-btn-danger" style={{ padding: '6px 12px', fontSize: '12px' }} onClick={() => handleDeletePost(post._id)}>
-                                  Xóa
+                                  Delete
                                 </button>
                               </div>
                             </td>
@@ -1941,160 +2090,356 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
             </div>
           )}
 
-          {/* Tab: AI Analysis Assistant */}
-          {activeTab === 'ai-analysis' && (
+          {/* Tab: Doctor Schedules */}
+          {activeTab === 'schedules' && (
             <div className="admin-card animate-fade-in">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
                 <div>
-                  <h2 style={{ display: 'inline-flex', alignItems: 'center', gap: 10, margin: 0 }}>
-                    Trợ lý Trí tuệ Nhân tạo AI
-                    <span className="admin-ai-badge">
-                      <span className="admin-ai-pulse-dot"></span>
-                      Active
-                    </span>
-                  </h2>
-                  <p className="subtitle" style={{ margin: '4px 0 0 0' }}>AI tự động quét cơ sở dữ liệu để kiểm tra an ninh, tối ưu hóa SEO bài viết và tư vấn quy trình vận hành phòng khám.</p>
+                  <h2 style={{ margin: 0 }}>Doctor shifts</h2>
+                  <p className="subtitle" style={{ margin: '4px 0 0 0' }}>Assign work shifts to each doctor by day.</p>
                 </div>
               </div>
 
-              {/* AI Executive Summary Cards */}
+              {/* Create schedule form */}
+              <form onSubmit={handleCreateSchedule} className="admin-inner-form" style={{ marginBottom: 20 }}>
+                <h4 style={{ margin: '0 0 16px 0', fontSize: 14, fontWeight: 600 }}>Add a new shift</h4>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
+                  <div className="form-group">
+                    <label>Doctor *</label>
+                    <select value={scheduleForm.doctorId} onChange={e => setScheduleForm({ ...scheduleForm, doctorId: e.target.value })} required>
+                      <option value="">-- Select doctor --</option>
+                      {doctorsList.map(d => <option key={d._id || d.id} value={d._id || d.id}>{d.fullName}</option>)}
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label>Work date *</label>
+                    <input type="date" value={scheduleForm.workDate} onChange={e => setScheduleForm({ ...scheduleForm, workDate: e.target.value })} required min={new Date().toISOString().split('T')[0]} />
+                  </div>
+                  <div className="form-group">
+                    <label>Start time *</label>
+                    <input type="time" value={scheduleForm.startTime} onChange={e => setScheduleForm({ ...scheduleForm, startTime: e.target.value })} required />
+                  </div>
+                  <div className="form-group">
+                    <label>End time *</label>
+                    <input type="time" value={scheduleForm.endTime} onChange={e => setScheduleForm({ ...scheduleForm, endTime: e.target.value })} required />
+                  </div>
+                  <div className="form-group">
+                    <label>Max patients *</label>
+                    <input type="number" min={1} max={100} value={scheduleForm.maxPatients} onChange={e => setScheduleForm({ ...scheduleForm, maxPatients: e.target.value })} required />
+                  </div>
+                </div>
+                <button type="submit" className="btn btn-primary" style={{ marginTop: 12 }} disabled={submitting}>
+                  {submitting ? 'Creating...' : 'Add shift'}
+                </button>
+              </form>
+
+              {/* Search */}
+              <div style={{ marginBottom: 12 }}>
+                <input type="text" placeholder="Search by doctor name..." value={scheduleSearch} onChange={e => setScheduleSearch(e.target.value)} className="search-input" style={{ width: '100%', maxWidth: 360 }} />
+              </div>
+
+              {/* Schedules table */}
+              <div className="table-responsive">
+                <table className="custom-table">
+                  <thead>
+                    <tr>
+                      <th>Doctor</th>
+                      <th>Work date</th>
+                      <th>Start time</th>
+                      <th>End time</th>
+                      <th>Max patients</th>
+                      <th>Booked</th>
+                      <th>Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {doctorSchedules
+                      .filter(s => !scheduleSearch || s.doctorId?.fullName?.toLowerCase().includes(scheduleSearch.toLowerCase()))
+                      .map(s => (
+                        <tr key={s._id}>
+                          <td><strong>{s.doctorId?.fullName || '--'}</strong><br /><small className="text-muted">{s.doctorId?.specialization}</small></td>
+                          <td>{new Date(s.workDate).toLocaleDateString('en-US')}</td>
+                          <td>{s.startTime}</td>
+                          <td>{s.endTime}</td>
+                          <td style={{ textAlign: 'center' }}>{s.maxPatients}</td>
+                          <td style={{ textAlign: 'center' }}><strong>{s.currentBooked || 0}</strong> / {s.maxPatients}</td>
+                          <td><span className={`badge ${s.status === 'Available' ? 'badge-success' : 'badge-danger'}`}>{s.status === 'Available' ? 'Available' : 'Full / Paused'}</span></td>
+                          <td><button className="btn btn-danger btn-xs" onClick={() => handleDeleteSchedule(s._id)}>Delete</button></td>
+                        </tr>
+                      ))
+                    }
+                    {doctorSchedules.length === 0 && (
+                      <tr><td colSpan={8} style={{ textAlign: 'center', padding: 20, color: '#94a3b8' }}>No shifts have been created yet.</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Tab: Medicines */}
+          {activeTab === 'medicines' && (
+            <div className="admin-card animate-fade-in">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
+                <div>
+                  <h2 style={{ margin: 0 }}>Medicine inventory</h2>
+                  <p className="subtitle" style={{ margin: '4px 0 0 0' }}>Add, edit, and update medicine stock.</p>
+                </div>
+                <button className="btn btn-primary" onClick={() => { setEditingMedicine(null); setMedicineForm({ medicineName: '', medicineCode: '', activeIngredient: '', usageRoute: 'Uống', unit: 'tablet', unitPrice: 0, stockQuantity: 0 }); setIsMedicineModalOpen(true); }}>
+                  + Add new medicine
+                </button>
+              </div>
+
+              <div style={{ marginBottom: 12 }}>
+                <input type="text" placeholder="Search medicine name or code..." value={medicineSearch} onChange={e => setMedicineSearch(e.target.value)} className="search-input" style={{ width: '100%', maxWidth: 360 }} />
+              </div>
+
+              <div className="table-responsive">
+                <table className="custom-table">
+                  <thead>
+                    <tr>
+                      <th>Code</th>
+                      <th>Medicine name</th>
+                      <th>Active ingredient</th>
+                      <th>Route</th>
+                      <th>Unit</th>
+                      <th>Unit price</th>
+                      <th>Stock</th>
+                      <th>Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {medicinesList
+                      .filter(m => !medicineSearch || m.medicineName?.toLowerCase().includes(medicineSearch.toLowerCase()) || m.medicineCode?.toLowerCase().includes(medicineSearch.toLowerCase()))
+                      .map(m => (
+                        <tr key={m._id}>
+                          <td className="monospace">{m.medicineCode}</td>
+                          <td><strong>{m.medicineName}</strong></td>
+                          <td><small>{m.activeIngredient || '--'}</small></td>
+                          <td>{m.usageRoute === 'Uống' ? 'Oral' : m.usageRoute === 'Bôi' ? 'Topical' : m.usageRoute === 'Tiêm' ? 'Injection' : m.usageRoute}</td>
+                          <td>{m.unit}</td>
+                          <td>{new Intl.NumberFormat('en-US', { style: 'currency', currency: 'VND', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(m.unitPrice)}</td>
+                          <td><span style={{ fontWeight: 700, color: m.stockQuantity <= 10 ? '#ef4444' : '#10b981' }}>{m.stockQuantity}</span></td>
+                          <td><span className={`badge ${m.isActive !== false ? 'badge-success' : 'badge-danger'}`}>{m.isActive !== false ? 'Active' : 'Inactive'}</span></td>
+                          <td className="btn-cell">
+                            <button className="btn btn-ghost btn-xs" onClick={() => { setEditingMedicine(m); setMedicineForm({ medicineName: m.medicineName, medicineCode: m.medicineCode, activeIngredient: m.activeIngredient || '', usageRoute: m.usageRoute || 'Uống', unit: m.unit, unitPrice: m.unitPrice, stockQuantity: m.stockQuantity }); setIsMedicineModalOpen(true); }}>Edit</button>
+                            <button className="btn btn-danger btn-xs" onClick={() => handleDeleteMedicine(m._id)}>Delete</button>
+                          </td>
+                        </tr>
+                      ))
+                    }
+                    {medicinesList.length === 0 && (
+                      <tr><td colSpan={9} style={{ textAlign: 'center', padding: 20, color: '#94a3b8' }}>No medicines in stock yet.</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Tab: Departments */}
+          {activeTab === 'departments' && (
+            <div className="admin-card animate-fade-in">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
+                <div>
+                  <h2 style={{ margin: 0 }}>Department management</h2>
+                  <p className="subtitle" style={{ margin: '4px 0 0 0' }}>Add, edit, and delete departments in the clinic system.</p>
+                </div>
+                <button className="btn btn-primary" onClick={() => { setEditingDept(null); setDeptForm({ departmentName: '', description: '', contactPhone: '' }); setIsDeptModalOpen(true); }}>
+                  + Add new department
+                </button>
+              </div>
+
+              <div className="table-responsive">
+                <table className="custom-table">
+                  <thead>
+                    <tr>
+                      <th>Department name</th>
+                      <th>Description</th>
+                      <th>Phone</th>
+                      <th>Doctors</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {departments.map(d => (
+                      <tr key={d._id}>
+                        <td><strong>{d.departmentName}</strong></td>
+                        <td><small>{d.description || '--'}</small></td>
+                        <td>{d.contactPhone || '--'}</td>
+                        <td style={{ textAlign: 'center' }}>{d.doctorCount || 0}</td>
+                        <td className="btn-cell">
+                          <button className="btn btn-ghost btn-xs" onClick={() => { setEditingDept(d); setDeptForm({ departmentName: d.departmentName, description: d.description || '', contactPhone: d.contactPhone || '' }); setIsDeptModalOpen(true); }}>Edit</button>
+                          <button className="btn btn-danger btn-xs" onClick={() => handleDeleteDept(d._id)}>Delete</button>
+                        </td>
+                      </tr>
+                    ))}
+                    {departments.length === 0 && (
+                      <tr><td colSpan={5} style={{ textAlign: 'center', padding: 20, color: '#94a3b8' }}>No departments in the system yet.</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Tab: System Health */}
+          {activeTab === 'ai-analysis' && (
+            <div className="admin-card animate-fade-in">
+              <div style={{ marginBottom: 24 }}>
+                <h2 style={{ margin: 0 }}>System Health</h2>
+                <p className="subtitle">Live diagnostics — account status, content, and clinic performance.</p>
+              </div>
+
+              {/* Summary Cards */}
               <div className="admin-ai-executive-summary">
                 <div className="admin-stat-card admin-ai-card-security">
+                  <div className="admin-stat-icon-wrap" style={{ backgroundColor: 'rgba(22,163,74,0.08)', color: '#16a34a' }}>
+                    <Shield size={20} />
+                  </div>
                   <div className="admin-stat-info">
-                    <span style={{ fontSize: '11px', color: '#10b981', fontWeight: 'bold', textTransform: 'uppercase' }}>🛡️ Khuyến nghị An ninh</span>
-                    <h4 className="admin-ai-card-title">
-                      {usersList.filter(u => !u.isActive).length > 0 
-                        ? `Phát hiện ${usersList.filter(u => !u.isActive).length} tài khoản đang bị khóa.` 
-                        : 'Không có tài khoản nào bị khóa. Hệ thống an toàn.'}
-                    </h4>
-                    <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>Đã xác minh phân quyền đăng nhập thành công.</p>
+                    <p style={{ margin: '0 0 2px', fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#16a34a' }}>Account Security</p>
+                    <h3 style={{ fontSize: '16px', margin: 0 }}>
+                      {usersList.filter(u => !u.isActive).length > 0
+                        ? `${usersList.filter(u => !u.isActive).length} locked`
+                        : 'All accounts active'}
+                    </h3>
+                    <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#64748b' }}>{usersList.length} total accounts</p>
                   </div>
                 </div>
 
                 <div className="admin-stat-card admin-ai-card-cms">
+                  <div className="admin-stat-icon-wrap">
+                    <FileText size={20} />
+                  </div>
                   <div className="admin-stat-info">
-                    <span style={{ fontSize: '11px', color: '#06b6d4', fontWeight: 'bold', textTransform: 'uppercase' }}>📰 Đánh giá Nội dung CMS</span>
-                    <h4 className="admin-ai-card-title">
-                      {postsList.filter(p => p.status === 'Draft').length > 0 
-                        ? `Phát hiện ${postsList.filter(p => p.status === 'Draft').length} bài viết ở trạng thái Bản nháp.` 
-                        : 'Tất cả bài viết y tế đã được phát hành.'}
-                    </h4>
-                    <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>Độ dài trung bình đạt chuẩn SEO y tế.</p>
+                    <p style={{ margin: '0 0 2px', fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#2563eb' }}>Content (CMS)</p>
+                    <h3 style={{ fontSize: '16px', margin: 0 }}>
+                      {postsList.filter(p => p.status === 'Published').length} published
+                    </h3>
+                    <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#64748b' }}>
+                      {postsList.filter(p => p.status === 'Draft').length} drafts pending
+                    </p>
                   </div>
                 </div>
 
                 <div className="admin-stat-card admin-ai-card-cskh">
+                  <div className="admin-stat-icon-wrap" style={{ backgroundColor: 'rgba(217,119,6,0.08)', color: '#d97706' }}>
+                    <Clock size={20} />
+                  </div>
                   <div className="admin-stat-info">
-                    <span style={{ fontSize: '11px', color: '#f59e0b', fontWeight: 'bold', textTransform: 'uppercase' }}>⏱️ Hiệu quả CSKH</span>
-                    <h4 className="admin-ai-card-title">
-                      Tốc độ phản hồi trung bình: {stats?.qualityMetrics?.avgConfirmationTime || 15} phút.
-                    </h4>
-                    <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>
-                      { (stats?.qualityMetrics?.avgConfirmationTime || 15) <= 10 
-                        ? '🟢 CSKH phản hồi nhanh. Đạt KPI.' 
-                        : '🟡 Tốc độ phản hồi trung bình. Hãy theo dõi giờ cao điểm.' }
+                    <p style={{ margin: '0 0 2px', fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#d97706' }}>Care Response</p>
+                    <h3 style={{ fontSize: '16px', margin: 0 }}>
+                      {stats?.qualityMetrics?.avgConfirmationTime || 15} min avg.
+                    </h3>
+                    <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#64748b' }}>
+                      {(stats?.qualityMetrics?.avgConfirmationTime || 15) <= 10 ? 'Within KPI target' : 'Above target — review peaks'}
                     </p>
                   </div>
                 </div>
               </div>
 
-              {/* AI Diagnostic Grid */}
-              <div className="admin-performance-comparison-grid" style={{ marginBottom: 30 }}>
-                {/* Security Audit Card */}
-                <div className="admin-chart-panel" style={{ padding: '20px' }}>
-                  <h4 style={{ margin: '0 0 14px 0', color: '#10b981', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    🛡️ AI Security & Staffing Diagnostic
+              {/* Diagnostic Grid */}
+              <div className="admin-performance-comparison-grid" style={{ marginBottom: 24 }}>
+                {/* Staffing Breakdown */}
+                <div className="admin-chart-panel">
+                  <h4 style={{ margin: '0 0 16px 0', fontSize: '13px', fontWeight: '600', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Users size={15} color="#2563eb" /> Staffing Breakdown
                   </h4>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '13px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
                     <div className="admin-diagnostic-row">
-                      <span className="admin-diagnostic-label">Tổng tài khoản hệ thống:</span>
-                      <strong className="admin-diagnostic-value">{usersList.length}</strong>
+                      <span className="admin-diagnostic-label">Doctors (active)</span>
+                      <strong className="admin-diagnostic-value">{usersList.filter(u => u.role === 'doctor' && u.isActive).length}</strong>
                     </div>
                     <div className="admin-diagnostic-row">
-                      <span className="admin-diagnostic-label">Bác sĩ đang hoạt động:</span>
-                      <strong style={{ color: '#10b981' }}>{usersList.filter(u => u.role === 'doctor' && u.isActive).length}</strong>
+                      <span className="admin-diagnostic-label">Care / Reception staff</span>
+                      <strong className="admin-diagnostic-value">{usersList.filter(u => u.role === 'staff' && u.isActive).length}</strong>
                     </div>
                     <div className="admin-diagnostic-row">
-                      <span className="admin-diagnostic-label">Nhân sự sảnh lễ tân/CSKH:</span>
-                      <strong style={{ color: '#06b6d4' }}>{usersList.filter(u => u.role === 'staff' && u.isActive).length}</strong>
+                      <span className="admin-diagnostic-label">Accountants</span>
+                      <strong className="admin-diagnostic-value">{usersList.filter(u => u.role === 'accountant' && u.isActive).length}</strong>
                     </div>
                     <div className="admin-diagnostic-row">
-                      <span className="admin-diagnostic-label">Nhân sự kế toán/thu ngân:</span>
-                      <strong style={{ color: '#a78bfa' }}>{usersList.filter(u => u.role === 'accountant' && u.isActive).length}</strong>
+                      <span className="admin-diagnostic-label">Locked accounts</span>
+                      <strong style={{ color: usersList.filter(u => !u.isActive).length > 0 ? '#dc2626' : '#16a34a' }}>
+                        {usersList.filter(u => !u.isActive).length}
+                      </strong>
                     </div>
                     <div className="admin-diagnostic-row no-border">
-                      <span className="admin-diagnostic-label">Điểm số an toàn thông tin:</span>
-                      <strong style={{ color: '#10b981' }}>98/100 (Xuất sắc)</strong>
+                      <span className="admin-diagnostic-label">Total accounts</span>
+                      <strong className="admin-diagnostic-value">{usersList.length}</strong>
                     </div>
                   </div>
                 </div>
 
-                {/* CMS Audit Card */}
-                <div className="admin-chart-panel" style={{ padding: '20px' }}>
-                  <h4 style={{ margin: '0 0 14px 0', color: '#06b6d4', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    📰 AI Content & SEO Optimizer
+                {/* Content Status */}
+                <div className="admin-chart-panel">
+                  <h4 style={{ margin: '0 0 16px 0', fontSize: '13px', fontWeight: '600', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Newspaper size={15} color="#2563eb" /> Content Status
                   </h4>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '13px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
                     <div className="admin-diagnostic-row">
-                      <span className="admin-diagnostic-label">Tổng bài viết y khoa:</span>
+                      <span className="admin-diagnostic-label">Total articles</span>
                       <strong className="admin-diagnostic-value">{postsList.length}</strong>
                     </div>
                     <div className="admin-diagnostic-row">
-                      <span className="admin-diagnostic-label">Bài viết đã công bố:</span>
-                      <strong style={{ color: '#10b981' }}>{postsList.filter(p => p.status === 'Published').length}</strong>
+                      <span className="admin-diagnostic-label">Published</span>
+                      <strong style={{ color: '#16a34a' }}>{postsList.filter(p => p.status === 'Published').length}</strong>
                     </div>
                     <div className="admin-diagnostic-row">
-                      <span className="admin-diagnostic-label">Bản nháp đang soạn thảo:</span>
-                      <strong style={{ color: '#f59e0b' }}>{postsList.filter(p => p.status === 'Draft').length}</strong>
+                      <span className="admin-diagnostic-label">Drafts</span>
+                      <strong style={{ color: postsList.filter(p => p.status === 'Draft').length > 0 ? '#d97706' : '#16a34a' }}>
+                        {postsList.filter(p => p.status === 'Draft').length}
+                      </strong>
                     </div>
                     <div className="admin-diagnostic-row">
-                      <span className="admin-diagnostic-label">Ảnh đại diện hợp chuẩn SEO:</span>
-                      <strong style={{ color: '#10b981' }}>100%</strong>
+                      <span className="admin-diagnostic-label">Departments</span>
+                      <strong className="admin-diagnostic-value">{departments.length}</strong>
                     </div>
                     <div className="admin-diagnostic-row no-border">
-                      <span className="admin-diagnostic-label">Sức khỏe SEO Blog:</span>
-                      <strong style={{ color: '#10b981' }}>Tốt (85%)</strong>
+                      <span className="admin-diagnostic-label">Medicines in stock</span>
+                      <strong className="admin-diagnostic-value">{medicinesList.filter(m => m.isActive !== false).length}</strong>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* AI Chat Box / Interactive prompt */}
+              {/* AI Query Box */}
               <div className="admin-ai-chat-box">
-                <h4 className="admin-ai-chat-title">
-                  💬 Trò chuyện & Yêu cầu AI Phân tích chuyên sâu
-                </h4>
-                <p style={{ margin: '0 0 16px 0', fontSize: '12px', color: '#64748b' }}>
-                  Nhấp vào các phím tắt nhanh bên dưới hoặc nhập câu hỏi cụ thể để AI đánh giá hệ thống phòng khám của bạn.
+                <h4 className="admin-ai-chat-title">Ask the AI assistant</h4>
+                <p style={{ margin: '0 0 14px 0', fontSize: '12px', color: '#64748b' }}>
+                  Query the clinic data for deeper analysis.
                 </p>
 
-                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '20px' }}>
-                  <button type="button" className="admin-ai-suggestion-btn" onClick={() => runAIQuery('Phân tích nhân sự và an ninh tài khoản')}>
-                    👥 Phân tích nhân sự & Bảo mật
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '16px' }}>
+                  <button type="button" className="admin-ai-suggestion-btn" onClick={() => runAIQuery('Analyze staff and account security')}>
+                    Staff & Security
                   </button>
-                  <button type="button" className="admin-ai-suggestion-btn" onClick={() => runAIQuery('Tối ưu hóa bài viết CMS')}>
-                    📰 Kiểm tra SEO CMS
+                  <button type="button" className="admin-ai-suggestion-btn" onClick={() => runAIQuery('Optimize CMS articles and SEO')}>
+                    Content review
                   </button>
-                  <button type="button" className="admin-ai-suggestion-btn" onClick={() => runAIQuery('Phân tích doanh thu và hiệu suất vận hành')}>
-                    💰 Phân tích doanh thu & Vận hành
+                  <button type="button" className="admin-ai-suggestion-btn" onClick={() => runAIQuery('Analyze revenue and operating performance')}>
+                    Revenue analysis
                   </button>
                 </div>
 
-                <form onSubmit={handleAISubmit} className="admin-dark-form" style={{ display: 'flex', gap: '10px' }}>
+                <form onSubmit={handleAISubmit} className="admin-dark-form" style={{ display: 'flex', gap: '8px' }}>
                   <input
                     type="text"
-                    placeholder="VD: Kiểm tra trạng thái khóa tài khoản và an ninh nhân sự..."
+                    placeholder="Ask about accounts, content, revenue..."
                     value={aiInput}
                     onChange={(e) => setAiInput(e.target.value)}
                     style={{ flex: 1 }}
                     disabled={aiLoading}
                   />
-                  <button type="submit" className="admin-btn-emerald" style={{ padding: '0 24px', flexShrink: 0 }} disabled={aiLoading}>
-                    {aiLoading ? 'Đang phân tích...' : 'Gửi yêu cầu'}
+                  <button type="submit" className="btn-primary" style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: '6px' }} disabled={aiLoading}>
+                    <Send size={14} />
+                    {aiLoading ? 'Analyzing...' : 'Send'}
                   </button>
                 </form>
 
-                {/* AI Response Area */}
                 {(aiLoading || aiResponse) && (
                   <div className="admin-ai-response-area">
                     {aiLoading ? (
@@ -2102,7 +2447,7 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
                         <span className="admin-ai-thinking-dot"></span>
                         <span className="admin-ai-thinking-dot"></span>
                         <span className="admin-ai-thinking-dot"></span>
-                        <span>Trí tuệ nhân tạo đang phân tích cơ sở dữ liệu y tế...</span>
+                        <span>Analyzing data...</span>
                       </div>
                     ) : (
                       <div style={{ whiteSpace: 'pre-wrap' }}>
@@ -2117,69 +2462,91 @@ Chào Quản trị viên! Tôi là Trợ lý Trí tuệ Nhân tạo được tí
         </main>
       </div>
       
-      {/* Floating AI Chatbot */}
-      <div className={`floating-chatbot ${isChatOpen ? 'open' : ''}`}>
-        {isChatOpen ? (
-          <div className="chatbot-window">
-            <div className="chatbot-header">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '18px' }}>🧠</span>
-                <div>
-                  <h4 style={{ margin: 0, fontSize: '13px', color: '#fff', fontWeight: 'bold' }}>Trợ lý AI Phòng khám</h4>
-                  <span style={{ fontSize: '10px', color: '#10b981', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: '500' }}>
-                    <span style={{ width: '6px', height: '6px', backgroundColor: '#10b981', borderRadius: '50%', display: 'inline-block' }}></span> Trực tuyến
-                  </span>
+      {/* Medicine Modal */}
+      {isMedicineModalOpen && (
+        <div className="modal-backdrop">
+          <div className="modal-content" style={{ maxWidth: 560 }}>
+            <div className="modal-header">
+              <h3>{editingMedicine ? 'Edit medicine' : 'Add new medicine'}</h3>
+              <button className="close-btn" onClick={() => setIsMedicineModalOpen(false)}>&times;</button>
+            </div>
+            <form onSubmit={handleSaveMedicine}>
+              <div className="modal-body">
+                <div className="grid-form">
+                  <div className="form-group">
+                    <label>Medicine name *</label>
+                    <input type="text" value={medicineForm.medicineName} onChange={e => setMedicineForm({ ...medicineForm, medicineName: e.target.value })} required />
+                  </div>
+                  <div className="form-group">
+                    <label>Medicine code *</label>
+                    <input type="text" value={medicineForm.medicineCode} onChange={e => setMedicineForm({ ...medicineForm, medicineCode: e.target.value })} required disabled={!!editingMedicine} />
+                  </div>
+                  <div className="form-group">
+                    <label>Active ingredient</label>
+                    <input type="text" value={medicineForm.activeIngredient} onChange={e => setMedicineForm({ ...medicineForm, activeIngredient: e.target.value })} />
+                  </div>
+                  <div className="form-group">
+                    <label>Route of use *</label>
+                    <select value={medicineForm.usageRoute} onChange={e => setMedicineForm({ ...medicineForm, usageRoute: e.target.value })}>
+                      <option value="Uống">Oral</option>
+                      <option value="Bôi">Topical</option>
+                      <option value="Tiêm">Injection</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label>Unit *</label>
+                    <input type="text" value={medicineForm.unit} onChange={e => setMedicineForm({ ...medicineForm, unit: e.target.value })} required placeholder="tablet, vial, sachet..." />
+                  </div>
+                  <div className="form-group">
+                    <label>Unit price (VND) *</label>
+                    <input type="number" min={0} value={medicineForm.unitPrice} onChange={e => setMedicineForm({ ...medicineForm, unitPrice: Number(e.target.value) })} required />
+                  </div>
+                  <div className="form-group">
+                    <label>Stock</label>
+                    <input type="number" min={0} value={medicineForm.stockQuantity} onChange={e => setMedicineForm({ ...medicineForm, stockQuantity: Number(e.target.value) })} />
+                  </div>
                 </div>
               </div>
-              <button className="chatbot-close-btn" onClick={() => setIsChatOpen(false)}>×</button>
-            </div>
-            
-            <div className="chatbot-messages">
-              {chatMessages.map((msg, i) => (
-                <div key={i} className={`chat-bubble-wrapper ${msg.sender}`}>
-                  <div className={`chat-bubble ${msg.sender}`}>
-                    {msg.sender === 'ai' ? renderAIResponse(msg.text) : <p style={{ margin: 0 }}>{msg.text}</p>}
-                    <span className="chat-time">{msg.time}</span>
-                  </div>
-                </div>
-              ))}
-              {chatLoading && (
-                <div className="chat-bubble-wrapper ai">
-                  <div className="chat-bubble ai thinking">
-                    <span className="thinking-dot"></span>
-                    <span className="thinking-dot"></span>
-                    <span className="thinking-dot"></span>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="chatbot-suggestions">
-              <button onClick={() => { setChatInput('Phân tích nhân sự và an ninh tài khoản'); }}>👥 Nhân sự</button>
-              <button onClick={() => { setChatInput('Tối ưu hóa bài viết CMS'); }}>📰 SEO CMS</button>
-              <button onClick={() => { setChatInput('Phân tích doanh thu và hiệu suất vận hành'); }}>💰 Doanh thu</button>
-            </div>
-
-            <form onSubmit={handleSendChatMessage} className="chatbot-input-form">
-              <input
-                type="text"
-                placeholder="Nhập câu hỏi tại đây..."
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                disabled={chatLoading}
-              />
-              <button type="submit" id="chat-submit-btn" disabled={chatLoading}>
-                ✈️
-              </button>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-ghost" onClick={() => setIsMedicineModalOpen(false)}>Cancel</button>
+                <button type="submit" className="btn btn-primary" disabled={submitting}>{submitting ? 'Saving...' : 'Save medicine'}</button>
+              </div>
             </form>
           </div>
-        ) : (
-          <button className="chatbot-toggle-btn" onClick={() => setIsChatOpen(true)}>
-            <span className="chatbot-pulse-glow"></span>
-            💬 Trợ lý AI
-          </button>
-        )}
-      </div>
+        </div>
+      )}
+
+      {/* Department Modal */}
+      {isDeptModalOpen && (
+        <div className="modal-backdrop">
+          <div className="modal-content" style={{ maxWidth: 500 }}>
+            <div className="modal-header">
+              <h3>{editingDept ? 'Edit department' : 'Add new department'}</h3>
+              <button className="close-btn" onClick={() => setIsDeptModalOpen(false)}>&times;</button>
+            </div>
+            <form onSubmit={handleSaveDept}>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label>Department name *</label>
+                  <input type="text" value={deptForm.departmentName} onChange={e => setDeptForm({ ...deptForm, departmentName: e.target.value })} required placeholder="e.g. General Internal Medicine" />
+                </div>
+                <div className="form-group">
+                  <label>Description</label>
+                  <textarea rows={3} value={deptForm.description} onChange={e => setDeptForm({ ...deptForm, description: e.target.value })} placeholder="Describe the department's expertise..." />
+                </div>
+                <div className="form-group">
+                  <label>Department phone</label>
+                  <input type="tel" value={deptForm.contactPhone} onChange={e => setDeptForm({ ...deptForm, contactPhone: e.target.value })} placeholder="VD: 028 xxxx xxxx" />
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-ghost" onClick={() => setIsDeptModalOpen(false)}>Cancel</button>
+                <button type="submit" className="btn btn-primary" disabled={submitting}>{submitting ? 'Saving...' : 'Save department'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

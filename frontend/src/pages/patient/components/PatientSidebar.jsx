@@ -32,29 +32,29 @@ export default function PatientSidebar({ patient, invoices = [], onEditPatient }
       <section className="card patient-sidebar__profile">
         <div className="patient-sidebar__avatar">{(patient?.fullName?.charAt(0) || 'U').toUpperCase()}</div>
         <div>
-          <p>{patient?.fullName || 'Khách hàng'}</p>
-          <p className="patient-sidebar__phone">{patient?.phoneNumber ? maskPhone(patient.phoneNumber) : 'Chưa có số điện thoại'}</p>
+          <p>{patient?.fullName || 'Guest'}</p>
+          <p className="patient-sidebar__phone">{patient?.phoneNumber ? maskPhone(patient.phoneNumber) : 'No phone number'}</p>
         </div>
 
         <div className="patient-sidebar__details">
           <div>
-            <span>Ngày sinh</span>
-            <strong>{patient?.dateOfBirth ? new Date(patient.dateOfBirth).toLocaleDateString('vi-VN') : '---'}</strong>
+            <span>Date of birth</span>
+            <strong>{patient?.dateOfBirth ? new Date(patient.dateOfBirth).toLocaleDateString('en-US') : '---'}</strong>
           </div>
           <div>
-            <span>Giới tính</span>
+            <span>Gender</span>
             <strong>{patient?.gender || '---'}</strong>
           </div>
           <div>
-            <span>CCCD</span>
+            <span>ID card</span>
             <strong>{patient?.identityCard ? maskId(patient.identityCard) : '---'}</strong>
           </div>
           <div>
-            <span>Mã BHYT</span>
+            <span>Insurance no.</span>
             <strong>{patient?.insuranceCode ? maskId(patient.insuranceCode) : '---'}</strong>
           </div>
           <div>
-            <span>Địa chỉ</span>
+            <span>Address</span>
             <strong>{patient?.address || '---'}</strong>
           </div>
           {/* removed unpaid count to keep sidebar focused on personal info */}
@@ -68,46 +68,46 @@ export default function PatientSidebar({ patient, invoices = [], onEditPatient }
             className="btn btn-primary"
             onClick={() => window.dispatchEvent(new CustomEvent('toggleBooking'))}
           >
-            ➕ Đặt lịch
+            ➕ Book appointment
           </button>
           <button
             type="button"
             className="btn btn-ghost"
             onClick={() => window.dispatchEvent(new CustomEvent('toggleAppointments'))}
           >
-            📅 Lịch hẹn
+            📅 Appointments
           </button>
           <button
             type="button"
             className="btn btn-secondary"
             onClick={onEditPatient}
           >
-            ✎ Cập nhật thông tin
+            ✎ Edit profile
           </button>
           <button
             type="button"
             className="btn btn-ghost"
             onClick={() => window.dispatchEvent(new CustomEvent('togglePayments'))}
           >
-            💳 Hóa đơn ({invoices.length})
+            💳 Invoices ({invoices.length})
           </button>
           <button
             type="button"
             className="btn btn-ghost"
             onClick={() => window.dispatchEvent(new CustomEvent('toggleRecords'))}
           >
-            📑 Hồ sơ bệnh án
+            📑 Medical records
           </button>
         </div>
       </section>
 
       <section className="card patient-sidebar__support">
-        <h4>CSKH</h4>
+        <h4>Customer Care</h4>
         <p>Hotline: <strong>1900 6868</strong></p>
         <p>Email: <strong>support@clinic.local</strong></p>
         <div className="patient-sidebar__actions-row">
-          <button className="btn btn-ghost" onClick={() => window.location.href = '/contact'}>Gửi yêu cầu</button>
-          <button className="btn btn-ghost" onClick={handleLogout}>Đăng xuất</button>
+          <button className="btn btn-ghost" onClick={() => window.location.href = '/contact'}>Send request</button>
+          <button className="btn btn-ghost" onClick={handleLogout}>Log out</button>
         </div>
       </section>
     </aside>

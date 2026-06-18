@@ -69,7 +69,7 @@ export default function PatientDashboard() {
         }
       } catch (err) {
         console.error(err);
-        if (mounted) setError('Lỗi khi tải dữ liệu.');
+        if (mounted) setError('Failed to load data.');
       } finally {
         if (mounted) setLoading(false);
       }
@@ -156,19 +156,19 @@ export default function PatientDashboard() {
   const handlePayAllUnpaid = async () => {
     const unpaidInvoices = invoices.filter((inv) => inv.status !== 'Paid');
     if (unpaidInvoices.length === 0) {
-      setPaymentMessage('Không có hóa đơn chưa thanh toán.');
+      setPaymentMessage('No unpaid invoices.');
       return;
     }
 
     const result = await Swal.fire({
-      title: 'Xác nhận thanh toán',
-      text: 'Bạn có muốn thanh toán tất cả hóa đơn chưa thanh toán?',
+      title: 'Confirm payment',
+      text: 'Do you want to pay all unpaid invoices?',
       icon: 'question',
       showCancelButton: true,
       confirmButtonColor: '#10b981',
       cancelButtonColor: '#64748b',
-      confirmButtonText: 'Thanh toán',
-      cancelButtonText: 'Hủy'
+      confirmButtonText: 'Pay',
+      cancelButtonText: 'Cancel'
     });
     if (!result.isConfirmed) return;
 
@@ -177,10 +177,10 @@ export default function PatientDashboard() {
     try {
       await Promise.all(unpaidInvoices.map((inv) => billingAPI.payInvoice(inv._id)));
       await refreshInvoices();
-      setPaymentMessage('Thanh toán thành công tất cả hóa đơn chưa thanh toán.');
+      setPaymentMessage('Successfully paid all unpaid invoices.');
     } catch (err) {
       console.error(err);
-      setPaymentMessage('Không thể thanh toán. Vui lòng thử lại sau.');
+      setPaymentMessage('Payment failed. Please try again later.');
     } finally {
       setPaymentProcessing(false);
     }
@@ -188,18 +188,18 @@ export default function PatientDashboard() {
 
   const handlePayInvoice = async (invoice) => {
     if (invoice.status === 'Paid') {
-      setPaymentMessage('Hóa đơn này đã được thanh toán.');
+      setPaymentMessage('This invoice has already been paid.');
       return;
     }
     const result = await Swal.fire({
-      title: 'Xác nhận thanh toán',
-      text: `Bạn có chắc muốn thanh toán hóa đơn ${translateInvoiceType(invoice.invoiceType)} trị giá ${formatCurrency(invoice.totalAmount || 0)}?`,
+      title: 'Confirm payment',
+      text: `Are you sure you want to pay the ${translateInvoiceType(invoice.invoiceType)} of ${formatCurrency(invoice.totalAmount || 0)}?`,
       icon: 'question',
       showCancelButton: true,
       confirmButtonColor: '#10b981',
       cancelButtonColor: '#64748b',
-      confirmButtonText: 'Thanh toán',
-      cancelButtonText: 'Hủy'
+      confirmButtonText: 'Pay',
+      cancelButtonText: 'Cancel'
     });
     if (!result.isConfirmed) return;
 
@@ -208,10 +208,10 @@ export default function PatientDashboard() {
     try {
       await billingAPI.payInvoice(invoice._id);
       await refreshInvoices();
-      setPaymentMessage(`Thanh toán thành công hóa đơn ${formatCurrency(invoice.totalAmount || 0)}.`);
+      setPaymentMessage(`Successfully paid invoice of ${formatCurrency(invoice.totalAmount || 0)}.`);
     } catch (err) {
       console.error(err);
-      setPaymentMessage('Không thể thanh toán hóa đơn. Vui lòng thử lại sau.');
+      setPaymentMessage('Could not pay the invoice. Please try again later.');
     } finally {
       setPaymentProcessing(false);
     }
@@ -219,37 +219,37 @@ export default function PatientDashboard() {
 
   const formatCurrency = (amount) => {
     try {
-      return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number(amount) || 0);
+      return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'VND', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Number(amount) || 0);
     } catch (e) {
       return amount || 0;
     }
   };
 
   const translateInvoiceType = (type) => {
-    if (!type) return 'Hoá đơn';
-    if (type === 'Consultation') return 'Hoá đơn Khám bệnh';
-    if (type === 'Pharmacy') return 'Hoá đơn Nhà thuốc';
+    if (!type) return 'Invoice';
+    if (type === 'Consultation') return 'Consultation Invoice';
+    if (type === 'Pharmacy') return 'Pharmacy Invoice';
     return type;
   };
 
   const translateInvoiceStatus = (status) => {
     if (!status) return '';
-    if (status === 'Unpaid') return 'Chưa thanh toán';
-    if (status === 'Paid') return 'Đã thanh toán';
-    if (status === 'Refunded') return 'Đã hoàn tiền';
+    if (status === 'Unpaid') return 'Unpaid';
+    if (status === 'Paid') return 'Paid';
+    if (status === 'Refunded') return 'Refunded';
     return status;
   };
 
   const handleCancel = async (id) => {
     const result = await Swal.fire({
-      title: 'Xác nhận hủy lịch',
-      text: 'Bạn có chắc muốn hủy lịch này?',
+      title: 'Confirm cancellation',
+      text: 'Are you sure you want to cancel this appointment?',
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#ef4444',
       cancelButtonColor: '#64748b',
-      confirmButtonText: 'Hủy lịch',
-      cancelButtonText: 'Đóng'
+      confirmButtonText: 'Cancel appointment',
+      cancelButtonText: 'Close'
     });
     if (!result.isConfirmed) return;
     try {
@@ -257,7 +257,7 @@ export default function PatientDashboard() {
       setAppointments((prev) => prev.filter((a) => a._id !== id));
     } catch (err) {
       console.error(err);
-      setError('Không thể hủy lịch.');
+      setError('Could not cancel the appointment.');
     }
   };
 
@@ -310,11 +310,11 @@ export default function PatientDashboard() {
         identityCard: savedPatient?.identityCard || '',
         insuranceCode: savedPatient?.insuranceCode || ''
       });
-      setProfileMessage('Cập nhật thông tin thành công.');
+      setProfileMessage('Profile updated successfully.');
       setIsEditingProfile(false);
     } catch (err) {
       console.error(err);
-      setProfileMessage('Không thể cập nhật thông tin, vui lòng thử lại sau.');
+      setProfileMessage('Could not update your profile. Please try again later.');
     } finally {
       setProfileSaving(false);
     }
@@ -335,8 +335,9 @@ export default function PatientDashboard() {
       <div>
         <RoleTopNav role="patient" />
         <main>
-          <div>
-            <p>Đang tải dữ liệu...</p>
+          <div className="dashboard-loading">
+            <div className="spinner"></div>
+            <p>Loading data...</p>
           </div>
         </main>
       </div>
@@ -351,8 +352,8 @@ export default function PatientDashboard() {
 
         <div className="patient-dashboard__hero card">
           <div>
-            <h3>Xin chào, {patient?.fullName || 'khách hàng'}</h3>
-            <p>Xem thông tin lịch hẹn, thanh toán và hồ sơ bệnh án của bạn trong nháy mắt.</p>
+            <h3>Hello, {patient?.fullName || 'guest'}</h3>
+            <p>View your appointments, payments, and medical records at a glance.</p>
           </div>
         </div>
 
@@ -364,17 +365,17 @@ export default function PatientDashboard() {
               {showAppointmentsSection && (
                 <section id="appointments" className="card patient-card">
                   <div className="card-title-bar">
-                    <h4>Lịch hẹn sắp tới</h4>
+                    <h4>Upcoming appointments</h4>
                   </div>
                   {appointments.length === 0 ? (
-                    <div className="patient-empty">Bạn chưa có lịch hẹn nào.</div>
+                    <div className="patient-empty">You have no appointments yet.</div>
                   ) : (
                     <ul className="appointment-list">
                       {appointments.slice(0, 5).map((a) => (
                         <li key={a._id} className="appointment-item">
                           <div>
-                            <strong>{new Date(a.requestedDate).toLocaleDateString('vi-VN')}</strong>
-                            <div>{a.requestedTime} · {a.departmentId?.departmentName || 'Khoa chung'}</div>
+                            <strong>{new Date(a.requestedDate).toLocaleDateString('en-US')}</strong>
+                            <div>{a.requestedTime} · {a.departmentId?.departmentName || 'General'}</div>
                           </div>
                           <div className="appointment-item__actions">
                             <button
@@ -382,7 +383,7 @@ export default function PatientDashboard() {
                               type="button"
                               onClick={() => handleShowAppointmentDetails(a)}
                             >
-                              Chi tiết
+                              Details
                             </button>
                             {a.status === 'Pending' && (
                               <button
@@ -390,7 +391,7 @@ export default function PatientDashboard() {
                                 type="button"
                                 onClick={() => handleCancel(a._id)}
                               >
-                                Hủy
+                                Cancel
                               </button>
                             )}
                           </div>
@@ -404,22 +405,22 @@ export default function PatientDashboard() {
               {showPaymentsSection && (
                 <section id="payments" className="card patient-card">
                   <div className="card-title-bar">
-                    <h4>Tổng quan thanh toán</h4>
+                    <h4>Payment overview</h4>
                   </div>
                   <div className="patient-summary">
-                    <p>Tổng hóa đơn: <strong>{invoices.length}</strong></p>
-                    <p>Chưa thanh toán: <strong>{invoices.filter((i) => i.status !== 'Paid').length}</strong></p>
-                    <p>Tổng thanh toán: <strong>{formatCurrency(invoices.reduce((s, it) => s + (it.totalAmount || 0), 0))}</strong></p>
+                    <p>Total invoices: <strong>{invoices.length}</strong></p>
+                    <p>Unpaid: <strong>{invoices.filter((i) => i.status !== 'Paid').length}</strong></p>
+                    <p>Total amount: <strong>{formatCurrency(invoices.reduce((s, it) => s + (it.totalAmount || 0), 0))}</strong></p>
                     <div className="patient-summary__amounts">
-                      <p>Khám bệnh: <strong>{formatCurrency(
+                      <p>Consultation: <strong>{formatCurrency(
                         invoices.filter(i => i.invoiceType === 'Consultation').reduce((s, it) => s + (it.totalAmount || 0), 0)
                       )}</strong></p>
-                      <p>Tiền thuốc: <strong>{formatCurrency(
+                      <p>Pharmacy: <strong>{formatCurrency(
                         invoices.filter(i => i.invoiceType === 'Pharmacy').reduce((s, it) => s + (it.totalAmount || 0), 0)
                       )}</strong></p>
                     </div>
                     {paymentMessage && (
-                      <div className={`booking-banner ${paymentMessage.includes('thành công') ? 'success' : 'error'}`}>
+                      <div className={`booking-banner ${paymentMessage.toLowerCase().includes('success') ? 'success' : 'error'}`}>
                         {paymentMessage}
                       </div>
                     )}
@@ -430,14 +431,14 @@ export default function PatientDashboard() {
                         onClick={handlePayAllUnpaid}
                         disabled={paymentProcessing}
                       >
-                        {paymentProcessing ? 'Đang thanh toán...' : 'Thanh toán toàn bộ'}
+                        {paymentProcessing ? 'Processing...' : 'Pay all'}
                       </button>
                       <button
                         type="button"
                         className="btn btn-ghost"
                         onClick={() => setShowBilling(true)}
                       >
-                        Thanh toán từng phần
+                        Pay individually
                       </button>
                     </div>
                   </div>
@@ -454,10 +455,10 @@ export default function PatientDashboard() {
             {showRecordsSection && (
               <section id="records" className="card patient-card">
                 <div className="card-title-bar">
-                  <h4>Hồ sơ bệnh án gần đây</h4>
+                  <h4>Recent medical records</h4>
                 </div>
                 {records.length === 0 ? (
-                  <div className="patient-empty">Sau khi khám, các hồ sơ bệnh lý sẽ hiển thị ở đây.</div>
+                  <div className="patient-empty">After your visit, your medical records will appear here.</div>
                 ) : (
                   <div className="record-list">
                     {records.slice(0, 3).map((r) => {
@@ -466,30 +467,30 @@ export default function PatientDashboard() {
                         <article key={r._id} className="record-item record-item--vitals">
                           <div className="record-item__header">
                             <div>
-                              <strong>{new Date(r.createdAt).toLocaleDateString('vi-VN')}</strong>
-                              <p>{r.appointmentId?.departmentId?.departmentName || 'Khoa khám chung'}</p>
-                              <span>BS. <strong>{r.doctorId?.fullName || 'Chưa có bác sĩ'}</strong></span>
+                              <strong>{new Date(r.createdAt).toLocaleDateString('en-US')}</strong>
+                              <p>{r.appointmentId?.departmentId?.departmentName || 'General department'}</p>
+                              <span>Dr. <strong>{r.doctorId?.fullName || 'Not assigned'}</strong></span>
                             </div>
                             <button
                               type="button"
                               className="btn btn-ghost btn-sm"
                               onClick={() => handleToggleRecord(r._id)}
                             >
-                              {isExpanded ? 'Ẩn chi tiết' : 'Xem chi tiết'}
+                              {isExpanded ? 'Hide details' : 'View details'}
                             </button>
                           </div>
 
                           <div className={`record-item__details ${isExpanded ? 'is-expanded' : ''}`}>
                             <div className="record-item__vitals">
-                              <div><strong>Chiều cao:</strong> {r.height ? `${r.height} cm` : '---'}</div>
-                              <div><strong>Cân nặng:</strong> {r.weight ? `${r.weight} kg` : '---'}</div>
-                              <div><strong>Huyết áp:</strong> {r.bloodPressure || '---'}</div>
-                              <div><strong>Nhịp tim:</strong> {r.heartRate ? `${r.heartRate} bpm` : '---'}</div>
-                              <div><strong>Nhiệt độ:</strong> {r.temperature ? `${r.temperature} °C` : '---'}</div>
+                              <div><strong>Height:</strong> {r.height ? `${r.height} cm` : '---'}</div>
+                              <div><strong>Weight:</strong> {r.weight ? `${r.weight} kg` : '---'}</div>
+                              <div><strong>Blood pressure:</strong> {r.bloodPressure || '---'}</div>
+                              <div><strong>Heart rate:</strong> {r.heartRate ? `${r.heartRate} bpm` : '---'}</div>
+                              <div><strong>Temperature:</strong> {r.temperature ? `${r.temperature} °C` : '---'}</div>
                             </div>
                             <div className="record-item__summary">
-                              <p><strong>Chẩn đoán:</strong> {r.diagnosis || '---'}</p>
-                              {r.clinicalNotes && <p><strong>Ghi chú:</strong> {r.clinicalNotes}</p>}
+                              <p><strong>Diagnosis:</strong> {r.diagnosis || '---'}</p>
+                              {r.clinicalNotes && <p><strong>Notes:</strong> {r.clinicalNotes}</p>}
                             </div>
                           </div>
                         </article>
@@ -511,36 +512,36 @@ export default function PatientDashboard() {
               <div className="modal card appointment-modal">
                 <div className="card-title-bar modal-header">
                   <div>
-                    <h4>Chi tiết lịch hẹn</h4>
-                    <p className="muted">{selectedAppointment.departmentId?.departmentName || 'Khoa khám chung'}</p>
+                    <h4>Appointment details</h4>
+                    <p className="muted">{selectedAppointment.departmentId?.departmentName || 'General department'}</p>
                   </div>
-                  <button type="button" className="btn btn-ghost" onClick={handleCloseAppointmentModal}>Đóng</button>
+                  <button type="button" className="btn btn-ghost" onClick={handleCloseAppointmentModal}>Close</button>
                 </div>
 
                 <div className="modal-body">
                   <div className="appointment-detail-grid">
                     <div>
-                      <p><strong>Ngày khám:</strong> {new Date(selectedAppointment.requestedDate).toLocaleDateString('vi-VN')}</p>
-                      <p><strong>Giờ khám:</strong> {selectedAppointment.requestedTime || 'Chưa có giờ'}</p>
-                      <p><strong>Trạng thái:</strong> {selectedAppointment.status || 'Chưa cập nhật'}</p>
-                      <p><strong>Phòng:</strong> {selectedAppointment.scheduleId?.room || 'Đang cập nhật'}</p>
+                      <p><strong>Date:</strong> {new Date(selectedAppointment.requestedDate).toLocaleDateString('en-US')}</p>
+                      <p><strong>Time:</strong> {selectedAppointment.requestedTime || 'Not set'}</p>
+                      <p><strong>Status:</strong> {selectedAppointment.status || 'Not updated'}</p>
+                      <p><strong>Room:</strong> {selectedAppointment.scheduleId?.room || 'To be updated'}</p>
                     </div>
                     <div>
-                      <p><strong>Bác sĩ:</strong> BS. {selectedAppointment.doctorId?.fullName || 'Chưa có thông tin'}</p>
-                      <p><strong>Chuyên khoa:</strong> {selectedAppointment.departmentId?.departmentName || 'Chung'}</p>
-                      <p><strong>Gói khám:</strong> {selectedAppointment.scheduleId?.serviceName || 'Khám lâm sàng'}</p>
-                      <p><strong>Phòng khám:</strong> {selectedAppointment.departmentId?.departmentName || 'Chưa rõ'}</p>
+                      <p><strong>Doctor:</strong> Dr. {selectedAppointment.doctorId?.fullName || 'Not assigned'}</p>
+                      <p><strong>Specialty:</strong> {selectedAppointment.departmentId?.departmentName || 'General'}</p>
+                      <p><strong>Service:</strong> {selectedAppointment.scheduleId?.serviceName || 'Clinical examination'}</p>
+                      <p><strong>Department:</strong> {selectedAppointment.departmentId?.departmentName || 'Unknown'}</p>
                     </div>
                   </div>
 
                   <div className="appointment-detail-extra">
-                    <p><strong>Triệu chứng / Mô tả:</strong></p>
-                    <p>{selectedAppointment.symptoms || 'Không có mô tả'}</p>
+                    <p><strong>Symptoms / Description:</strong></p>
+                    <p>{selectedAppointment.symptoms || 'No description'}</p>
                   </div>
 
                   {selectedAppointment.scheduleId?.startTime || selectedAppointment.scheduleId?.endTime ? (
                     <div className="appointment-detail-time">
-                      <p><strong>Thời gian làm việc:</strong></p>
+                      <p><strong>Working hours:</strong></p>
                       <p>{selectedAppointment.scheduleId?.startTime || '---'} - {selectedAppointment.scheduleId?.endTime || '---'}</p>
                     </div>
                   ) : null}
@@ -558,13 +559,13 @@ export default function PatientDashboard() {
               >
                 <div className="modal card">
                   <div className="card-title-bar modal-header">
-                    <h4>Chi tiết hóa đơn</h4>
-                    <button type="button" className="btn btn-ghost" onClick={() => setShowBilling(false)}>Đóng</button>
+                    <h4>Invoice details</h4>
+                    <button type="button" className="btn btn-ghost" onClick={() => setShowBilling(false)}>Close</button>
                   </div>
 
                   <div className="modal-body">
                     {invoices.length === 0 ? (
-                      <div className="patient-empty">Bạn chưa có hóa đơn nào.</div>
+                      <div className="patient-empty">You have no invoices yet.</div>
                     ) : (
                       <div className="invoice-list">
                         {invoices.map((inv) => {
@@ -574,10 +575,10 @@ export default function PatientDashboard() {
                               <div className="invoice-item__header">
                                 <div>
                                   <strong>{translateInvoiceType(inv.invoiceType)}</strong>
-                                  <div className="muted">{new Date(inv.issuedAt || inv.createdAt).toLocaleString('vi-VN')}</div>
+                                  <div className="muted">{new Date(inv.issuedAt || inv.createdAt).toLocaleString('en-US')}</div>
                                 </div>
                                 <div>
-                                  <div className="muted">Trạng thái: {translateInvoiceStatus(inv.status)}</div>
+                                  <div className="muted">Status: {translateInvoiceStatus(inv.status)}</div>
                                   <div style={{ textAlign: 'right' }}><strong>{formatCurrency(inv.totalAmount || 0)}</strong></div>
                                   <div className="invoice-item__actions">
                                     {inv.status !== 'Paid' && (
@@ -587,11 +588,11 @@ export default function PatientDashboard() {
                                         disabled={paymentProcessing}
                                         onClick={() => handlePayInvoice(inv)}
                                       >
-                                        Thanh toán
+                                        Pay
                                       </button>
                                     )}
                                     <button type="button" className="btn btn-ghost btn-sm" onClick={() => handleToggleInvoice(inv._id)}>
-                                      {isExpanded ? 'Ẩn' : 'Xem chi tiết'}
+                                      {isExpanded ? 'Hide' : 'View details'}
                                     </button>
                                   </div>
                                 </div>
@@ -602,14 +603,14 @@ export default function PatientDashboard() {
                                   <div className="invoice-lines">
                                     {inv.details.map((d) => (
                                       <div key={d._id} className="invoice-line">
-                                        <div>{d.medicineId?.name || 'Thuốc'}</div>
+                                        <div>{d.medicineId?.name || 'Medicine'}</div>
                                         <div className="muted">x{d.quantity}</div>
                                         <div>{formatCurrency((d.unitPrice || 0) * (d.quantity || 1))}</div>
                                       </div>
                                     ))}
                                   </div>
                                 ) : (
-                                  <div className="invoice-meta muted">{inv.appointmentId ? `Khoa: ${inv.appointmentId.departmentId?.departmentName || ''}` : ''}</div>
+                                  <div className="invoice-meta muted">{inv.appointmentId ? `Department: ${inv.appointmentId.departmentId?.departmentName || ''}` : ''}</div>
                                 )}
                               </div>
                             </article>
@@ -637,15 +638,15 @@ export default function PatientDashboard() {
           <div className="modal card">
             <div className="card-title-bar modal-header">
               <div>
-                <h4>Cập nhật thông tin cá nhân</h4>
-                <p className="muted">Bạn có thể sửa thông tin hồ sơ bệnh nhân của mình.</p>
+                <h4>Update personal information</h4>
+                <p className="muted">You can edit your patient profile information.</p>
               </div>
-              <button type="button" className="btn btn-ghost" onClick={() => setIsEditingProfile(false)}>Đóng</button>
+              <button type="button" className="btn btn-ghost" onClick={() => setIsEditingProfile(false)}>Close</button>
             </div>
             <div className="modal-body">
               <div className="form-grid">
                 <div className="form-group">
-                  <label>Họ tên</label>
+                  <label>Full name</label>
                   <input
                     type="text"
                     value={profileForm.fullName}
@@ -653,7 +654,7 @@ export default function PatientDashboard() {
                   />
                 </div>
                 <div className="form-group">
-                  <label>Ngày sinh</label>
+                  <label>Date of birth</label>
                   <input
                     type="date"
                     value={profileForm.dateOfBirth}
@@ -661,18 +662,18 @@ export default function PatientDashboard() {
                   />
                 </div>
                 <div className="form-group">
-                  <label>Giới tính</label>
+                  <label>Gender</label>
                   <select
                     value={profileForm.gender}
                     onChange={(e) => handleProfileChange('gender', e.target.value)}
                   >
-                    <option>Khác</option>
-                    <option>Nam</option>
-                    <option>Nữ</option>
+                    <option value="Khác">Other</option>
+                    <option value="Nam">Male</option>
+                    <option value="Nữ">Female</option>
                   </select>
                 </div>
                 <div className="form-group">
-                  <label>Số điện thoại</label>
+                  <label>Phone number</label>
                   <input
                     type="text"
                     value={profileForm.phoneNumber}
@@ -680,7 +681,7 @@ export default function PatientDashboard() {
                   />
                 </div>
                 <div className="form-group">
-                  <label>CCCD / CMND</label>
+                  <label>ID card</label>
                   <input
                     type="text"
                     value={profileForm.identityCard}
@@ -688,7 +689,7 @@ export default function PatientDashboard() {
                   />
                 </div>
                 <div className="form-group">
-                  <label>Mã BHYT</label>
+                  <label>Health insurance no.</label>
                   <input
                     type="text"
                     value={profileForm.insuranceCode}
@@ -696,7 +697,7 @@ export default function PatientDashboard() {
                   />
                 </div>
                 <div className="form-group form-group-full">
-                  <label>Địa chỉ</label>
+                  <label>Address</label>
                   <textarea
                     rows="3"
                     value={profileForm.address}
@@ -704,11 +705,11 @@ export default function PatientDashboard() {
                   />
                 </div>
               </div>
-              {profileMessage && <div className={`booking-banner ${profileMessage.includes('thành công') ? 'success' : 'error'}`}>{profileMessage}</div>}
+              {profileMessage && <div className={`booking-banner ${profileMessage.toLowerCase().includes('success') ? 'success' : 'error'}`}>{profileMessage}</div>}
               <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1rem' }}>
-                <button type="button" className="btn btn-secondary" onClick={() => setIsEditingProfile(false)}>Hủy</button>
+                <button type="button" className="btn btn-secondary" onClick={() => setIsEditingProfile(false)}>Cancel</button>
                 <button type="button" className="btn btn-primary" disabled={profileSaving} onClick={handleSaveProfile}>
-                  {profileSaving ? 'Đang lưu...' : 'Lưu thay đổi'}
+                  {profileSaving ? 'Saving...' : 'Save changes'}
                 </button>
               </div>
             </div>

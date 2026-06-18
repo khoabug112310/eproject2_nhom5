@@ -1,45 +1,45 @@
 import React from 'react';
 
 const historyData = [
-  { 
-    year: "Hiện nay", 
-    title: "Chuyển đổi số toàn diện", 
-    content: "Hướng tới mô hình y khoa thông minh hiện đại. Tích hợp hồ sơ bệnh án điện tử, nâng cấp tối đa trải nghiệm người dùng và tiếp tục nâng cao chuyên môn đội ngũ y bác sĩ." 
+  {
+    year: "Today",
+    title: "Comprehensive digital transformation",
+    content: "Moving toward a modern, smart healthcare model. We integrate electronic medical records, maximize the user experience, and continuously advance the expertise of our medical team."
   },
-  { 
-    year: "Năm 2024", 
-    title: "Vươn tầm chất lượng y khoa", 
-    content: "Chính thức ra mắt gói khám sức khỏe VIP, hợp tác chuyên môn với các chuyên gia đầu ngành tuyến trung ương và hoàn thiện hệ thống tư vấn, đặt lịch trực tuyến." 
+  {
+    year: "2024",
+    title: "Raising the bar for medical quality",
+    content: "Officially launched our VIP health check-up packages, partnered with leading national specialists, and completed our online consultation and booking system."
   },
-  { 
-    year: "Năm 2022", 
-    title: "Cột mốc 10.000+ bệnh nhân", 
-    content: "Đạt mốc chăm sóc sức khỏe cho hơn 10.000 lượt bệnh nhân tin tưởng. Mở rộng cơ sở vật chất và tăng cường quy mô phòng khám ngoại trú." 
+  {
+    year: "2022",
+    title: "Milestone of 10,000+ patients",
+    content: "Reached the milestone of caring for more than 10,000 trusting patients. Expanded our facilities and scaled up our outpatient services."
   },
-  { 
-    year: "Năm 2020", 
-    title: "Đầu tư trang thiết bị công nghệ cao", 
-    content: "Nâng cấp toàn bộ máy móc chẩn đoán hình ảnh (siêu âm 4D, nội soi tiêu hóa không đau) và chính thức mở rộng thêm chuyên khoa Sản phụ khoa, Da liễu." 
+  {
+    year: "2020",
+    title: "Investment in high-tech equipment",
+    content: "Upgraded all diagnostic imaging equipment (4D ultrasound, painless gastrointestinal endoscopy) and officially added the Obstetrics & Gynecology and Dermatology departments."
   },
-  { 
-    year: "Năm 2018", 
-    title: "Thành lập & Khởi đầu sứ mệnh", 
-    content: "Phòng khám Đa khoa Hợp Sơn Tài được thành lập với mục tiêu mang lại dịch vụ y tế chất lượng cao, thân thiện và chi phí hợp lý nhất cho cộng đồng." 
+  {
+    year: "2018",
+    title: "Foundation & the start of our mission",
+    content: "Hopsontai General Clinic was founded with the goal of delivering high-quality, friendly, and affordable medical services to the community."
   },
 ];
 
 const valuesData = [
   {
-    title: "Sứ mệnh",
-    desc: "Cung cấp giải pháp chăm sóc sức khỏe toàn diện, chuyên nghiệp với chi phí hợp lý nhất cho mọi gia đình Việt."
+    title: "Mission",
+    desc: "To provide comprehensive, professional healthcare solutions at the most reasonable cost for every family."
   },
   {
-    title: "Tầm nhìn",
-    desc: "Trở thành hệ thống phòng khám đa khoa kỹ thuật số hiện đại hàng đầu với chất lượng chuẩn quốc tế."
+    title: "Vision",
+    desc: "To become a leading modern, digital general clinic delivering care at international standards."
   },
   {
-    title: "Giá trị cốt lõi",
-    desc: "Lấy y đức làm nền tảng, sự an toàn và hài lòng của người bệnh làm thước đo giá trị cao nhất."
+    title: "Core Values",
+    desc: "Medical ethics as our foundation, with patient safety and satisfaction as the highest measure of our value."
   }
 ];
 
@@ -89,12 +89,12 @@ export default function About() {
             borderRadius: '50px',
             display: 'inline-block',
             marginBottom: '20px'
-          }}>Về chúng tôi</span>
+          }}>About us</span>
           <h1 style={{ fontSize: '40px', fontWeight: '700', margin: '0 0 16px 0', letterSpacing: '-0.5px' }}>
-            Phòng Khám Đa Khoa Hợp Sơn Tài
+            Hopsontai General Clinic
           </h1>
           <p style={{ fontSize: '16px', color: 'rgba(255,255,255,0.85)', lineHeight: '1.6', maxWidth: '650px', margin: '0 auto' }}>
-            Nơi kết tinh của Tài năng, Y đức và Công nghệ hiện đại để mang lại sự an tâm tuyệt đối cho sức khỏe của bạn.
+            Where talent, medical ethics, and modern technology come together to bring complete peace of mind to your health.
           </p>
         </div>
       </section>
@@ -113,13 +113,13 @@ export default function About() {
               borderLeft: '5px solid var(--color-primary, #3b82f6)',
               paddingLeft: '16px'
             }}>
-              Cam Kết Về Một Nền Y Khoa Tận Tâm
+              Committed to Dedicated, Compassionate Medicine
             </h2>
             <p style={{ fontSize: '16px', lineHeight: '1.8', color: 'var(--color-text-muted, #64748b)', margin: '0 0 20px 0' }}>
-              Được thành lập từ khao khát xây dựng một mô hình phòng khám thân thiện, tối giản thủ tục và chuyên sâu chất lượng, <strong>Hợp Sơn Tài</strong> không ngừng cải tiến quy trình phục vụ. Chúng tôi hiểu rằng, mỗi lượt khám không chỉ là chẩn đoán bệnh mà còn là sự chia sẻ, lắng nghe và đồng hành cùng bệnh nhân.
+              Founded on the desire to build a friendly clinic model with streamlined procedures and deep, high-quality expertise, <strong>Hopsontai</strong> continuously improves its service process. We understand that every visit is not just about diagnosing illness, but also about sharing, listening, and walking alongside our patients.
             </p>
             <p style={{ fontSize: '16px', lineHeight: '1.8', color: 'var(--color-text-muted, #64748b)', margin: 0 }}>
-              Đội ngũ bác sĩ của chúng tôi là các chuyên gia có nhiều năm kinh nghiệm, luôn tận tụy học hỏi và nâng cao chuyên môn để đưa ra phác đồ tối ưu, tiết kiệm chi phí tối đa cho người bệnh.
+              Our doctors are specialists with years of experience, always devoted to learning and advancing their expertise to provide optimal treatment plans that save patients as much cost as possible.
             </p>
           </div>
 
@@ -165,10 +165,10 @@ export default function About() {
           
           <div style={{ textAlign: 'center', marginBottom: '60px' }}>
             <h2 style={{ fontSize: '32px', fontWeight: '700', color: 'var(--color-text, #1e293b)', margin: '0 0 12px 0' }}>
-              Hành Trình Kiến Tạo & Phát Triển
+              Our Journey of Growth &amp; Development
             </h2>
             <p style={{ fontSize: '16px', color: 'var(--color-text-muted, #64748b)', margin: 0 }}>
-              Nhìn lại những cột mốc phát triển vững chắc của Phòng khám Đa khoa Hợp Sơn Tài
+              Looking back at the solid milestones in the growth of Hopsontai General Clinic
             </p>
           </div>
 

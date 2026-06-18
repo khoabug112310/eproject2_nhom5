@@ -1,4 +1,4 @@
-// Trang chủ (Home Page)
+// Home Page
 import React, { useRef, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -66,7 +66,7 @@ export default function Home() {
         setPosts(postRes.data?.data || []);
       } catch (err) {
         console.error('Home fetch error', err);
-        setError('Không thể tải dữ liệu từ máy chủ. Vui lòng thử lại sau.');
+        setError('Unable to load data from the server. Please try again later.');
       } finally {
         setLoading(false);
       }
@@ -81,29 +81,6 @@ export default function Home() {
         <Hero />
 
         <div className="home-content">
-
-          {/* Departments Grid Section */}
-          {/* <div className="card">
-            <div className="card-title-bar">
-              <h3>Khoa Lâm Sàng Nổi Bật</h3>
-              <span style={{ fontSize: '13px', color: 'var(--color-primary)', fontWeight: 'bold' }}>Chuyên nghiệp & Tận tâm</span>
-            </div>
-            <div className="department-grid">
-              {loading ? (
-                <div style={{ padding: '24px', textAlign: 'center', gridColumn: '1/-1', color: 'var(--color-text-muted)' }}>Đang tải danh sách chuyên khoa...</div>
-              ) : departments.length ? (
-                departments.map((d, i) => (
-                  <DepartmentCard 
-                    key={i} 
-                    {...d} 
-                    onViewDoctors={() => handleSelectDepartment(d._id)} 
-                    />
-                ))
-              ) : (
-                <div style={{ padding: '24px', textAlign: 'center', gridColumn: '1/-1' }}>Không tìm thấy chuyên khoa nào</div>
-              )}
-            </div>
-          </div> */}
 
           {/* Doctors Grid Section - Redesigned to be highly professional and visually stunning */}
           <section style={{
@@ -126,31 +103,31 @@ export default function Home() {
                 borderRadius: '50px',
                 display: 'inline-block',
                 boxShadow: '0 2px 4px rgba(0, 168, 157, 0.05)'
-              }}>Đội ngũ chuyên gia</span>
-              
-              <h2 style={{ 
-                fontSize: '32px', 
-                fontWeight: '800', 
-                color: '#1e293b', 
+              }}>Our Experts</span>
+
+              <h2 style={{
+                fontSize: '32px',
+                fontWeight: '800',
+                color: '#1e293b',
                 margin: '12px 0 8px 0',
                 letterSpacing: '-0.5px'
-              }}>Đội Ngũ Bác Sĩ Tiêu Biểu</h2>
-              
-              <p style={{ 
-                fontSize: '15px', 
-                color: '#64748b', 
-                maxWidth: '620px', 
+              }}>Our Featured Medical Team</h2>
+
+              <p style={{
+                fontSize: '15px',
+                color: '#64748b',
+                maxWidth: '620px',
                 margin: '0 auto',
                 lineHeight: '1.6'
               }}>
-                Quy tụ những Phó giáo sư, Tiến sĩ và bác sĩ ưu tú với học vị cao và nhiều năm kinh nghiệm lâm sàng trực tiếp thăm khám và trị liệu.
+                A team of Associate Professors, Doctors of Medicine, and distinguished physicians with advanced degrees and years of hands-on clinical experience in examination and treatment.
               </p>
             </div>
             
             <div className="home-doctors-grid">
               {loading ? (
                 <div style={{ padding: '24px', textAlign: 'center', width: '100%', gridColumn: '1/-1', color: 'var(--color-text-muted)' }}>
-                  Đang tải danh sách bác sĩ...
+                  Loading doctors...
                 </div>
               ) : doctors.length ? (
                 doctors.slice(0, 4).map((d, i) => (
@@ -162,7 +139,7 @@ export default function Home() {
                 ))
               ) : (
                 <div style={{ padding: '24px', textAlign: 'center', width: '100%', gridColumn: '1/-1' }}>
-                  Không có thông tin bác sĩ
+                  No doctor information available
                 </div>
               )}
             </div>
@@ -197,10 +174,58 @@ export default function Home() {
                     e.currentTarget.style.transform = 'translateY(0)';
                   }}
                 >
-                  Xem toàn bộ đội ngũ bác sĩ
+                  View all doctors
                 </button>
               </div>
             )}
+          </section>
+
+          {/* Why Choose Us — feature band */}
+          <section className="home-features">
+            <div className="home-section-head">
+              <span className="home-eyebrow">Why choose us</span>
+              <h2>Healthcare built around you</h2>
+              <p>From your first booking to follow-up care, every step is designed to be simple, transparent, and reassuring.</p>
+            </div>
+            <div className="home-feature-grid">
+              {[
+                { icon: '🩺', title: 'Expert Physicians', desc: 'Board-certified specialists across every major medical field.' },
+                { icon: '⚡', title: 'Fast Booking', desc: 'Reserve an appointment online in under a minute, 24/7.' },
+                { icon: '🔬', title: 'Modern Equipment', desc: 'Accurate diagnostics powered by advanced medical technology.' },
+                { icon: '💊', title: 'In-house Pharmacy', desc: 'Fill your prescription on-site right after your consultation.' },
+                { icon: '🧾', title: 'Transparent Pricing', desc: 'Clear consultation and treatment fees with itemized receipts.' },
+                { icon: '🤝', title: 'Dedicated Care', desc: 'Friendly staff who guide you through every stage of your visit.' },
+              ].map((f, i) => (
+                <div key={i} className="home-feature-card">
+                  <div className="home-feature-icon">{f.icon}</div>
+                  <h3>{f.title}</h3>
+                  <p>{f.desc}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* How it works — steps */}
+          <section className="home-steps">
+            <div className="home-section-head">
+              <span className="home-eyebrow">How it works</span>
+              <h2>Booking made simple</h2>
+              <p>Four easy steps from request to recovery.</p>
+            </div>
+            <div className="home-step-grid">
+              {[
+                { n: '01', title: 'Book online', desc: 'Pick a department, doctor, date and time — or use Quick Booking.' },
+                { n: '02', title: 'Get confirmed', desc: 'Our care team verifies your details and confirms your visit.' },
+                { n: '03', title: 'Visit the clinic', desc: 'Meet your doctor, get examined and receive your prescription.' },
+                { n: '04', title: 'Pay & collect', desc: 'Settle fees at the cashier and pick up your medication.' },
+              ].map((s, i) => (
+                <div key={i} className="home-step-card">
+                  <span className="home-step-num">{s.n}</span>
+                  <h3>{s.title}</h3>
+                  <p>{s.desc}</p>
+                </div>
+              ))}
+            </div>
           </section>
 
           {/* QuickBooking Inline Card Section */}
@@ -217,7 +242,7 @@ export default function Home() {
           {/* News & Latest Posts Section */}
           <div className="post-list">
             {loading ? (
-              <div style={{ padding: '24px', textAlign: 'center', gridColumn: '1/-1', color: 'var(--color-text-muted)' }}>Đang tải tin tức y khoa...</div>
+              <div style={{ padding: '24px', textAlign: 'center', gridColumn: '1/-1', color: 'var(--color-text-muted)' }}>Loading medical news...</div>
             ) : posts.length ? (
               posts.slice(0, 3).map((p, i) => (
                 <PostCard
@@ -230,7 +255,7 @@ export default function Home() {
                 />
               ))
             ) : (
-              <div style={{ padding: '24px', textAlign: 'center', gridColumn: '1/-1' }}>Chưa có tin tức mới cập nhật</div>
+              <div style={{ padding: '24px', textAlign: 'center', gridColumn: '1/-1' }}>No news updates yet</div>
             )}
           </div>
 

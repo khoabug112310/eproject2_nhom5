@@ -171,7 +171,7 @@ export default function DoctorCard({ avatar, fullName, specialization, departmen
                   fontWeight: '600',
                   display: 'inline-flex',
                   alignItems: 'center'
-                }}>{experienceYears} năm kinh nghiệm</span>
+                }}>{experienceYears} yrs experience</span>
               )}
             </div>
           </div>
@@ -202,10 +202,10 @@ export default function DoctorCard({ avatar, fullName, specialization, departmen
               textTransform: 'uppercase',
               letterSpacing: '0.5px'
             }}>
-              🎓 Học vị & Chuyên môn
+              🎓 Qualifications & Expertise
             </div>
             <div style={{ fontWeight: '700', color: '#1e293b' }}>
-              {qualifications || 'Bác sĩ chuyên khoa'}
+              {qualifications || 'Specialist Doctor'}
             </div>
           </div>
 
@@ -221,7 +221,7 @@ export default function DoctorCard({ avatar, fullName, specialization, departmen
             WebkitLineClamp: 3,
             WebkitBoxOrient: 'vertical'
           }} title={bio}>
-            {bio || 'Bác sĩ chuyên gia có kiến thức lâm sàng uyên bác và giàu lòng nhân ái, luôn tận tâm theo sát người bệnh.'}
+            {bio || 'A dedicated specialist with deep clinical knowledge and a compassionate, patient-centered approach to care.'}
           </p>
         </div>
       </div>
@@ -260,7 +260,7 @@ export default function DoctorCard({ avatar, fullName, specialization, departmen
             onBook();
           }}
         >
-          Đặt lịch khám ngay
+          Book Appointment
           <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
             <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
             <line x1="16" y1="2" x2="16" y2="6" />

@@ -36,6 +36,7 @@ export default function QuickBooking({
   const [time, setTime] = useState('09:00');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [symptoms, setSymptoms] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
@@ -132,6 +133,7 @@ export default function QuickBooking({
     setDoctor('');
     setTime('09:00');
     setDate(getMinBookingDate());
+    setSymptoms('');
   };
 
   async function handleSubmit(e) {
@@ -143,14 +145,14 @@ export default function QuickBooking({
     // Validate phone format
     const phoneRegex = /^(84|0[3|5|7|8|9])([0-9]{8})$/;
     if (!phoneRegex.test(phone)) {
-      setError('Số điện thoại không hợp lệ. Vui lòng nhập số điện thoại Việt Nam (ví dụ: 0912345678)');
+      setError('Invalid phone number. Please enter a valid Vietnamese number (e.g. 0912345678)');
       setLoading(false);
       return;
     }
 
     // Validate working hours (09:00 - 17:00)
     if (time < '09:00' || time > '17:00') {
-      setError('Khung giờ hẹn khám phải nằm trong khoảng từ 09:00 đến 17:00.');
+      setError('Appointment time must be between 09:00 and 17:00.');
       setLoading(false);
       return;
     }
@@ -161,57 +163,58 @@ export default function QuickBooking({
 
       if (isPatientLoggedIn) {
         // Authenticated patient -> create appointment
-        const payload = { 
-          requestedDate: new Date(date).toISOString(), 
-          requestedTime: time, 
-          departmentId: department, 
-          doctorId: doctor || undefined, 
-          symptoms: `Đặt lịch nhanh - Bệnh nhân: ${trimmedName} (SĐT: ${trimmedPhone})` 
+        const payload = {
+          requestedDate: new Date(date).toISOString(),
+          requestedTime: time,
+          departmentId: department,
+          doctorId: doctor || undefined,
+          symptoms: symptoms.trim() || `Quick booking - Patient: ${trimmedName} (Phone: ${trimmedPhone})`,
         };
         const resp = await schedulingAPI.bookAppointment(payload);
         if (resp.data && resp.data.success) {
-          setSuccess('Đặt lịch khám thành công! Nhân viên chăm sóc khách hàng sẽ liên hệ sớm.');
+          setSuccess('Appointment booked successfully! Our customer care team will contact you shortly.');
           setDepartment(''); setDoctor(''); setTime('09:00'); setDate(getMinBookingDate());
           if (!isPatientLoggedIn) {
             setName('');
             setPhone('');
           }
-          if (onSuccess) onSuccess(); // Gọi callback đóng modal ở ngoài layout
+          if (onSuccess) onSuccess(); // Trigger callback to close the modal in the outer layout
           setTimeout(() => setSuccess(null), 5000);
           // Trigger event to refresh stats in real-time
           window.dispatchEvent(new CustomEvent('booking-success'));
         } else {
-          setError(resp.data?.message || 'Không thể đặt lịch');
+          setError(resp.data?.message || 'Unable to book the appointment');
         }
       } else {
         // Fallback to public quick booking
-        const payload = { 
-          name: trimmedName, 
-          phone: trimmedPhone, 
-          departmentId: department, 
-          doctorId: doctor || undefined, 
-          requestedDate: date, 
-          requestedTime: time 
+        const payload = {
+          name: trimmedName,
+          phone: trimmedPhone,
+          departmentId: department,
+          doctorId: doctor || undefined,
+          requestedDate: date,
+          requestedTime: time,
+          symptoms: symptoms.trim() || undefined,
         };
         const resp = await bookingAPI.submitQuickBooking(payload);
         if (resp.data && resp.data.success) {
-          setSuccess('Đã gửi yêu cầu đặt lịch! Phòng khám sẽ liên hệ lại với bạn sớm nhất.');
+          setSuccess('Your booking request has been sent! The clinic will contact you as soon as possible.');
           setDepartment(''); setDoctor(''); setTime('09:00'); setDate(getMinBookingDate());
           if (!isPatientLoggedIn) {
             setName('');
             setPhone('');
           }
-          if (onSuccess) onSuccess(); // Gọi callback đóng modal ở ngoài layout
+          if (onSuccess) onSuccess(); // Trigger callback to close the modal in the outer layout
           setTimeout(() => setSuccess(null), 5000);
           // Trigger event to refresh stats in real-time
           window.dispatchEvent(new CustomEvent('booking-success'));
         } else {
-          setError(resp.data?.message || 'Không thể gửi yêu cầu');
+          setError(resp.data?.message || 'Unable to send the request');
         }
       }
     } catch (err) {
       console.error(err);
-      setError(err.response?.data?.message || 'Lỗi kết nối máy chủ');
+      setError(err.response?.data?.message || 'Server connection error');
     } finally {
       setLoading(false);
     }
@@ -221,12 +224,12 @@ export default function QuickBooking({
     <div className={`quick-booking ${isInline ? 'quick-booking--inline' : ''}`} id="booking-section">
       <div className="quick-booking-header">
         <div className="quick-booking-title-group">
-          <h3>Đặt Lịch Khám Nhanh</h3>
-          <p className="quick-booking-subtitle">Thủ tục đơn giản, hoàn toàn miễn phí</p>
+          <h3>Quick Appointment Booking</h3>
+          <p className="quick-booking-subtitle">Simple process, completely free</p>
         </div>
         {!isInline && !isModal && (
           <button type="button" className="quickbooking-toggle" onClick={() => setOpen(s => !s)} aria-expanded={open}>
-            {open ? 'Thu gọn' : 'Mở'}
+            {open ? 'Collapse' : 'Open'}
           </button>
         )}
       </div>
@@ -252,7 +255,7 @@ export default function QuickBooking({
         <form onSubmit={handleSubmit} className="form-grid-2">
           <div className="booking-field-group">
             <label className="booking-label">
-              Chuyên Khoa
+              Department
             </label>
             <div className="booking-input-wrapper">
               <svg className="booking-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -260,7 +263,7 @@ export default function QuickBooking({
                 <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
               </svg>
               <select value={department} onChange={handleDepartmentChange} required>
-                <option value="">-- Chọn chuyên khoa --</option>
+                <option value="">-- Select department --</option>
                 {activeDepartments.map(d => (
                   <option key={d._id} value={d._id}>{d.departmentName || d.name}</option>
                 ))}
@@ -275,16 +278,16 @@ export default function QuickBooking({
 
           <div className="booking-field-group">
             <label className="booking-label">
-              Bác Sĩ Mong Muốn
+              Preferred Doctor
             </label>
             <div className="booking-input-wrapper">
               <svg className="booking-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>
               </svg>
               <select value={doctor} onChange={e => setDoctor(e.target.value)}>
-                <option value="">-- Bác sĩ bất kỳ --</option>
+                <option value="">-- Any doctor --</option>
                 {filteredDoctors.map(d => (
-                  <option key={d.id || d._id} value={d.id || d._id}>{d.fullName} ({d.specialization || 'Bác sĩ'})</option>
+                  <option key={d.id || d._id} value={d.id || d._id}>{d.fullName} ({d.specialization || 'Doctor'})</option>
                 ))}
               </select>
               <div className="booking-select-arrow">
@@ -297,7 +300,7 @@ export default function QuickBooking({
 
           <div className="booking-field-group">
             <label className="booking-label">
-              Ngày Hẹn Khám
+              Appointment Date
             </label>
             <div className="booking-input-wrapper">
               <svg className="booking-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -318,7 +321,7 @@ export default function QuickBooking({
 
           <div className="booking-field-group">
             <label className="booking-label">
-              Giờ Hẹn Khám
+              Appointment Time
             </label>
             <div className="booking-input-wrapper">
               <svg className="booking-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -338,7 +341,7 @@ export default function QuickBooking({
 
           <div className="booking-field-group">
             <label className="booking-label">
-              Họ và Tên Bệnh Nhân
+              Patient Full Name
             </label>
             <div className="booking-input-wrapper">
               <svg className="booking-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -346,7 +349,7 @@ export default function QuickBooking({
                 <circle cx="12" cy="7" r="4"/>
               </svg>
               <input 
-                placeholder="Nhập đầy đủ họ tên" 
+                placeholder="Enter your full name"
                 value={name} 
                 onChange={e => setName(e.target.value)} 
                 required 
@@ -359,7 +362,7 @@ export default function QuickBooking({
 
           <div className="booking-field-group">
             <label className="booking-label">
-              Số Điện Thoại Liên Hệ
+              Contact Phone Number
             </label>
             <div className="booking-input-wrapper">
               <svg className="booking-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -367,7 +370,7 @@ export default function QuickBooking({
               </svg>
               <input 
                 type="tel" 
-                placeholder="Ví dụ: 0912345678" 
+                placeholder="e.g. 0912345678"
                 value={phone} 
                 onChange={e => setPhone(e.target.value)} 
                 required 
@@ -378,11 +381,30 @@ export default function QuickBooking({
             </div>
           </div>
 
-          <div style={{ 
-            display: 'flex', 
-            justifyContent: 'center', 
-            width: '100%', 
-            gridColumn: '1 / -1', 
+          <div className="booking-field-group" style={{ gridColumn: '1 / -1' }}>
+            <label className="booking-label">Symptoms / Reason for visit</label>
+            <div className="booking-input-wrapper">
+              <svg className="booking-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+              </svg>
+              <input
+                type="text"
+                placeholder="e.g. Headache, fever, cough... (optional)"
+                value={symptoms}
+                onChange={e => setSymptoms(e.target.value)}
+                maxLength={200}
+              />
+            </div>
+          </div>
+
+          <div style={{
+            display: 'flex',
+            justifyContent: 'center',
+            width: '100%',
+            gridColumn: '1 / -1',
             marginTop: '24px'
           }}>
             <button type="submit" disabled={loading} className="booking-submit-btn" style={{ padding: '12px 32px' }}>
@@ -396,7 +418,7 @@ export default function QuickBooking({
                     <line x1="8" y1="2" x2="8" y2="6"/>
                     <line x1="3" y1="10" x2="21" y2="10"/>
                   </svg>
-                  <span>Xác Nhận Đăng Ký</span>
+                  <span>Confirm Booking</span>
                 </>
               )}
             </button>

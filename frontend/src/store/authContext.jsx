@@ -1,5 +1,5 @@
 // State Management - Auth Context
-// TODO: Có thể dùng Redux, Zustand, hoặc Context API
+// TODO: Could use Redux, Zustand, or Context API
 
 import React, { createContext, useState, useCallback, useEffect } from 'react';
 import { authAPI } from '../services/api';

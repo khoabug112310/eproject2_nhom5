@@ -1,5 +1,5 @@
 // Module Profiles - Controller
-// Xử lý: Users (Admin, Doctor, Staff), Patients, Doctors, Staffs
+// Handles: Users (Admin, Doctor, Staff), Patients, Doctors, Staffs
 
 const User = require('../../models/User');
 const Role = require('../../models/Role');
@@ -28,11 +28,11 @@ const getAllUsers = async (req, res) => {
       });
     }
     const { success: ok } = require('../../utils/response');
-    return ok(res, mapped, 'Lấy danh sách người dùng thành công');
+    return ok(res, mapped, 'User list loaded successfully');
   } catch (err) {
     console.error('getAllUsers error', err);
     const { fail } = require('../../utils/response');
-    return fail(res, 'Lỗi khi lấy danh sách người dùng', 500, err.message);
+    return fail(res, 'Error loading the user list', 500, err.message);
   }
 };
 
@@ -43,20 +43,20 @@ const getUserById = async (req, res) => {
     // Check if doctor profile id
     const doc = await Doctor.findById(id).populate('departmentId').lean();
     const { success: ok } = require('../../utils/response');
-    if (doc) return ok(res, doc, 'Lấy thông tin bác sĩ thành công');
+    if (doc) return ok(res, doc, 'Doctor information loaded successfully');
     
     // Otherwise check Patient profile id
     const pat = await Patient.findById(id).lean();
-    if (pat) return ok(res, pat, 'Lấy thông tin bệnh nhân thành công');
+    if (pat) return ok(res, pat, 'Patient information loaded successfully');
 
     // Otherwise check User
     const user = await User.findById(id).populate('roleId').lean();
-    if (!user) return res.status(404).json({ success: false, message: 'Không tìm thấy người dùng' });
-    return ok(res, user, 'Lấy thông tin người dùng thành công');
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+    return ok(res, user, 'User information loaded successfully');
   } catch (err) {
     console.error('getUserById error', err);
     const { fail } = require('../../utils/response');
-    return fail(res, 'Lỗi khi lấy thông tin người dùng', 500, err.message);
+    return fail(res, 'Error loading user information', 500, err.message);
   }
 };
 
@@ -78,7 +78,7 @@ const updateUser = async (req, res) => {
       if (body.emergencyContact !== undefined) patient.emergencyContact = body.emergencyContact;
       await patient.save();
       const { success: ok } = require('../../utils/response');
-      return ok(res, patient, 'Cập nhật thông tin bệnh nhân thành công');
+      return ok(res, patient, 'Patient information updated successfully');
     }
 
     // Check if doctor
@@ -94,7 +94,7 @@ const updateUser = async (req, res) => {
       if (body.avatarURL !== undefined) doctor.avatarURL = body.avatarURL;
       await doctor.save();
       const { success: ok } = require('../../utils/response');
-      return ok(res, doctor, 'Cập nhật thông tin bác sĩ thành công');
+      return ok(res, doctor, 'Doctor information updated successfully');
     }
 
     // Check if staff
@@ -105,7 +105,7 @@ const updateUser = async (req, res) => {
       if (body.position) staff.position = body.position;
       await staff.save();
       const { success: ok } = require('../../utils/response');
-      return ok(res, staff, 'Cập nhật nhân viên thành công');
+      return ok(res, staff, 'Staff updated successfully');
     }
 
     // Check if user
@@ -116,14 +116,14 @@ const updateUser = async (req, res) => {
       if (body.isActive !== undefined) user.isActive = body.isActive;
       await user.save();
       const { success: ok } = require('../../utils/response');
-      return ok(res, user, 'Cập nhật tài khoản thành công');
+      return ok(res, user, 'Account updated successfully');
     }
 
-    return res.status(404).json({ success: false, message: 'Không tìm thấy đối tượng cần cập nhật' });
+    return res.status(404).json({ success: false, message: 'The record to update was not found' });
   } catch (err) {
     console.error('updateUser error', err);
     const { fail } = require('../../utils/response');
-    return fail(res, 'Lỗi khi cập nhật thông tin', 500, err.message);
+    return fail(res, 'Error updating information', 500, err.message);
   }
 };
 
@@ -131,17 +131,17 @@ const createDoctor = async (req, res) => {
   try {
     const { username, password, roleName, fullName, email, phone, departmentId, specialization, experienceYears, qualifications, baseFee, bio, position } = req.body;
     if (!username || !password || !roleName || !fullName) {
-      return res.status(400).json({ success: false, message: 'username, password, roleName, fullName là bắt buộc' });
+      return res.status(400).json({ success: false, message: 'username, password, roleName, and fullName are required' });
     }
 
     const exists = await User.findOne({ username });
     if (exists) {
-      return res.status(409).json({ success: false, message: 'Tên đăng nhập đã tồn tại' });
+      return res.status(409).json({ success: false, message: 'Username already exists' });
     }
 
     const role = await Role.findOne({ roleName });
     if (!role) {
-      return res.status(400).json({ success: false, message: 'Quyền roleName không hợp lệ hoặc chưa định cấu hình' });
+      return res.status(400).json({ success: false, message: 'The roleName is invalid or not configured' });
     }
 
     const user = await User.create({
@@ -159,10 +159,10 @@ const createDoctor = async (req, res) => {
       details = await Doctor.create({
         userId: user._id,
         fullName,
-        specialization: specialization || 'Chuyên khoa',
+        specialization: specialization || 'Specialist',
         departmentId: departmentId,
         experienceYears: Number(experienceYears) || 0,
-        qualifications: qualifications || 'Bác sĩ chuyên khoa',
+        qualifications: qualifications || 'Specialist Doctor',
         baseFee: Number(baseFee) || 150000,
         bio: bio || '',
         avatarURL: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?q=80&w=300&auto=format&fit=crop'
@@ -172,7 +172,7 @@ const createDoctor = async (req, res) => {
         userId: user._id,
         fullName,
         phoneNumber: phone || username,
-        position: position || (roleName === 'accountant' ? 'Kế toán' : 'CSKH')
+        position: position || (roleName === 'accountant' ? 'Accountant' : 'Customer Care')
       });
     } else if (roleName === 'patient') {
       details = await Patient.create({
@@ -186,11 +186,11 @@ const createDoctor = async (req, res) => {
     }
 
     const { success: ok } = require('../../utils/response');
-    return ok(res, { user, profile: details }, 'Đăng ký tài khoản thành công', 201);
+    return ok(res, { user, profile: details }, 'Account registered successfully', 201);
   } catch (err) {
     console.error('createDoctor error', err);
     const { fail } = require('../../utils/response');
-    return fail(res, 'Lỗi khi đăng ký tài khoản', 500, err.message);
+    return fail(res, 'Error registering the account', 500, err.message);
   }
 };
 
@@ -198,11 +198,11 @@ const getPatients = async (req, res) => {
   try {
     const list = await Patient.find().populate('userId').sort({ fullName: 1 }).lean();
     const { success: ok } = require('../../utils/response');
-    return ok(res, list, 'Lấy danh sách bệnh nhân thành công');
+    return ok(res, list, 'Patient list loaded successfully');
   } catch (err) {
     console.error('getPatients error', err);
     const { fail } = require('../../utils/response');
-    return fail(res, 'Lỗi khi lấy danh sách bệnh nhân', 500, err.message);
+    return fail(res, 'Error loading the patient list', 500, err.message);
   }
 };
 
@@ -267,7 +267,7 @@ const getAdminStats = async (req, res) => {
 
     // === CALCULATE TIME SERIES DATA FOR CHARTS ===
     // 1. WEEK CHART (Monday to Sunday of the current week)
-    const weekLabels = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+    const weekLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     const weekRevenue = [];
     const weekTraffic = [];
 
@@ -296,7 +296,7 @@ const getAdminStats = async (req, res) => {
     }
 
     // 2. MONTH CHART (4 weeks of the current month)
-    const monthLabels = ['Tuần 1', 'Tuần 2', 'Tuần 3', 'Tuần 4'];
+    const monthLabels = ['Week 1', 'Week 2', 'Week 3', 'Week 4'];
     const monthRevenue = [];
     const monthTraffic = [];
 
@@ -323,7 +323,7 @@ const getAdminStats = async (req, res) => {
     }
 
     // 3. YEAR CHART (12 months of the current year)
-    const yearLabels = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10', 'T11', 'T12'];
+    const yearLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const yearRevenue = [];
     const yearTraffic = [];
 
@@ -382,7 +382,7 @@ const getAdminStats = async (req, res) => {
       { $sort: { count: -1 } }
     ]);
     const peakHours = timeSlots.slice(0, 3).map(slot => ({
-      time: slot._id || 'Chưa xếp giờ',
+      time: slot._id || 'Not scheduled',
       count: slot.count
     }));
 
@@ -458,11 +458,11 @@ const getAdminStats = async (req, res) => {
         month: { labels: monthLabels, revenue: monthRevenue, traffic: monthTraffic },
         year: { labels: yearLabels, revenue: yearRevenue, traffic: yearTraffic }
       }
-    }, 'Lấy số liệu thống kê thành công');
+    }, 'Statistics loaded successfully');
   } catch (err) {
     console.error('getAdminStats error', err);
     const { fail } = require('../../utils/response');
-    return fail(res, 'Lỗi khi lấy số liệu thống kê', 500, err.message);
+    return fail(res, 'Error loading statistics', 500, err.message);
   }
 };
 
@@ -470,7 +470,7 @@ const queryClinicAI = async (req, res) => {
   try {
     const { query } = req.body;
     if (!query) {
-      return res.status(400).json({ success: false, message: 'Yêu cầu truy vấn AI (query) là bắt buộc' });
+      return res.status(400).json({ success: false, message: 'An AI query is required' });
     }
 
     const Appointment = require('../../models/Appointment');
@@ -511,7 +511,7 @@ const queryClinicAI = async (req, res) => {
       { $group: { _id: '$requestedTime', count: { $sum: 1 } } },
       { $sort: { count: -1 } }
     ]);
-    const peakTime = timeSlots.length > 0 ? timeSlots[0]._id : 'Chưa xác định';
+    const peakTime = timeSlots.length > 0 ? timeSlots[0]._id : 'Undetermined';
     const peakCount = timeSlots.length > 0 ? timeSlots[0].count : 0;
 
     // CSKH stats
@@ -543,21 +543,21 @@ const queryClinicAI = async (req, res) => {
     const apiKey = env.GEMINI_API_KEY || process.env.GEMINI_API_KEY || '';
 
     // 3. Construct System Prompt
-    const systemPrompt = `Bạn là Trợ lý Phân tích AI được tích hợp trong hệ thống quản lý phòng khám Hợp Sơn Tài.
-Dưới đây là số liệu thống kê hiện tại của phòng khám để bạn phân tích:
-- Tổng số tài khoản người dùng: ${usersCount}
-- Số bác sĩ đang hoạt động: ${doctorsCount}
-- Số nhân viên CSKH & Kế toán đang hoạt động: ${staffCount}
-- Số tài khoản đang bị khóa (vô hiệu hóa): ${inactiveCount}
-- Tổng số bài viết y khoa (CMS): ${postsCount} (Đã công bố: ${publishedPostsCount}, Bản nháp: ${draftPostsCount})
-- Tổng doanh thu tháng này: ${revenueMonth} VND (Phí khám lâm sàng: ${consultationRev} VND, Doanh thu nhà thuốc: ${pharmacyRev} VND)
-- Khung giờ khám cao điểm nhất: ${peakTime} (${peakCount} lượt đặt lịch)
-- Tốc độ duyệt lịch trung bình của CSKH: ${avgConfirmationTime} phút (Tỷ lệ duyệt thành công: ${successRate}%, Tỷ lệ hủy: ${cancellationRate}%)
+    const systemPrompt = `You are the AI Analysis Assistant integrated into the Hopsontai Clinic management system.
+Below are the clinic's current statistics for you to analyze:
+- Total user accounts: ${usersCount}
+- Active doctors: ${doctorsCount}
+- Active care & accounting staff: ${staffCount}
+- Locked (deactivated) accounts: ${inactiveCount}
+- Total medical articles (CMS): ${postsCount} (Published: ${publishedPostsCount}, Drafts: ${draftPostsCount})
+- Total revenue this month: ${revenueMonth} VND (Consultation fees: ${consultationRev} VND, Pharmacy revenue: ${pharmacyRev} VND)
+- Busiest examination hours: ${peakTime} (${peakCount} bookings)
+- Average care-team approval time: ${avgConfirmationTime} min (Success rate: ${successRate}%, Cancellation rate: ${cancellationRate}%)
 
-Hãy trả lời yêu cầu hoặc câu hỏi của Quản trị viên bằng tiếng Việt một cách chuyên nghiệp, chính xác theo số liệu trên, ngắn gọn và có đề xuất tối ưu hóa hành động cụ thể.
-Định dạng câu trả lời hoàn toàn bằng Markdown (sử dụng dấu ### cho tiêu đề phần, dấu ** cho chữ in đậm, dấu gạch đầu dòng - hoặc số thứ tự cho danh sách). Không sử dụng các định dạng HTML hay thẻ script.
+Respond to the administrator's request or question in English, professionally and accurately based on the data above, concise and with specific, actionable optimization recommendations.
+Format the entire answer in Markdown (use ### for section headings, ** for bold, and - or numbered lists). Do not use HTML or script tags.
 
-Yêu cầu phân tích của Quản trị viên: "${query}"`;
+The administrator's analysis request: "${query}"`;
 
     // 4. Call Gemini API
     const https = require('https');
@@ -593,7 +593,7 @@ Yêu cầu phân tích của Quản trị viên: "${query}"`;
               if (json.candidates && json.candidates[0] && json.candidates[0].content && json.candidates[0].content.parts && json.candidates[0].content.parts[0]) {
                 resolve(json.candidates[0].content.parts[0].text);
               } else {
-                reject(new Error(json.error?.message || 'Không thể giải nghĩa phản hồi từ Gemini API'));
+                reject(new Error(json.error?.message || 'Could not parse the response from the Gemini API'));
               }
             } catch (e) {
               reject(e);
@@ -610,11 +610,11 @@ Yêu cầu phân tích của Quản trị viên: "${query}"`;
     const aiResponseText = await callGemini(systemPrompt, apiKey);
     
     const { success: ok } = require('../../utils/response');
-    return ok(res, { text: aiResponseText }, 'Phân tích hệ thống bằng AI thành công');
+    return ok(res, { text: aiResponseText }, 'AI system analysis completed successfully');
   } catch (err) {
     console.error('queryClinicAI error', err);
     const { fail } = require('../../utils/response');
-    return fail(res, 'Lỗi khi gọi trợ lý AI phân tích', 500, err.message);
+    return fail(res, 'Error calling the AI analysis assistant', 500, err.message);
   }
 };
 
@@ -626,11 +626,11 @@ const editUserAdmin = async (req, res) => {
     const { username, password, email, phone, isActive, fullName, departmentId, specialization, experienceYears, baseFee, bio, position } = req.body;
 
     const user = await User.findById(id);
-    if (!user) return res.status(404).json({ success: false, message: 'Không tìm thấy tài khoản người dùng' });
+    if (!user) return res.status(404).json({ success: false, message: 'User account not found' });
 
     if (username && username !== user.username) {
       const exists = await User.findOne({ username });
-      if (exists) return res.status(409).json({ success: false, message: 'Tên đăng nhập đã tồn tại' });
+      if (exists) return res.status(409).json({ success: false, message: 'Username already exists' });
       user.username = username;
     }
 
@@ -662,7 +662,7 @@ const editUserAdmin = async (req, res) => {
     } else if (roleName === 'staff' || roleName === 'accountant') {
       let staff = await Staff.findOne({ userId: user._id });
       if (!staff) {
-        staff = new Staff({ userId: user._id, fullName: fullName || 'Nhân sự' });
+        staff = new Staff({ userId: user._id, fullName: fullName || 'Staff' });
       }
       if (fullName !== undefined) staff.fullName = fullName;
       if (phone !== undefined) staff.phoneNumber = phone;
@@ -671,7 +671,7 @@ const editUserAdmin = async (req, res) => {
     } else if (roleName === 'patient') {
       let patient = await Patient.findOne({ userId: user._id });
       if (!patient) {
-        patient = new Patient({ userId: user._id, fullName: fullName || 'Bệnh nhân' });
+        patient = new Patient({ userId: user._id, fullName: fullName || 'Patient' });
       }
       if (fullName !== undefined) patient.fullName = fullName;
       if (phone !== undefined) patient.phoneNumber = phone;
@@ -679,11 +679,11 @@ const editUserAdmin = async (req, res) => {
     }
 
     const { success: ok } = require('../../utils/response');
-    return ok(res, user, 'Cập nhật tài khoản thành công');
+    return ok(res, user, 'Account updated successfully');
   } catch (err) {
     console.error('editUserAdmin error', err);
     const { fail } = require('../../utils/response');
-    return fail(res, 'Lỗi khi cập nhật tài khoản', 500, err.message);
+    return fail(res, 'Error updating the account', 500, err.message);
   }
 };
 
@@ -692,7 +692,7 @@ const deleteUserAdmin = async (req, res) => {
     const { id } = req.params;
 
     const user = await User.findById(id);
-    if (!user) return res.status(404).json({ success: false, message: 'Không tìm thấy tài khoản người dùng' });
+    if (!user) return res.status(404).json({ success: false, message: 'User account not found' });
 
     const role = await Role.findById(user.roleId);
     const roleName = role ? role.roleName : null;
@@ -708,11 +708,11 @@ const deleteUserAdmin = async (req, res) => {
     await User.deleteOne({ _id: user._id });
 
     const { success: ok } = require('../../utils/response');
-    return ok(res, null, 'Xóa tài khoản thành công');
+    return ok(res, null, 'Account deleted successfully');
   } catch (err) {
     console.error('deleteUserAdmin error', err);
     const { fail } = require('../../utils/response');
-    return fail(res, 'Lỗi khi xóa tài khoản', 500, err.message);
+    return fail(res, 'Error deleting the account', 500, err.message);
   }
 };
 
@@ -726,7 +726,7 @@ const deleteAppointmentAdmin = async (req, res) => {
     const Prescription = require('../../models/Prescription');
 
     const appt = await Appointment.findById(id);
-    if (!appt) return res.status(404).json({ success: false, message: 'Không tìm thấy lịch hẹn' });
+    if (!appt) return res.status(404).json({ success: false, message: 'Appointment not found' });
 
     const invoices = await Invoice.find({ appointmentId: appt._id });
     for (const inv of invoices) {
@@ -743,11 +743,11 @@ const deleteAppointmentAdmin = async (req, res) => {
     await Appointment.deleteOne({ _id: appt._id });
 
     const { success: ok } = require('../../utils/response');
-    return ok(res, null, 'Xóa lịch hẹn và các dữ liệu liên quan thành công');
+    return ok(res, null, 'Appointment and related data deleted successfully');
   } catch (err) {
     console.error('deleteAppointmentAdmin error', err);
     const { fail } = require('../../utils/response');
-    return fail(res, 'Lỗi khi xóa lịch hẹn', 500, err.message);
+    return fail(res, 'Error deleting the appointment', 500, err.message);
   }
 };
 
@@ -755,7 +755,7 @@ const updateTimelineStepAdmin = async (req, res) => {
   try {
     const { appointmentId, stepIndex, action, status } = req.body;
     if (!appointmentId || typeof stepIndex !== 'number') {
-      return res.status(400).json({ success: false, message: 'appointmentId và stepIndex là bắt buộc' });
+      return res.status(400).json({ success: false, message: 'appointmentId and stepIndex are required' });
     }
 
     const Appointment = require('../../models/Appointment');
@@ -764,7 +764,7 @@ const updateTimelineStepAdmin = async (req, res) => {
     const Prescription = require('../../models/Prescription');
 
     const appt = await Appointment.findById(appointmentId);
-    if (!appt) return res.status(404).json({ success: false, message: 'Không tìm thấy lịch hẹn' });
+    if (!appt) return res.status(404).json({ success: false, message: 'Appointment not found' });
 
     if (stepIndex === 2) {
       if (action === 'update') {
@@ -843,8 +843,8 @@ const updateTimelineStepAdmin = async (req, res) => {
               appointmentId: appt._id,
               patientId: appt.patientId,
               doctorId: doc ? doc._id : undefined,
-              diagnosis: 'Khám lâm sàng (Admin chốt)',
-              clinicalNotes: 'Do Admin cập nhật trạng thái quy trình'
+              diagnosis: 'Clinical examination (admin override)',
+              clinicalNotes: 'Updated by admin via the workflow'
             });
           }
         } else {
@@ -899,11 +899,11 @@ const updateTimelineStepAdmin = async (req, res) => {
     }
 
     const { success: ok } = require('../../utils/response');
-    return ok(res, null, 'Cập nhật bước quy trình thành công');
+    return ok(res, null, 'Workflow step updated successfully');
   } catch (err) {
     console.error('updateTimelineStepAdmin error', err);
     const { fail } = require('../../utils/response');
-    return fail(res, 'Lỗi khi cập nhật bước quy trình', 500, err.message);
+    return fail(res, 'Error updating the workflow step', 500, err.message);
   }
 };
 

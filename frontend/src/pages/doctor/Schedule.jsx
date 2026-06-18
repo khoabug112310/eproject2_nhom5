@@ -17,6 +17,9 @@ export default function DoctorSchedule() {
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
 
+  // Print prescription state
+  const [printData, setPrintData] = useState(null);
+
   // Active examination state
   const [activeAppt, setActiveAppt] = useState(null);
   const [patientHistory, setPatientHistory] = useState([]);
@@ -36,10 +39,10 @@ export default function DoctorSchedule() {
   const [selectedMed, setSelectedMed] = useState(null);
   const [medForm, setMedForm] = useState({
     quantity: 1,
-    dosage: '1 viên',
-    frequency: '2 lần/ngày',
+    dosage: '1 tablet',
+    frequency: 'Twice a day',
     durationDays: 7,
-    specialInstructions: 'Uống sau ăn',
+    specialInstructions: 'After meals',
   });
 
   useEffect(() => {
@@ -89,7 +92,7 @@ export default function DoctorSchedule() {
       setMedicalRecords(recordsRes.data.data);
     } catch (err) {
       console.error(err);
-      setErrorMessage('Lỗi khi tải dữ liệu bác sĩ. Vui lòng thử lại.');
+      setErrorMessage('Error loading doctor data. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -135,18 +138,18 @@ export default function DoctorSchedule() {
     // Check if stock is sufficient
     if (selectedMed.stockQuantity < medForm.quantity) {
       Swal.fire({
-        title: 'Cảnh báo kho thuốc',
-        text: `Lưu ý: Kho chỉ còn ${selectedMed.stockQuantity} ${selectedMed.unit}. Vẫn tiếp tục kê đơn?`,
+        title: 'Stock warning',
+        text: `Note: Only ${selectedMed.stockQuantity} ${selectedMed.unit} left in stock. Continue prescribing?`,
         icon: 'warning',
         confirmButtonColor: '#3085d6',
-        confirmButtonText: 'Đồng ý'
+        confirmButtonText: 'OK'
       });
     }
 
     const newItem = {
       medicineId: selectedMed._id,
       name: selectedMed.medicineName || selectedMed.name,
-      dosageForm: selectedMed.usageRoute || selectedMed.dosageForm || 'Uống',
+      dosageForm: selectedMed.usageRoute || selectedMed.dosageForm || 'Oral',
       quantity: Number(medForm.quantity),
       dosage: medForm.dosage,
       frequency: medForm.frequency,
@@ -159,10 +162,10 @@ export default function DoctorSchedule() {
     setMedSearch('');
     setMedForm({
       quantity: 1,
-      dosage: '1 viên',
-      frequency: '2 lần/ngày',
+      dosage: '1 tablet',
+      frequency: 'Twice a day',
       durationDays: 7,
-      specialInstructions: 'Uống sau ăn',
+      specialInstructions: 'After meals',
     });
   };
 
@@ -174,11 +177,11 @@ export default function DoctorSchedule() {
     e.preventDefault();
     if (!examForm.diagnosis) {
       Swal.fire({
-        title: 'Thiếu thông tin',
-        text: 'Vui lòng điền Chẩn đoán bệnh lý.',
+        title: 'Missing information',
+        text: 'Please enter the diagnosis.',
         icon: 'error',
         confirmButtonColor: '#3085d6',
-        confirmButtonText: 'Đồng ý'
+        confirmButtonText: 'OK'
       });
       return;
     }
@@ -216,13 +219,25 @@ export default function DoctorSchedule() {
         });
       }
 
-      setSuccessMessage(`Đã khám xong cho bệnh nhân ${activeAppt.patientId?.fullName || ''}. Bệnh án đã được cập nhật thành công!`);
+      setSuccessMessage(`Examination completed for patient ${activeAppt.patientId?.fullName || ''}. The medical record has been updated successfully!`);
+      // Store data for printing the prescription
+      if (prescriptionItems.length > 0) {
+        setPrintData({
+          patient: activeAppt.patientId,
+          doctor: currentUser,
+          appointment: activeAppt,
+          diagnosis: examForm.diagnosis,
+          clinicalNotes: examForm.clinicalNotes,
+          medicines: prescriptionItems,
+          date: new Date(),
+        });
+      }
       setActiveAppt(null);
       fetchInitialData();
       setActiveTab('appointments');
     } catch (err) {
       const details = err?.response?.data?.details;
-      const baseMsg = err?.response?.data?.message || 'Đã xảy ra lỗi khi lập hồ sơ bệnh án.';
+      const baseMsg = err?.response?.data?.message || 'An error occurred while creating the medical record.';
       setErrorMessage(details ? `${baseMsg} (${details})` : baseMsg);
     } finally {
       setSubmitting(false);
@@ -242,7 +257,7 @@ export default function DoctorSchedule() {
         <RoleTopNav role="doctor" />
         <div className="dashboard-loading">
           <div className="spinner"></div>
-          <p>Đang tải dữ liệu bác sĩ. Vui lòng thử lại.</p>
+          <p>Loading doctor data. Please wait.</p>
         </div>
       </div>
     );
@@ -257,27 +272,27 @@ export default function DoctorSchedule() {
         <aside className="dashboard-sidebar">
           <div className="patient-quick-info">
             <div className="p-avatar">🩺</div>
-            <h4>BS. {currentUser?.displayName || 'Bác sĩ'}</h4>
-            <p className="p-card-number">{doctor?.specialization || 'Bác sĩ phòng khám'}</p>
+            <h4>Dr. {currentUser?.displayName || 'Doctor'}</h4>
+            <p className="p-card-number">{doctor?.specialization || 'Clinic doctor'}</p>
           </div>
           <nav className="sidebar-nav">
             <button
               onClick={() => { setActiveTab('appointments'); setActiveAppt(null); }}
               className={activeTab === 'appointments' ? 'active' : ''}
             >
-              📋 Danh sách bệnh nhân
+              📋 Patient list
             </button>
             <button
               onClick={() => { setActiveTab('history'); setActiveAppt(null); }}
               className={activeTab === 'history' ? 'active' : ''}
             >
-              📚 Tra cứu hồ sơ bệnh án
+              📚 Medical records lookup
             </button>
             <button
               onClick={() => { setActiveTab('schedule'); setActiveAppt(null); }}
               className={activeTab === 'schedule' ? 'active' : ''}
             >
-              📅 Lịch trực & Làm việc
+              📅 Work schedule
             </button>
           </nav>
         </aside>
@@ -290,24 +305,24 @@ export default function DoctorSchedule() {
           {/* Tab: Appointments Queue / Examination Workspace */}
           {activeTab === 'appointments' && !activeAppt && (
             <div className="dashboard-card">
-              <h2>Bệnh nhân cần tiếp nhận khám trong ngày</h2>
-              <p className="subtitle">Xem danh sách bệnh nhân đã được xác nhận bởi Lễ tân / CSKH.</p>
+              <h2>Patients to examine today</h2>
+              <p className="subtitle">View the list of patients confirmed by reception / customer care.</p>
 
               {appointments.filter(a => a.status === 'Confirmed' || a.status === 'Completed').length === 0 ? (
                 <div className="empty-state">
-                  <p>Không có bệnh nhân nào trong danh sách khám hôm nay.</p>
+                  <p>No patients in today's examination list.</p>
                 </div>
               ) : (
                 <div className="table-responsive">
                   <table className="custom-table">
                     <thead>
                       <tr>
-                        <th>Bệnh nhân</th>
-                        <th>Ngày khám</th>
-                        <th>Giờ hẹn</th>
-                        <th>Số điện thoại</th>
-                        <th>Trạng thái</th>
-                        <th>Thao tác</th>
+                        <th>Patient</th>
+                        <th>Date</th>
+                        <th>Time</th>
+                        <th>Phone</th>
+                        <th>Status</th>
+                        <th>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -317,14 +332,14 @@ export default function DoctorSchedule() {
                           <tr key={appt._id}>
                             <td>
                               <strong>{appt.patientId?.fullName}</strong><br />
-                              <small className="text-muted">NS: {appt.patientId?.dateOfBirth ? new Date(appt.patientId.dateOfBirth).toLocaleDateString('vi-VN') : ''} | Giới tính: {appt.patientId?.gender}</small>
+                              <small className="text-muted">DOB: {appt.patientId?.dateOfBirth ? new Date(appt.patientId.dateOfBirth).toLocaleDateString('en-US') : ''} | Gender: {appt.patientId?.gender}</small>
                             </td>
-                            <td>{new Date(appt.requestedDate).toLocaleDateString('vi-VN')}</td>
+                            <td>{new Date(appt.requestedDate).toLocaleDateString('en-US')}</td>
                             <td>{appt.requestedTime}</td>
                             <td>{appt.patientId?.phoneNumber}</td>
                             <td>
                               <span className={`badge ${appt.status === 'Completed' ? 'badge-success' : 'badge-primary'}`}>
-                                {appt.status === 'Completed' ? 'Đã khám xong' : 'Đang chờ khám'}
+                                {appt.status === 'Completed' ? 'Examined' : 'Waiting'}
                               </span>
                             </td>
                             <td>
@@ -333,17 +348,17 @@ export default function DoctorSchedule() {
                                   className="btn btn-primary btn-xs"
                                   onClick={() => handleSelectAppointment(appt)}
                                 >
-                                  🩺 Vào khám bệnh
+                                  🩺 Start examination
                                 </button>
                               ) : appt.status === 'Confirmed' && getRecordForAppointment(appt._id) ? (
                                 <button
                                   className="btn btn-ghost btn-xs"
                                   onClick={() => handleSelectAppointment(appt)}
                                 >
-                                  ✏️ Cập nhật bệnh án
+                                  ✏️ Update record
                                 </button>
                               ) : (
-                                <span className="text-muted">Đã lưu bệnh án</span>
+                                <span className="text-muted">Record saved</span>
                               )}
                             </td>
                           </tr>
@@ -360,33 +375,33 @@ export default function DoctorSchedule() {
             <div className="exam-workspace-container">
               <div className="workspace-header">
                 <button className="btn btn-ghost btn-sm" onClick={() => setActiveAppt(null)}>
-                  ⬅️ Quay lại danh sách
+                  ⬅️ Back to list
                 </button>
-                <h2>Buồng khám bệnh: {activeAppt.patientId?.fullName}</h2>
-                <span className="badge badge-primary">Số hồ sơ: {activeAppt.patientId?._id?.substring(18)}</span>
+                <h2>Examination room: {activeAppt.patientId?.fullName}</h2>
+                <span className="badge badge-primary">Record no.: {activeAppt.patientId?._id?.substring(18)}</span>
               </div>
 
               <div className="exam-panels-grid">
                 {/* Left Panel: Historical EHR records */}
                 <div className="exam-panel panel-left">
-                  <h3>Tiền sử bệnh lý bệnh nhân</h3>
+                  <h3>Patient medical history</h3>
                   {patientHistory.length === 0 ? (
-                    <p className="empty-text">Bệnh nhân chưa có lịch sử bệnh án trên hệ thống.</p>
+                    <p className="empty-text">This patient has no medical history in the system yet.</p>
                   ) : (
                     <div className="history-timeline">
                       {patientHistory.map((rec) => (
                         <div className="history-card" key={rec._id}>
                           <div className="h-card-header">
-                            <span>📅 {new Date(rec.createdAt).toLocaleDateString('vi-VN')}</span>
-                            <span>Bác sĩ khám: BS. {rec.doctorId?.fullName}</span>
+                            <span>📅 {new Date(rec.createdAt).toLocaleDateString('en-US')}</span>
+                            <span>Examined by: Dr. {rec.doctorId?.fullName}</span>
                           </div>
                           <div className="h-card-body">
-                            <p><strong>Chẩn đoán:</strong> <span className="diagnosis-highlight">{rec.diagnosis}</span></p>
-                            {rec.clinicalNotes && <p><strong>Lời dặn:</strong> {rec.clinicalNotes}</p>}
+                            <p><strong>Diagnosis:</strong> <span className="diagnosis-highlight">{rec.diagnosis}</span></p>
+                            {rec.clinicalNotes && <p><strong>Notes:</strong> {rec.clinicalNotes}</p>}
                             <div className="h-card-vitals">
-                              {rec.bloodPressure && <span>HA: {rec.bloodPressure} | </span>}
-                              {rec.heartRate && <span>Nhịp tim: {rec.heartRate} bpm | </span>}
-                              {rec.temperature && <span>Nhiệt độ: {rec.temperature}°C</span>}
+                              {rec.bloodPressure && <span>BP: {rec.bloodPressure} | </span>}
+                              {rec.heartRate && <span>Heart rate: {rec.heartRate} bpm | </span>}
+                              {rec.temperature && <span>Temp: {rec.temperature}°C</span>}
                             </div>
                           </div>
                         </div>
@@ -400,14 +415,14 @@ export default function DoctorSchedule() {
                   <form onSubmit={handleSubmitExamination}>
                     <h3>
                       {getRecordForAppointment(activeAppt._id)
-                        ? 'Cập nhật hồ sơ bệnh án hiện tại'
-                        : 'Lập hồ sơ bệnh án hiện tại'}
+                        ? 'Update current medical record'
+                        : 'Create medical record'}
                     </h3>
                     
                     {/* Vitals inputs */}
                     <div className="vitals-input-row">
                       <div className="form-group-sm">
-                        <label>Chiều cao (cm)</label>
+                        <label>Height (cm)</label>
                         <input
                           type="number"
                           placeholder="VD: 170"
@@ -416,7 +431,7 @@ export default function DoctorSchedule() {
                         />
                       </div>
                       <div className="form-group-sm">
-                        <label>Cân nặng (kg)</label>
+                        <label>Weight (kg)</label>
                         <input
                           type="number"
                           placeholder="VD: 65"
@@ -425,7 +440,7 @@ export default function DoctorSchedule() {
                         />
                       </div>
                       <div className="form-group-sm">
-                        <label>Huyết áp (mmHg)</label>
+                        <label>Blood pressure (mmHg)</label>
                         <input
                           type="text"
                           placeholder="VD: 120/80"
@@ -434,7 +449,7 @@ export default function DoctorSchedule() {
                         />
                       </div>
                       <div className="form-group-sm">
-                        <label>Nhịp tim (bpm)</label>
+                        <label>Heart rate (bpm)</label>
                         <input
                           type="number"
                           placeholder="VD: 75"
@@ -443,7 +458,7 @@ export default function DoctorSchedule() {
                         />
                       </div>
                       <div className="form-group-sm">
-                        <label>Nhiệt độ (°C)</label>
+                        <label>Temperature (°C)</label>
                         <input
                           type="number"
                           step="0.1"
@@ -455,10 +470,10 @@ export default function DoctorSchedule() {
                     </div>
 
                     <div className="form-group">
-                      <label>Chẩn đoán bệnh lý *</label>
+                      <label>Diagnosis *</label>
                       <input
                         type="text"
-                        placeholder="VD: Viêm họng hạt cấp tính, sốt siêu vi"
+                        placeholder="e.g. Acute follicular pharyngitis, viral fever"
                         value={examForm.diagnosis}
                         onChange={(e) => setExamForm({ ...examForm, diagnosis: e.target.value })}
                         required
@@ -466,10 +481,10 @@ export default function DoctorSchedule() {
                     </div>
 
                     <div className="form-group">
-                      <label>Lời dặn của bác sĩ / Hướng điều trị</label>
+                      <label>Doctor's notes / Treatment plan</label>
                       <textarea
                         rows="3"
-                        placeholder="Chế độ sinh hoạt, nghỉ ngơi, hẹn tái khám sau..."
+                        placeholder="Lifestyle, rest, follow-up appointment..."
                         value={examForm.clinicalNotes}
                         onChange={(e) => setExamForm({ ...examForm, clinicalNotes: e.target.value })}
                       />
@@ -477,13 +492,13 @@ export default function DoctorSchedule() {
 
                     {/* Prescription sub-system */}
                     <div className="prescription-block">
-                      <h4>Kê đơn thuốc điều trị</h4>
+                      <h4>Prescribe treatment medication</h4>
                       
                       <div className="medication-picker">
                         <div style={{ position: 'relative', flex: 1 }}>
                           <input
                             type="text"
-                            placeholder="🔍 Tìm kiếm tên thuốc tại kho..."
+                            placeholder="🔍 Search medicine in stock..."
                             value={medSearch}
                             onChange={(e) => {
                               setMedSearch(e.target.value);
@@ -494,7 +509,7 @@ export default function DoctorSchedule() {
                             <ul className="search-dropdown-menu">
                               {filteredMeds.map((med) => (
                                 <li key={med._id} onClick={() => { setSelectedMed(med); setMedSearch(med.medicineName || med.name || ''); }}>
-                                  {med.medicineName || med.name} ({med.usageRoute || med.dosageForm || 'Uống'}) - Tồn kho: {med.stockQuantity} {med.unit}
+                                  {med.medicineName || med.name} ({med.usageRoute || med.dosageForm || 'Oral'}) - Stock: {med.stockQuantity} {med.unit}
                                 </li>
                               ))}
                             </ul>
@@ -505,20 +520,20 @@ export default function DoctorSchedule() {
                       {selectedMed && (
                         <div className="selected-medication-panel">
                           <p>
-                            Đang kê: <strong>{selectedMed.medicineName || selectedMed.name}</strong> ({selectedMed.usageRoute || selectedMed.dosageForm}) 
-                            | Giá: {selectedMed.unitPrice}đ | Tồn: {selectedMed.stockQuantity} {selectedMed.unit}
+                            Prescribing: <strong>{selectedMed.medicineName || selectedMed.name}</strong> ({selectedMed.usageRoute || selectedMed.dosageForm})
+                            | Price: {selectedMed.unitPrice} VND | Stock: {selectedMed.stockQuantity} {selectedMed.unit}
                             <button 
                               type="button" 
                               className="btn btn-ghost btn-xs" 
                               style={{ marginLeft: '10px', color: '#ef4444', minHeight: '28px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center' }} 
                               onClick={() => { setSelectedMed(null); setMedSearch(''); }}
                             >
-                              ❌ Hủy chọn
+                              ❌ Deselect
                             </button>
                           </p>
                           <div className="med-fields-grid">
                             <div className="form-group-xs">
-                              <label>Số lượng</label>
+                              <label>Quantity</label>
                               <input
                                 type="number"
                                 min="1"
@@ -527,7 +542,7 @@ export default function DoctorSchedule() {
                               />
                             </div>
                             <div className="form-group-xs">
-                              <label>Liều dùng</label>
+                              <label>Dosage</label>
                               <input
                                 type="text"
                                 value={medForm.dosage}
@@ -535,7 +550,7 @@ export default function DoctorSchedule() {
                               />
                             </div>
                             <div className="form-group-xs">
-                              <label>Tần suất</label>
+                              <label>Frequency</label>
                               <input
                                 type="text"
                                 value={medForm.frequency}
@@ -543,7 +558,7 @@ export default function DoctorSchedule() {
                               />
                             </div>
                             <div className="form-group-xs">
-                              <label>Số ngày</label>
+                              <label>Days</label>
                               <input
                                 type="number"
                                 value={medForm.durationDays}
@@ -551,7 +566,7 @@ export default function DoctorSchedule() {
                               />
                             </div>
                             <div className="form-group-xs full">
-                              <label>Lưu ý cách dùng</label>
+                              <label>Usage notes</label>
                               <input
                                 type="text"
                                 value={medForm.specialInstructions}
@@ -560,7 +575,7 @@ export default function DoctorSchedule() {
                             </div>
                           </div>
                           <button type="button" className="btn btn-quick btn-xs" onClick={handleAddMedicine}>
-                            Thêm vào đơn thuốc
+                            Add to prescription
                           </button>
                         </div>
                       )}
@@ -570,11 +585,11 @@ export default function DoctorSchedule() {
                         <table className="prescription-list-table">
                           <thead>
                             <tr>
-                              <th>Tên thuốc</th>
-                              <th>SL</th>
-                              <th>Liều dùng</th>
-                              <th>Cách dùng</th>
-                              <th>Thao tác</th>
+                              <th>Medicine</th>
+                              <th>Qty</th>
+                              <th>Dosage</th>
+                              <th>Usage</th>
+                              <th>Action</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -583,7 +598,7 @@ export default function DoctorSchedule() {
                                 <td>{item.name} <small className="text-muted">({item.dosageForm})</small></td>
                                 <td><strong>{item.quantity}</strong></td>
                                 <td>{item.dosage} - {item.frequency}</td>
-                                <td>{item.durationDays} ngày ({item.specialInstructions})</td>
+                                <td>{item.durationDays} days ({item.specialInstructions})</td>
                                 <td>
                                   <button type="button" className="btn-remove" onClick={() => handleRemoveMedicine(idx)}>
                                     &times;
@@ -598,10 +613,10 @@ export default function DoctorSchedule() {
 
                     <div className="form-actions" style={{ marginTop: 20 }}>
                       <button type="button" className="btn btn-ghost" onClick={() => setActiveAppt(null)}>
-                        Hủy bỏ
+                        Cancel
                       </button>
                       <button type="submit" className="btn btn-primary" disabled={submitting}>
-                        {submitting ? 'Đang hoàn tất khám...' : '💾 Hoàn thành khám & Kê đơn'}
+                        {submitting ? 'Finalizing...' : '💾 Complete exam & Prescribe'}
                       </button>
                     </div>
                   </form>
@@ -613,23 +628,23 @@ export default function DoctorSchedule() {
           {/* Tab: Medical Records Lookup */}
           {activeTab === 'history' && (
             <div className="dashboard-card">
-              <h2>Tra cứu lịch sử bệnh án toàn phòng khám</h2>
-              <p className="subtitle">Tìm kiếm và xem lại các chuẩn đoán, đơn thuốc của tất cả bệnh nhân.</p>
+              <h2>Clinic-wide medical record lookup</h2>
+              <p className="subtitle">Search and review diagnoses and prescriptions for all patients.</p>
 
               {medicalRecords.length === 0 ? (
                 <div className="empty-state">
-                  <p>Hệ thống chưa ghi nhận bệnh án nào.</p>
+                  <p>No medical records in the system yet.</p>
                 </div>
               ) : (
                 <div className="table-responsive">
                   <table className="custom-table">
                     <thead>
                       <tr>
-                        <th>Bệnh nhân</th>
-                        <th>Ngày lập bệnh án</th>
-                        <th>Bác sĩ chỉ định</th>
-                        <th>Chẩn đoán bệnh lý</th>
-                        <th>Thao tác</th>
+                        <th>Patient</th>
+                        <th>Record date</th>
+                        <th>Doctor</th>
+                        <th>Diagnosis</th>
+                        <th>Action</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -637,10 +652,10 @@ export default function DoctorSchedule() {
                         <tr key={rec._id}>
                           <td>
                             <strong>{rec.patientId?.fullName}</strong><br />
-                            <small className="text-muted">CCCD: {rec.patientId?.identityCard} | SĐT: {rec.patientId?.phoneNumber}</small>
+                            <small className="text-muted">ID: {rec.patientId?.identityCard} | Phone: {rec.patientId?.phoneNumber}</small>
                           </td>
-                          <td>{new Date(rec.createdAt).toLocaleDateString('vi-VN')}</td>
-                          <td>BS. {rec.doctorId?.fullName}</td>
+                          <td>{new Date(rec.createdAt).toLocaleDateString('en-US')}</td>
+                          <td>Dr. {rec.doctorId?.fullName}</td>
                           <td className="font-bold">{rec.diagnosis}</td>
                           <td>
                             <button
@@ -650,32 +665,32 @@ export default function DoctorSchedule() {
                                 clinicalAPI.getPrescriptions(rec._id)
                                   .then((res) => {
                                     Swal.fire({
-                                      title: 'Bệnh án chi tiết',
+                                      title: 'Medical record details',
                                       html: `
                                         <div style="text-align: left; font-size: 14px; line-height: 1.6;">
-                                          <p><strong>Bệnh nhân:</strong> ${rec.patientId?.fullName || 'N/A'}</p>
-                                          <p><strong>Chẩn đoán:</strong> <span style="color: #10b981; font-weight: bold;">${rec.diagnosis}</span></p>
-                                          <p><strong>Chỉ số sinh tồn:</strong> HA: ${rec.bloodPressure || '--'} mmHg | Nhịp tim: ${rec.heartRate || '--'} bpm</p>
-                                          <p><strong>Lời dặn của Bác sĩ:</strong> ${rec.clinicalNotes || 'Không có'}</p>
+                                          <p><strong>Patient:</strong> ${rec.patientId?.fullName || 'N/A'}</p>
+                                          <p><strong>Diagnosis:</strong> <span style="color: #10b981; font-weight: bold;">${rec.diagnosis}</span></p>
+                                          <p><strong>Vital signs:</strong> BP: ${rec.bloodPressure || '--'} mmHg | Heart rate: ${rec.heartRate || '--'} bpm</p>
+                                          <p><strong>Doctor's notes:</strong> ${rec.clinicalNotes || 'None'}</p>
                                           <hr style="border-top: 1px solid #e2e8f0; margin: 15px 0;">
-                                          <p><strong>ĐƠN THUỐC CHI TIẾT:</strong></p>
+                                          <p><strong>PRESCRIPTION DETAILS:</strong></p>
                                           <ul style="padding-left: 20px; margin: 0;">
-                                            ${res.data.data.length === 0 
-                                              ? '<li>Không kê đơn thuốc</li>' 
-                                              : res.data.data.map(p => `<li><strong>${p.medicineId?.medicineName || p.medicineId?.name || 'Thuốc'}</strong>: ${p.quantity} viên (${p.dosage} - ${p.frequency} - Dùng ${p.durationDays} ngày)</li>`).join('')
+                                            ${res.data.data.length === 0
+                                              ? '<li>No medication prescribed</li>'
+                                              : res.data.data.map(p => `<li><strong>${p.medicineId?.medicineName || p.medicineId?.name || 'Medicine'}</strong>: ${p.quantity} units (${p.dosage} - ${p.frequency} - for ${p.durationDays} days)</li>`).join('')
                                             }
                                           </ul>
                                         </div>
                                       `,
                                       icon: 'info',
                                       confirmButtonColor: '#3085d6',
-                                      confirmButtonText: 'Đóng'
+                                      confirmButtonText: 'Close'
                                     });
                                   })
                                   .catch(console.error);
                               }}
                             >
-                              Xem nhanh bệnh án
+                              Quick view
                             </button>
                           </td>
                         </tr>
@@ -690,33 +705,33 @@ export default function DoctorSchedule() {
           {/* Tab: Doctor Schedules */}
           {activeTab === 'schedule' && (
             <div className="dashboard-card">
-              <h2>Lịch làm việc của tôi</h2>
-              <p className="subtitle">Xem danh sách các ca trực và số lượng bệnh nhân đã đăng ký.</p>
+              <h2>My work schedule</h2>
+              <p className="subtitle">View your shifts and the number of patients booked.</p>
 
               {schedules.length === 0 ? (
                 <div className="empty-state">
-                  <p>Bạn chưa có lịch trực nào được cấu hình bởi Quản trị viên.</p>
+                  <p>You don't have any shifts configured by the administrator yet.</p>
                 </div>
               ) : (
                 <div className="table-responsive">
                   <table className="custom-table">
                     <thead>
                       <tr>
-                        <th>Ngày làm việc</th>
-                        <th>Thời gian bắt đầu</th>
-                        <th>Thời gian kết thúc</th>
-                        <th>Giới hạn bệnh nhân</th>
-                        <th>Đã đăng ký khám</th>
-                        <th>Trạng thái ca trực</th>
+                        <th>Work date</th>
+                        <th>Start time</th>
+                        <th>End time</th>
+                        <th>Patient limit</th>
+                        <th>Booked</th>
+                        <th>Shift status</th>
                       </tr>
                     </thead>
                     <tbody>
                       {schedules.map((s) => (
                         <tr key={s._id}>
-                          <td className="font-bold">{new Date(s.workDate).toLocaleDateString('vi-VN')}</td>
+                          <td className="font-bold">{new Date(s.workDate).toLocaleDateString('en-US')}</td>
                           <td>{s.startTime}</td>
                           <td>{s.endTime}</td>
-                          <td>{s.maxPatients} bệnh nhân</td>
+                          <td>{s.maxPatients} patients</td>
                           <td>
                             <strong>{s.currentBooked}</strong> / {s.maxPatients}
                             <div className="progress-bar-container">
@@ -728,7 +743,7 @@ export default function DoctorSchedule() {
                           </td>
                           <td>
                             <span className={`badge ${s.status === 'Available' ? 'badge-success' : 'badge-danger'}`}>
-                              {s.status === 'Available' ? 'Đang hoạt động' : 'Tạm dừng / Đầy'}
+                              {s.status === 'Available' ? 'Active' : 'Paused / Full'}
                             </span>
                           </td>
                         </tr>
@@ -741,6 +756,97 @@ export default function DoctorSchedule() {
           )}
         </main>
       </div>
+
+      {/* Print Prescription Modal */}
+      {printData && (
+        <div className="modal-backdrop">
+          <div className="modal-content" style={{ maxWidth: 680 }}>
+            <div className="modal-header">
+              <h3>Prescription completed — Ready to print</h3>
+              <button className="close-btn" onClick={() => setPrintData(null)}>&times;</button>
+            </div>
+            <div className="modal-body">
+              <div id="prescription-print-area" style={{ fontFamily: 'Arial, sans-serif', fontSize: 13, lineHeight: 1.6, color: '#111' }}>
+                {/* Clinic header */}
+                <div style={{ textAlign: 'center', borderBottom: '2px solid #0066cc', paddingBottom: 12, marginBottom: 16 }}>
+                  <div style={{ fontWeight: 700, fontSize: 16, color: '#0066cc' }}>HOPSONTAI GENERAL CLINIC</div>
+                  <div style={{ fontSize: 11, color: '#555' }}>123 Hop Son Street, Hai Ba Trung District, Hanoi | Hotline: 1900 6868</div>
+                  <div style={{ fontWeight: 700, fontSize: 18, marginTop: 8, letterSpacing: 2 }}>PRESCRIPTION</div>
+                  <div style={{ fontSize: 11, color: '#555' }}>Date: {printData.date.toLocaleDateString('en-US')} — Record no.: {printData.appointment?._id?.slice(-8).toUpperCase()}</div>
+                </div>
+
+                {/* Patient info */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 20px', marginBottom: 14, padding: '10px 0', borderBottom: '1px solid #ddd' }}>
+                  <div><strong>Full name:</strong> {printData.patient?.fullName}</div>
+                  <div><strong>Date of birth:</strong> {printData.patient?.dateOfBirth ? new Date(printData.patient.dateOfBirth).toLocaleDateString('en-US') : '--'}</div>
+                  <div><strong>Gender:</strong> {printData.patient?.gender}</div>
+                  <div><strong>Phone:</strong> {printData.patient?.phoneNumber}</div>
+                  <div style={{ gridColumn: '1/-1' }}><strong>Address:</strong> {printData.patient?.address || '--'}</div>
+                </div>
+
+                {/* Diagnosis */}
+                <div style={{ marginBottom: 14, padding: '8px 12px', background: '#f0f7ff', borderLeft: '4px solid #0066cc', borderRadius: 4 }}>
+                  <strong>Diagnosis:</strong> {printData.diagnosis}
+                  {printData.clinicalNotes && <div style={{ marginTop: 4, fontSize: 12, color: '#333' }}><strong>Notes:</strong> {printData.clinicalNotes}</div>}
+                </div>
+
+                {/* Medicine table */}
+                <div style={{ fontWeight: 700, marginBottom: 6 }}>Medication list:</div>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                  <thead>
+                    <tr style={{ background: '#e8f0fe' }}>
+                      <th style={{ border: '1px solid #ccc', padding: '6px 8px', textAlign: 'left' }}>STT</th>
+                      <th style={{ border: '1px solid #ccc', padding: '6px 8px', textAlign: 'left' }}>Medicine</th>
+                      <th style={{ border: '1px solid #ccc', padding: '6px 8px', textAlign: 'center' }}>Route</th>
+                      <th style={{ border: '1px solid #ccc', padding: '6px 8px', textAlign: 'center' }}>SL</th>
+                      <th style={{ border: '1px solid #ccc', padding: '6px 8px', textAlign: 'left' }}>Usage</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {printData.medicines.map((m, i) => (
+                      <tr key={i} style={{ background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
+                        <td style={{ border: '1px solid #ccc', padding: '5px 8px', textAlign: 'center' }}>{i + 1}</td>
+                        <td style={{ border: '1px solid #ccc', padding: '5px 8px', fontWeight: 600 }}>{m.name}</td>
+                        <td style={{ border: '1px solid #ccc', padding: '5px 8px', textAlign: 'center' }}>{m.dosageForm || 'Oral'}</td>
+                        <td style={{ border: '1px solid #ccc', padding: '5px 8px', textAlign: 'center' }}>{m.quantity}</td>
+                        <td style={{ border: '1px solid #ccc', padding: '5px 8px' }}>{m.dosage} — {m.frequency} — {m.durationDays} days ({m.specialInstructions})</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                {/* Signature footer */}
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 32, paddingRight: 40 }}>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: 12, color: '#555' }}>{printData.date.toLocaleDateString('en-US')}</div>
+                    <div style={{ fontWeight: 700 }}>Examining doctor</div>
+                    <div style={{ marginTop: 48, fontWeight: 600 }}>Dr. {printData.doctor?.displayName}</div>
+                  </div>
+                </div>
+
+                <div style={{ marginTop: 20, fontSize: 11, color: '#888', borderTop: '1px solid #ddd', paddingTop: 8 }}>
+                  * This prescription is valid for 5 days from the date of issue. Please bring it to the cashier to pay and collect your medication.
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-ghost" onClick={() => setPrintData(null)}>Close</button>
+              <button
+                className="btn btn-primary"
+                onClick={() => {
+                  const content = document.getElementById('prescription-print-area').innerHTML;
+                  const w = window.open('', '_blank');
+                  w.document.write(`<html><head><title>Prescription</title><style>body{margin:24px;font-family:Arial,sans-serif;}@media print{body{margin:0;}}</style></head><body>${content}</body></html>`);
+                  w.document.close();
+                  w.print();
+                }}
+              >
+                Print prescription
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,5 +1,5 @@
 // Module CMS - Controller
-// Xử lý: Posts, Contact_Inquiries
+// Handles: Posts, Contact_Inquiries
 
 const Post = require('../../models/Post');
 const Contact_Inquiry = require('../../models/Contact_Inquiry');
@@ -33,11 +33,11 @@ const getPosts = async (req, res) => {
 
     const items = await Post.find(q).sort({ publishedAt: -1, createdAt: -1 }).limit(limit).lean();
     const { success: ok } = require('../../utils/response');
-    return ok(res, items, 'Lấy danh sách bài viết thành công');
+    return ok(res, items, 'Article list loaded successfully');
   } catch (err) {
     console.error('getPosts error', err);
     const { fail } = require('../../utils/response');
-    return fail(res, 'Lỗi khi lấy danh sách bài viết', 500, err.message);
+    return fail(res, 'Error loading the article list', 500, err.message);
   }
 };
 
@@ -45,7 +45,7 @@ const createPost = async (req, res) => {
   try {
     const { title, content, status, thumbnailURL } = req.body;
     if (!title || !content) {
-      return res.status(400).json({ success: false, message: 'Tiêu đề và nội dung là bắt buộc' });
+      return res.status(400).json({ success: false, message: 'Title and content are required' });
     }
 
     const slug = makeSlug(title);
@@ -59,11 +59,11 @@ const createPost = async (req, res) => {
     });
 
     const { success: ok } = require('../../utils/response');
-    return ok(res, post, 'Tạo bài viết thành công', 201);
+    return ok(res, post, 'Article created successfully', 201);
   } catch (err) {
     console.error('createPost error', err);
     const { fail } = require('../../utils/response');
-    return fail(res, 'Lỗi khi tạo bài viết', 500, err.message);
+    return fail(res, 'Error creating the article', 500, err.message);
   }
 };
 
@@ -74,7 +74,7 @@ const updatePost = async (req, res) => {
 
     const post = await Post.findById(id);
     if (!post) {
-      return res.status(404).json({ success: false, message: 'Bài viết không tồn tại' });
+      return res.status(404).json({ success: false, message: 'Article not found' });
     }
 
     if (title) {
@@ -93,11 +93,11 @@ const updatePost = async (req, res) => {
     await post.save();
 
     const { success: ok } = require('../../utils/response');
-    return ok(res, post, 'Cập nhật bài viết thành công');
+    return ok(res, post, 'Article updated successfully');
   } catch (err) {
     console.error('updatePost error', err);
     const { fail } = require('../../utils/response');
-    return fail(res, 'Lỗi khi cập nhật bài viết', 500, err.message);
+    return fail(res, 'Error updating the article', 500, err.message);
   }
 };
 
@@ -106,14 +106,14 @@ const deletePost = async (req, res) => {
     const { id } = req.params;
     const post = await Post.findByIdAndDelete(id);
     if (!post) {
-      return res.status(404).json({ success: false, message: 'Bài viết không tồn tại' });
+      return res.status(404).json({ success: false, message: 'Article not found' });
     }
     const { success: ok } = require('../../utils/response');
-    return ok(res, null, 'Xóa bài viết thành công');
+    return ok(res, null, 'Article deleted successfully');
   } catch (err) {
     console.error('deletePost error', err);
     const { fail } = require('../../utils/response');
-    return fail(res, 'Lỗi khi xóa bài viết', 500, err.message);
+    return fail(res, 'Error deleting the article', 500, err.message);
   }
 };
 
@@ -121,11 +121,11 @@ const getContactInquiries = async (req, res) => {
   try {
     const list = await Contact_Inquiry.find().populate('handledBy').sort({ createdAt: -1 }).lean();
     const { success: ok } = require('../../utils/response');
-    return ok(res, list, 'Lấy danh sách liên hệ thành công');
+    return ok(res, list, 'Contact list loaded successfully');
   } catch (err) {
     console.error('getContactInquiries error', err);
     const { fail } = require('../../utils/response');
-    return fail(res, 'Lỗi khi lấy danh sách liên hệ', 500, err.message);
+    return fail(res, 'Error loading the contact list', 500, err.message);
   }
 };
 
@@ -133,7 +133,7 @@ const createContactInquiry = async (req, res) => {
   try {
     const { senderName, senderPhone, senderEmail, message } = req.body;
     if (!senderName || !senderPhone || !message) {
-      return res.status(400).json({ success: false, message: 'Họ tên, SĐT và Lời nhắn là bắt buộc' });
+      return res.status(400).json({ success: false, message: 'Name, phone number, and message are required' });
     }
 
     const item = await Contact_Inquiry.create({
@@ -145,11 +145,11 @@ const createContactInquiry = async (req, res) => {
     });
 
     const { success: ok } = require('../../utils/response');
-    return ok(res, item, 'Gửi liên hệ thành công', 201);
+    return ok(res, item, 'Your message was sent successfully', 201);
   } catch (err) {
     console.error('createContactInquiry error', err);
     const { fail } = require('../../utils/response');
-    return fail(res, 'Lỗi khi gửi liên hệ', 500, err.message);
+    return fail(res, 'Error sending your message', 500, err.message);
   }
 };
 
@@ -159,11 +159,11 @@ const path = require('path');
 const uploadImage = async (req, res) => {
   try {
     const { image } = req.body;
-    if (!image) return res.status(400).json({ success: false, message: 'Dữ liệu ảnh base64 là bắt buộc' });
+    if (!image) return res.status(400).json({ success: false, message: 'base64 image data is required' });
     
     const matches = image.match(/^data:image\/([A-Za-z-+\/]+);base64,(.+)$/);
     if (!matches || matches.length !== 3) {
-      return res.status(400).json({ success: false, message: 'Định dạng ảnh không hợp lệ' });
+      return res.status(400).json({ success: false, message: 'Invalid image format' });
     }
     
     const ext = matches[1] === 'jpeg' ? 'jpg' : matches[1];
@@ -181,11 +181,11 @@ const uploadImage = async (req, res) => {
     const imageUrl = `http://localhost:${config.PORT}/uploads/${filename}`;
     
     const { success: ok } = require('../../utils/response');
-    return ok(res, { url: imageUrl }, 'Tải ảnh lên thành công');
+    return ok(res, { url: imageUrl }, 'Image uploaded successfully');
   } catch (err) {
     console.error('uploadImage error', err);
     const { fail } = require('../../utils/response');
-    return fail(res, 'Lỗi khi tải ảnh lên', 500, err.message);
+    return fail(res, 'Error uploading the image', 500, err.message);
   }
 };
 

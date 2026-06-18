@@ -31,7 +31,7 @@ export default function DoctorScheduleModal({ appointment, onClose, onConfirm, i
       setDoctors(res.data.data || []);
     } catch (err) {
       console.error('Error fetching doctors:', err);
-      setError('Lỗi khi tải danh sách bác sĩ');
+      setError('Error loading the doctor list');
     }
   };
 
@@ -44,7 +44,7 @@ export default function DoctorScheduleModal({ appointment, onClose, onConfirm, i
       setSchedules(res.data.data || []);
     } catch (err) {
       console.error('Error fetching schedule:', err);
-      setError('Lỗi khi tải lịch bác sĩ');
+      setError("Error loading the doctor's schedule");
     } finally {
       setLoadingSchedules(false);
     }
@@ -87,7 +87,7 @@ export default function DoctorScheduleModal({ appointment, onClose, onConfirm, i
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <h3>📋 Kiểm tra lịch bác sĩ & Đổi bác sĩ</h3>
+          <h3>📋 Check Doctor Schedule &amp; Reassign</h3>
           <button className="modal-close" onClick={onClose}>✕</button>
         </div>
 
@@ -96,18 +96,18 @@ export default function DoctorScheduleModal({ appointment, onClose, onConfirm, i
 
           {/* Appointment Details */}
           <div className="section section--info">
-            <h4>Thông tin lịch khám</h4>
+            <h4>Appointment details</h4>
             <div className="info-grid">
               <div className="info-item">
-                <span className="label">Ngày khám:</span>
-                <span className="value">{new Date(appointment.requestedDate).toLocaleDateString('vi-VN')}</span>
+                <span className="label">Date:</span>
+                <span className="value">{new Date(appointment.requestedDate).toLocaleDateString('en-US')}</span>
               </div>
               <div className="info-item">
-                <span className="label">Giờ khám:</span>
+                <span className="label">Time:</span>
                 <span className="value">{appointment.requestedTime}</span>
               </div>
               <div className="info-item">
-                <span className="label">Phòng ban:</span>
+                <span className="label">Department:</span>
                 <span className="value">{appointment.departmentId?.departmentName}</span>
               </div>
             </div>
@@ -115,7 +115,7 @@ export default function DoctorScheduleModal({ appointment, onClose, onConfirm, i
 
           {/* Current Doctor Schedule */}
           <div className="section section--current">
-            <h4>🔵 Bác sĩ hiện tại</h4>
+            <h4>🔵 Current doctor</h4>
             {originalDoctor ? (
               <div className="doctor-card">
                 <div className="doctor-card__header">
@@ -127,27 +127,27 @@ export default function DoctorScheduleModal({ appointment, onClose, onConfirm, i
                     <div className="schedule-info">
                       <p className="schedule-time">⏰ {currentSchedule.startTime} - {currentSchedule.endTime}</p>
                       <p className="schedule-capacity">
-                        Sức chứa: {currentSchedule.currentBooked}/{currentSchedule.maxPatients}
+                        Capacity: {currentSchedule.currentBooked}/{currentSchedule.maxPatients}
                         <span className={isDoctorAvailable(currentSchedule) ? 'capacity-available' : 'capacity-full'}>
-                          {isDoctorAvailable(currentSchedule) ? '✓ Còn trống' : '✗ Đã kín'}
+                          {isDoctorAvailable(currentSchedule) ? '✓ Available' : '✗ Full'}
                         </span>
                       </p>
                     </div>
                   ) : (
-                    <p className="no-schedule">Không có lịch làm việc trong ngày này</p>
+                    <p className="no-schedule">No working schedule on this day</p>
                   )}
                 </div>
               </div>
             ) : (
-              <p className="text-muted">Chưa chỉ định bác sĩ</p>
+              <p className="text-muted">No doctor assigned</p>
             )}
           </div>
 
           {/* Doctor Selection */}
           <div className="section section--selection">
-            <h4>🔄 Chọn bác sĩ khác (cùng phòng ban)</h4>
+            <h4>🔄 Choose another doctor (same department)</h4>
             {loadingSchedules ? (
-              <p className="text-center">Đang tải...</p>
+              <p className="text-center">Loading...</p>
             ) : (
               <div className="doctor-selector">
                 <select
@@ -156,7 +156,7 @@ export default function DoctorScheduleModal({ appointment, onClose, onConfirm, i
                   className="select-input"
                   disabled={isLoading}
                 >
-                  <option value="">-- Chọn bác sĩ --</option>
+                  <option value="">-- Select a doctor --</option>
                   {doctors.map(doc => (
                     <option key={doc._id} value={doc._id}>
                       {doc.fullName} ({doc.specialization})
@@ -170,7 +170,7 @@ export default function DoctorScheduleModal({ appointment, onClose, onConfirm, i
           {/* Selected Doctor Schedule */}
           {selectedDoctorId && selectedDoctor && (
             <div className="section section--selected">
-              <h4>✓ Bác sĩ được chọn</h4>
+              <h4>✓ Selected doctor</h4>
               <div className={`doctor-card ${!isNewDoctorAvailable ? 'doctor-card--unavailable' : ''}`}>
                 <div className="doctor-card__header">
                   <p className="doctor-name"><strong>{selectedDoctor.fullName}</strong></p>
@@ -181,14 +181,14 @@ export default function DoctorScheduleModal({ appointment, onClose, onConfirm, i
                     <div className="schedule-info">
                       <p className="schedule-time">⏰ {selectedSchedule.startTime} - {selectedSchedule.endTime}</p>
                       <p className="schedule-capacity">
-                        Sức chứa: {selectedSchedule.currentBooked}/{selectedSchedule.maxPatients}
+                        Capacity: {selectedSchedule.currentBooked}/{selectedSchedule.maxPatients}
                         <span className={isNewDoctorAvailable ? 'capacity-available' : 'capacity-full'}>
-                          {isNewDoctorAvailable ? '✓ Còn trống' : '✗ Đã kín'}
+                          {isNewDoctorAvailable ? '✓ Available' : '✗ Full'}
                         </span>
                       </p>
                     </div>
                   ) : (
-                    <p className="no-schedule warning">⚠ Bác sĩ này không có lịch làm việc trong ngày này</p>
+                    <p className="no-schedule warning">⚠ This doctor has no working schedule on this day</p>
                   )}
                 </div>
               </div>
@@ -198,10 +198,10 @@ export default function DoctorScheduleModal({ appointment, onClose, onConfirm, i
           {/* Confirmation Note */}
           {canChangeDoctor && (
             <div className="confirmation-note">
-              <p className="note-title">📝 Ghi chú:</p>
+              <p className="note-title">📝 Note:</p>
               <p>
-                Bạn sắp thay đổi bác sĩ từ <strong>{originalDoctor?.fullName}</strong> sang <strong>{selectedDoctor?.fullName}</strong>.
-                Hãy đảm bảo bác sĩ mới có giờ trống trước khi xác nhận.
+                You are about to reassign the doctor from <strong>{originalDoctor?.fullName}</strong> to <strong>{selectedDoctor?.fullName}</strong>.
+                Please make sure the new doctor has an available slot before confirming.
               </p>
             </div>
           )}
@@ -213,14 +213,14 @@ export default function DoctorScheduleModal({ appointment, onClose, onConfirm, i
             onClick={onClose}
             disabled={isLoading}
           >
-            Hủy
+            Cancel
           </button>
           <button
             className="btn btn-primary"
             onClick={() => onConfirm(selectedDoctorId)}
             disabled={isLoading || !selectedDoctorId || (canChangeDoctor && !isNewDoctorAvailable)}
           >
-            {isLoading ? 'Đang xử lý...' : 'Xác nhận'}
+            {isLoading ? 'Processing...' : 'Confirm'}
           </button>
         </div>
       </div>

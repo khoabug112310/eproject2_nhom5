@@ -19,7 +19,7 @@ const {
 
 const router = express.Router();
 
-// Chỉ Admin
+// Admin only
 router.get('/users', authenticateToken, authorizeRole(USER_ROLE.ADMIN), getAllUsers);
 router.post('/users', authenticateToken, authorizeRole(USER_ROLE.ADMIN), createDoctor);
 router.post('/doctors', authenticateToken, authorizeRole(USER_ROLE.ADMIN), createDoctor);

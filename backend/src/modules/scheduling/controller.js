@@ -1,5 +1,5 @@
 // Module Scheduling - Controller
-// Xử lý: Departments, Schedules, Appointments
+// Handles: Departments, Schedules, Appointments
 
 const Department = require('../../models/Department');
 const Doctor = require('../../models/Doctor');
@@ -33,10 +33,10 @@ const getDepartments = async (req, res) => {
     ]);
 
     const { success: ok } = require('../../utils/response');
-    return ok(res, items, 'Lấy danh sách khoa thành công');
+    return ok(res, items, 'Department list loaded successfully');
   } catch (err) {
     console.error('getDepartments error', err);
-    return res.status(500).json({ message: 'Lỗi khi lấy danh sách khoa' });
+    return res.status(500).json({ message: 'Error loading the department list' });
   }
 };
 
@@ -54,11 +54,11 @@ const getSchedules = async (req, res) => {
     }
     const items = await Doctor_Schedule.find(q).lean();
     const { success: ok } = require('../../utils/response');
-    return ok(res, items, 'Lấy lịch làm việc thành công');
+    return ok(res, items, 'Schedule loaded successfully');
   } catch (err) {
     console.error('getSchedules error', err);
     const { fail } = require('../../utils/response');
-    return fail(res, 'Lỗi khi lấy lịch làm việc', 500, err.message);
+    return fail(res, 'Error loading the schedule', 500, err.message);
   }
 };
 
@@ -67,7 +67,7 @@ const bookAppointment = async (req, res) => {
     const { requestedDate, requestedTime, departmentId, doctorId, symptoms } = req.body;
 
     if (!requestedDate || !requestedTime || !departmentId) {
-      return res.status(400).json({ success: false, message: 'requestedDate, requestedTime và departmentId là bắt buộc' });
+      return res.status(400).json({ success: false, message: 'requestedDate, requestedTime, and departmentId are required' });
     }
 
     // Determine patientId from authenticated user (User ID mapped to Patient ID)
@@ -76,7 +76,7 @@ const bookAppointment = async (req, res) => {
       const uId = req.user.id || req.user._id;
       const patient = await Patient.findOne({ userId: uId });
       if (!patient) {
-        return res.status(404).json({ success: false, message: 'Hồ sơ bệnh nhân không tồn tại.' });
+        return res.status(404).json({ success: false, message: 'Patient record not found.' });
       }
       patientId = patient._id;
     }
@@ -91,7 +91,7 @@ const bookAppointment = async (req, res) => {
     if (pendingAppointment) {
       return res.status(400).json({
         success: false,
-        message: 'Bạn đã có một lịch hẹn đang chờ xác nhận. Không thể đăng ký thêm lịch mới.'
+        message: 'You already have an appointment awaiting confirmation. You cannot book another one.'
       });
     }
 
@@ -109,7 +109,7 @@ const bookAppointment = async (req, res) => {
       });
 
       if (exists) {
-        return res.status(409).json({ success: false, message: 'Thời gian đã được đặt trước. Vui lòng chọn khung giờ khác.' });
+        return res.status(409).json({ success: false, message: 'This time slot is already booked. Please choose another one.' });
       }
     }
 
@@ -124,11 +124,11 @@ const bookAppointment = async (req, res) => {
     });
 
     const { success: ok } = require('../../utils/response');
-    return ok(res, appt, 'Đặt lịch thành công', 201);
+    return ok(res, appt, 'Appointment booked successfully', 201);
   } catch (err) {
     console.error('bookAppointment error', err);
     const { fail } = require('../../utils/response');
-    return fail(res, 'Lỗi server khi đặt lịch', 500, err.message);
+    return fail(res, 'Server error while booking the appointment', 500, err.message);
   }
 };
 
@@ -140,14 +140,14 @@ const getAppointments = async (req, res) => {
         const patient = await Patient.findOne({ userId: req.user.id });
         if (!patient) {
           const { success: ok } = require('../../utils/response');
-          return ok(res, [], 'Lấy danh sách lịch khám');
+          return ok(res, [], 'Appointment list loaded');
         }
         q.patientId = patient._id;
       } else if (req.user.role === 'doctor') {
         const doc = await Doctor.findOne({ userId: req.user.id });
         if (!doc) {
           const { success: ok } = require('../../utils/response');
-          return ok(res, [], 'Lấy danh sách lịch khám');
+          return ok(res, [], 'Appointment list loaded');
         }
         q.doctorId = doc._id;
       }
@@ -178,11 +178,11 @@ const getAppointments = async (req, res) => {
     }
 
     const { success: ok } = require('../../utils/response');
-    return ok(res, mappedItems, 'Lấy danh sách lịch khám');
+    return ok(res, mappedItems, 'Appointment list loaded');
   } catch (err) {
     console.error('getAppointments error', err);
     const { fail } = require('../../utils/response');
-    return fail(res, 'Lỗi khi lấy lịch khám', 500, err.message);
+    return fail(res, 'Error loading appointments', 500, err.message);
   }
 };
 
@@ -240,12 +240,12 @@ const updateAppointmentStatus = async (req, res) => {
 
       if (schedule) {
         if (!isWithinSchedule(appt.requestedTime, schedule.startTime, schedule.endTime)) {
-          return res.status(409).json({ success: false, message: 'Giờ khám không nằm trong ca làm việc này.' });
+          return res.status(409).json({ success: false, message: 'The requested time is outside this work shift.' });
         }
 
         if (typeof schedule.currentBooked !== 'number') schedule.currentBooked = 0;
         if (schedule.maxPatients && schedule.currentBooked >= schedule.maxPatients) {
-          return res.status(409).json({ success: false, message: 'Ca khám đã đầy, không thể xác nhận thêm.' });
+          return res.status(409).json({ success: false, message: 'This shift is full; no more appointments can be confirmed.' });
         }
         schedule.currentBooked = (schedule.currentBooked || 0) + 1;
         await schedule.save();
@@ -296,12 +296,92 @@ const updateAppointmentStatus = async (req, res) => {
     await appt.save();
 
     const { success: ok } = require('../../utils/response');
-    return ok(res, appt, 'Cập nhật trạng thái lịch khám thành công');
+    return ok(res, appt, 'Appointment status updated successfully');
   } catch (err) {
     console.error('updateAppointmentStatus error', err);
     const { fail } = require('../../utils/response');
-    return fail(res, 'Lỗi khi cập nhật trạng thái', 500, err.message);
+    return fail(res, 'Error updating the status', 500, err.message);
   }
 };
 
-module.exports = { getDepartments, getSchedules, bookAppointment, getAppointments, updateAppointmentStatus };
+const createDepartment = async (req, res) => {
+  try {
+    const { departmentName, description, contactPhone } = req.body;
+    if (!departmentName) return res.status(400).json({ success: false, message: 'Department name is required' });
+    const dept = await Department.create({ departmentName, description, contactPhone });
+    const { success: ok } = require('../../utils/response');
+    return ok(res, dept, 'Department added successfully', 201);
+  } catch (err) {
+    const { fail } = require('../../utils/response');
+    return fail(res, 'Error adding the department', 500, err.message);
+  }
+};
+
+const updateDepartment = async (req, res) => {
+  try {
+    const dept = await Department.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+    if (!dept) return res.status(404).json({ success: false, message: 'Department not found' });
+    const { success: ok } = require('../../utils/response');
+    return ok(res, dept, 'Department updated successfully');
+  } catch (err) {
+    const { fail } = require('../../utils/response');
+    return fail(res, 'Error updating the department', 500, err.message);
+  }
+};
+
+const deleteDepartment = async (req, res) => {
+  try {
+    const dept = await Department.findByIdAndDelete(req.params.id);
+    if (!dept) return res.status(404).json({ success: false, message: 'Department not found' });
+    const { success: ok } = require('../../utils/response');
+    return ok(res, null, 'Department deleted');
+  } catch (err) {
+    const { fail } = require('../../utils/response');
+    return fail(res, 'Error deleting the department', 500, err.message);
+  }
+};
+
+const createDoctorSchedule = async (req, res) => {
+  try {
+    const { doctorId, workDate, startTime, endTime, maxPatients } = req.body;
+    if (!doctorId || !workDate || !startTime || !endTime || !maxPatients) {
+      return res.status(400).json({ success: false, message: 'Missing shift information' });
+    }
+    const dateOnly = new Date(workDate);
+    dateOnly.setHours(0, 0, 0, 0);
+    const existing = await Doctor_Schedule.findOne({ doctorId, workDate: dateOnly });
+    if (existing) return res.status(409).json({ success: false, message: 'The doctor already has a shift on this day' });
+    const schedule = await Doctor_Schedule.create({ doctorId, workDate: dateOnly, startTime, endTime, maxPatients: Number(maxPatients), currentBooked: 0, status: 'Available' });
+    const populated = await Doctor_Schedule.findById(schedule._id).populate('doctorId').lean();
+    const { success: ok } = require('../../utils/response');
+    return ok(res, populated, 'Shift created successfully', 201);
+  } catch (err) {
+    const { fail } = require('../../utils/response');
+    return fail(res, 'Error creating the shift', 500, err.message);
+  }
+};
+
+const deleteDoctorSchedule = async (req, res) => {
+  try {
+    const schedule = await Doctor_Schedule.findByIdAndDelete(req.params.id);
+    if (!schedule) return res.status(404).json({ success: false, message: 'Shift not found' });
+    const { success: ok } = require('../../utils/response');
+    return ok(res, null, 'Shift deleted');
+  } catch (err) {
+    const { fail } = require('../../utils/response');
+    return fail(res, 'Error deleting the shift', 500, err.message);
+  }
+};
+
+const getAllSchedules = async (req, res) => {
+  try {
+    const items = await Doctor_Schedule.find().populate('doctorId').sort({ workDate: 1 }).lean();
+    const { success: ok } = require('../../utils/response');
+    return ok(res, items, 'All shifts loaded successfully');
+  } catch (err) {
+    const { fail } = require('../../utils/response');
+    return fail(res, 'Error loading the schedule', 500, err.message);
+  }
+};
+
+module.exports = { getDepartments, createDepartment, updateDepartment, deleteDepartment, getSchedules, getAllSchedules, createDoctorSchedule, deleteDoctorSchedule, bookAppointment, getAppointments, updateAppointmentStatus };

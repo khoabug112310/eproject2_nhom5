@@ -26,9 +26,9 @@ export default function Login() {
     } catch (err) {
       // Show specific message for invalid credentials (401) otherwise generic
       if (err?.response?.status === 401) {
-        setError('Tên người dùng hoặc mật khẩu không đúng. Vui lòng thử lại.');
+        setError('Incorrect username or password. Please try again.');
       } else {
-        setError(err?.response?.data?.message || 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.');
+        setError(err?.response?.data?.message || 'Login failed. Please check your details.');
       }
     } finally {
       setLoading(false);
@@ -45,8 +45,8 @@ export default function Login() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
             </svg>
           </div>
-          <h1 className="login-brand-title">Phòng Khám Hợp Sơn Tài</h1>
-          <p className="login-brand-sub">Đăng nhập để truy cập hệ thống quản lý</p>
+          <h1 className="login-brand-title">Hopsontai Clinic</h1>
+          <p className="login-brand-sub">Log in to access the management system</p>
         </div>
 
         {/* Error */}
@@ -56,14 +56,14 @@ export default function Login() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
             <span style={{ flex: 1 }}>{error}</span>
-            <button className="login-retry-btn" onClick={() => { setError(''); setPhone(''); setPassword(''); }}>Thử lại</button>
+            <button className="login-retry-btn" onClick={() => { setError(''); setPhone(''); setPassword(''); }}>Retry</button>
           </div>
         )}
 
         <form onSubmit={handleSubmit}>
           {/* Phone */}
           <div className="login-field-new">
-            <label htmlFor="login-phone">Số điện thoại</label>
+            <label htmlFor="login-phone">Phone number</label>
             <div className="login-input-wrap">
               <span className="login-input-icon">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" width="16" height="16">
@@ -74,7 +74,7 @@ export default function Login() {
                 id="login-phone"
                 className="login-input-new"
                 type="tel"
-                placeholder="Nhập số điện thoại của bạn"
+                placeholder="Enter your phone number"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 required
@@ -84,7 +84,7 @@ export default function Login() {
 
           {/* Password */}
           <div className="login-field-new">
-            <label htmlFor="login-password">Mật khẩu</label>
+            <label htmlFor="login-password">Password</label>
             <div className="login-input-wrap">
               <span className="login-input-icon">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" width="16" height="16">
@@ -95,7 +95,7 @@ export default function Login() {
                 id="login-password"
                 className="login-input-new"
                 type="password"
-                placeholder="Nhập mật khẩu"
+                placeholder="Enter your password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -107,14 +107,14 @@ export default function Login() {
             {loading ? (
               <>
                 <span className="cn-spinner" />
-                Đang đăng nhập...
+                Logging in...
               </>
             ) : (
               <>
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" width="17" height="17">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
                 </svg>
-                Đăng nhập
+                Log in
               </>
             )}
           </button>
@@ -124,7 +124,7 @@ export default function Login() {
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" width="15" height="15">
             <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
           </svg>
-          Quay về trang chủ
+          Back to home
         </a>
       </div>
     </div>

@@ -32,7 +32,7 @@ export default function AccountantDashboard() {
       setInvoices(res.data.data);
     } catch (err) {
       console.error(err);
-      setErrorMessage('Không thể tải danh sách hóa đơn.');
+      setErrorMessage('Could not load the invoice list.');
     } finally {
       setLoading(false);
     }
@@ -40,14 +40,14 @@ export default function AccountantDashboard() {
 
   const handleProcessPayment = async (invoiceId) => {
     const result = await Swal.fire({
-      title: 'Xác nhận thu tiền',
-      text: 'Bạn có xác nhận đã thu tiền mặt/chuyển khoản thực tế cho hóa đơn này không?',
+      title: 'Confirm payment collection',
+      text: 'Do you confirm that cash/bank transfer has actually been received for this invoice?',
       icon: 'question',
       showCancelButton: true,
       confirmButtonColor: '#10b981',
       cancelButtonColor: '#64748b',
-      confirmButtonText: 'Xác nhận',
-      cancelButtonText: 'Hủy'
+      confirmButtonText: 'Confirm',
+      cancelButtonText: 'Cancel'
     });
     if (!result.isConfirmed) return;
     setSubmitting(true);
@@ -55,20 +55,20 @@ export default function AccountantDashboard() {
     setSuccessMessage('');
     try {
       await billingAPI.processPayment(invoiceId);
-      setSuccessMessage('Hóa đơn đã được đánh dấu là ĐÃ THANH TOÁN thành công!');
+      setSuccessMessage('The invoice has been marked as PAID successfully!');
       fetchInvoices();
       if (selectedInvoice && selectedInvoice._id === invoiceId) {
         setSelectedInvoice(null);
       }
     } catch (err) {
-      setErrorMessage(err?.response?.data?.message || 'Lỗi khi thanh toán hóa đơn.');
+      setErrorMessage(err?.response?.data?.message || 'Error processing the invoice payment.');
     } finally {
       setSubmitting(false);
     }
   };
 
   const formatVND = (num) => {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(num);
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'VND', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(num);
   };
 
   // Filtered invoices logic
@@ -97,7 +97,7 @@ export default function AccountantDashboard() {
         <RoleTopNav role="accountant" />
         <div className="dashboard-loading">
           <div className="spinner"></div>
-          <p>Đang tải dữ liệu hóa đơn & đối soát tài chính...</p>
+          <p>Loading invoices and financial reconciliation data...</p>
         </div>
       </div>
     );
@@ -112,21 +112,21 @@ export default function AccountantDashboard() {
         <aside className="dashboard-sidebar">
           <div className="patient-quick-info">
             <div className="p-avatar">💵</div>
-            <h4>Bộ phận Kế toán</h4>
-            <p className="p-card-number">Thu ngân & Thuốc thanh toán</p>
+            <h4>Accounting</h4>
+            <p className="p-card-number">Cashier &amp; Pharmacy Billing</p>
           </div>
           <nav className="sidebar-nav">
             <button
               onClick={() => setActiveTab('invoices')}
               className={activeTab === 'invoices' ? 'active' : ''}
             >
-              🧾 Hoá đơn viện phí
+              🧾 Hospital fees
             </button>
             <button
               onClick={() => setActiveTab('reports')}
               className={activeTab === 'reports' ? 'active' : ''}
             >
-              📊 Báo cáo doanh thu ngày
+              📊 Daily revenue report
             </button>
           </nav>
         </aside>
@@ -140,46 +140,46 @@ export default function AccountantDashboard() {
           {activeTab === 'invoices' && (
             <div className="dashboard-card">
               <div className="card-header flex-column md-row">
-                <h2>Quản lý hóa đơn thu phí bệnh nhân</h2>
+                <h2>Patient billing management</h2>
 
                 <div className="work-page-toolbar search-filter-bar">
                   <input
                     type="text"
-                    placeholder="Tìm: tên BN, SĐT hoặc mã hóa đơn..."
+                    placeholder="Search: patient name, phone, or invoice ID..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="search-input"
-                    aria-label="Tìm kiếm hóa đơn"
+                    aria-label="Search invoices"
                   />
                   <select value={filterType} onChange={(e) => setFilterType(e.target.value)}>
-                    <option value="All">Tất cả loại HĐ</option>
-                    <option value="Consultation">Phí khám lâm sàng</option>
-                    <option value="Pharmacy">Hóa đơn nhà thuốc</option>
+                    <option value="All">All invoice types</option>
+                    <option value="Consultation">Consultation fee</option>
+                    <option value="Pharmacy">Pharmacy invoice</option>
                   </select>
                   <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
-                    <option value="All">Tất cả trạng thái</option>
-                    <option value="Unpaid">Chưa thanh toán</option>
-                    <option value="Paid">Đã thanh toán</option>
+                    <option value="All">All statuses</option>
+                    <option value="Unpaid">Unpaid</option>
+                    <option value="Paid">Paid</option>
                   </select>
                 </div>
               </div>
 
               {filteredInvoices.length === 0 ? (
                 <div className="empty-state">
-                  <p>Không tìm thấy hóa đơn nào khớp với bộ lọc.</p>
+                  <p>No invoices match the filters.</p>
                 </div>
               ) : (
                 <div className="table-responsive">
                   <table className="custom-table">
                     <thead>
                       <tr>
-                        <th>Mã HĐ</th>
-                        <th>Bệnh nhân</th>
-                        <th>Loại phí</th>
-                        <th>Tổng tiền</th>
-                        <th>Ngày xuất</th>
-                        <th>Trạng thái</th>
-                        <th>Thao tác</th>
+                        <th>Invoice ID</th>
+                        <th>Patient</th>
+                        <th>Fee type</th>
+                        <th>Total</th>
+                        <th>Issue date</th>
+                        <th>Status</th>
+                        <th>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -188,23 +188,23 @@ export default function AccountantDashboard() {
                           <td className="monospace font-bold">{inv._id.substring(18).toUpperCase()}</td>
                           <td>
                             <strong>{inv.patientId?.fullName}</strong><br />
-                            <small className="text-muted">SDT: {inv.patientId?.phoneNumber}</small>
+                            <small className="text-muted">Phone: {inv.patientId?.phoneNumber}</small>
                           </td>
                           <td>
                             <span className={`badge ${inv.invoiceType === 'Consultation' ? 'badge-info' : 'badge-purple'}`}>
-                              {inv.invoiceType === 'Consultation' ? 'Khám lâm sàng' : 'Tiền thuốc đơn'}
+                              {inv.invoiceType === 'Consultation' ? 'Consultation' : 'Prescription medicine'}
                             </span>
                           </td>
                           <td className="font-bold text-primary">{formatVND(inv.totalAmount)}</td>
-                          <td>{new Date(inv.issuedAt).toLocaleDateString('vi-VN')}</td>
+                          <td>{new Date(inv.issuedAt).toLocaleDateString('en-US')}</td>
                           <td>
                             <span className={`badge ${inv.status === 'Paid' ? 'badge-success' : 'badge-danger'}`}>
-                              {inv.status === 'Paid' ? 'Đã thu tiền' : 'Chưa thu tiền'}
+                              {inv.status === 'Paid' ? 'Paid' : 'Unpaid'}
                             </span>
                           </td>
                           <td className="btn-cell">
                             <button className="btn btn-ghost btn-xs" onClick={() => setSelectedInvoice(inv)}>
-                              Xem biên lai
+                              View receipt
                             </button>
                             {inv.status === 'Unpaid' && (
                               <button
@@ -212,7 +212,7 @@ export default function AccountantDashboard() {
                                 onClick={() => handleProcessPayment(inv._id)}
                                 disabled={submitting}
                               >
-                                💵 Thu tiền
+                                💵 Collect payment
                               </button>
                             )}
                           </td>
@@ -228,48 +228,48 @@ export default function AccountantDashboard() {
           {/* Tab: Daily Reports */}
           {activeTab === 'reports' && (
             <div className="dashboard-card">
-              <h2>Báo cáo tài chính thu ngân hàng ngày</h2>
-              <p className="subtitle">Doanh số thực thu trong ngày hôm nay: {new Date().toLocaleDateString('vi-VN')}</p>
+              <h2>Daily cashier financial report</h2>
+              <p className="subtitle">Actual revenue collected today: {new Date().toLocaleDateString('en-US')}</p>
 
               <div className="stats-cards-grid" style={{ marginBottom: 25 }}>
                 <div className="stat-card">
                   <div className="stat-icon">💰</div>
                   <h3>{formatVND(totalRevenue)}</h3>
-                  <p>Doanh thu thực nhận hôm nay</p>
+                  <p>Revenue collected today</p>
                 </div>
                 <div className="stat-card">
                   <div className="stat-icon">🩺</div>
                   <h3>{formatVND(consultationRev)}</h3>
-                  <p>Tổng phí khám lâm sàng</p>
+                  <p>Total consultation fees</p>
                 </div>
                 <div className="stat-card">
                   <div className="stat-icon">💊</div>
                   <h3>{formatVND(pharmacyRev)}</h3>
-                  <p>Tổng tiền bán thuốc đơn</p>
+                  <p>Total pharmacy sales</p>
                 </div>
                 <div className="stat-card">
                   <div className="stat-icon">📝</div>
                   <h3>{todayInvoices.length}</h3>
-                  <p>Số lượng hóa đơn đã đối soát</p>
+                  <p>Invoices reconciled</p>
                 </div>
               </div>
 
-              <h3>Danh sách giao dịch hoàn thành hôm nay</h3>
+              <h3>Transactions completed today</h3>
               {todayInvoices.length === 0 ? (
                 <div className="empty-state">
-                  <p>Chưa ghi nhận giao dịch thành công nào trong ngày hôm nay.</p>
+                  <p>No completed transactions recorded today yet.</p>
                 </div>
               ) : (
                 <div className="table-responsive" style={{ marginTop: 15 }}>
                   <table className="custom-table">
                     <thead>
                       <tr>
-                        <th>Hóa đơn</th>
-                        <th>Bệnh nhân</th>
-                        <th>Loại hóa đơn</th>
-                        <th>Số tiền</th>
-                        <th>Giờ thanh toán</th>
-                        <th>Nhân viên thực hiện</th>
+                        <th>Invoice</th>
+                        <th>Patient</th>
+                        <th>Invoice type</th>
+                        <th>Amount</th>
+                        <th>Payment time</th>
+                        <th>Processed by</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -277,10 +277,10 @@ export default function AccountantDashboard() {
                         <tr key={inv._id}>
                           <td className="monospace font-bold">{inv._id.substring(18).toUpperCase()}</td>
                           <td>{inv.patientId?.fullName}</td>
-                          <td>{inv.invoiceType === 'Consultation' ? 'Phí khám lâm sàng' : 'Tiền thuốc theo đơn'}</td>
+                          <td>{inv.invoiceType === 'Consultation' ? 'Consultation fee' : 'Prescription medicine'}</td>
                           <td className="font-bold text-success">{formatVND(inv.totalAmount)}</td>
-                          <td>{new Date(inv.paidAt).toLocaleTimeString('vi-VN')}</td>
-                          <td>{inv.processedBy?.fullName || 'Hệ thống'}</td>
+                          <td>{new Date(inv.paidAt).toLocaleTimeString('en-US')}</td>
+                          <td>{inv.processedBy?.fullName || 'System'}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -290,7 +290,7 @@ export default function AccountantDashboard() {
 
               <div className="form-actions" style={{ marginTop: 20 }}>
                 <button className="btn btn-primary" onClick={() => window.print()}>
-                  🖨️ Xuất báo cáo in ấn
+                  🖨️ Print report
                 </button>
               </div>
             </div>
@@ -303,25 +303,25 @@ export default function AccountantDashboard() {
         <div className="modal-backdrop">
           <div className="modal-content invoice-modal">
             <div className="modal-header">
-              <h3>Biên lai thu phí y tế</h3>
+              <h3>Medical fee receipt</h3>
               <button className="close-btn" onClick={() => setSelectedInvoice(null)}>&times;</button>
             </div>
             <div className="modal-body print-section" id="print-area">
               <div className="receipt-brand">
-                <h2>PHÒNG KHÁM ĐA KHOA HỢP SƠN TÀI</h2>
-                <p>123 Đường Hợp Sơn, Quận Hai Bà Trưng, Hà Nội | Hotline: 1900 6868</p>
+                <h2>HOPSONTAI GENERAL CLINIC</h2>
+                <p>123 Hop Son Street, Hai Ba Trung District, Hanoi | Hotline: 1900 6868</p>
               </div>
               <hr />
               <div className="receipt-meta">
                 <div>
-                  <p><strong>Bệnh nhân:</strong> {selectedInvoice.patientId?.fullName}</p>
-                  <p><strong>SĐT:</strong> {selectedInvoice.patientId?.phoneNumber}</p>
-                  <p><strong>CCCD:</strong> {selectedInvoice.patientId?.identityCard}</p>
+                  <p><strong>Patient:</strong> {selectedInvoice.patientId?.fullName}</p>
+                  <p><strong>Phone:</strong> {selectedInvoice.patientId?.phoneNumber}</p>
+                  <p><strong>ID card:</strong> {selectedInvoice.patientId?.identityCard}</p>
                 </div>
                 <div className="text-right">
-                  <p><strong>Hóa đơn số:</strong> <span className="monospace uppercase">{selectedInvoice._id.substring(14)}</span></p>
-                  <p><strong>Ngày lập:</strong> {new Date(selectedInvoice.issuedAt).toLocaleDateString('vi-VN')}</p>
-                  {selectedInvoice.paidAt && <p><strong>Ngày thanh toán:</strong> {new Date(selectedInvoice.paidAt).toLocaleDateString('vi-VN')}</p>}
+                  <p><strong>Invoice no.:</strong> <span className="monospace uppercase">{selectedInvoice._id.substring(14)}</span></p>
+                  <p><strong>Issued:</strong> {new Date(selectedInvoice.issuedAt).toLocaleDateString('en-US')}</p>
+                  {selectedInvoice.paidAt && <p><strong>Paid on:</strong> {new Date(selectedInvoice.paidAt).toLocaleDateString('en-US')}</p>}
                 </div>
               </div>
 
@@ -329,18 +329,18 @@ export default function AccountantDashboard() {
                 <table className="receipt-table">
                   <thead>
                     <tr>
-                      <th>Nội dung thanh toán</th>
-                      <th className="text-right">Đơn giá</th>
-                      <th className="text-right">Số lượng</th>
-                      <th className="text-right">Thành tiền</th>
+                      <th>Description</th>
+                      <th className="text-right">Unit price</th>
+                      <th className="text-right">Qty</th>
+                      <th className="text-right">Amount</th>
                     </tr>
                   </thead>
                   <tbody>
                     {selectedInvoice.invoiceType === 'Consultation' ? (
                       <tr>
                         <td>
-                          Khám lâm sàng - Chuyên khoa {selectedInvoice.appointmentId?.departmentId?.departmentName || 'Chung'}<br />
-                          <small className="text-muted">Bác sĩ khám: {selectedInvoice.appointmentId?.doctorId?.fullName || 'Bất kỳ'}</small>
+                          Consultation - {selectedInvoice.appointmentId?.departmentId?.departmentName || 'General'} department<br />
+                          <small className="text-muted">Examining doctor: {selectedInvoice.appointmentId?.doctorId?.fullName || 'Any'}</small>
                         </td>
                         <td className="text-right">{formatVND(selectedInvoice.totalAmount)}</td>
                         <td className="text-right">1</td>
@@ -351,7 +351,7 @@ export default function AccountantDashboard() {
                         <tr key={idx}>
                           <td>
                             {det.medicineId?.name}<br />
-                            <small className="text-muted">{det.medicineId?.dosageForm} | HD: {det.medicineId?.instruction}</small>
+                            <small className="text-muted">{det.medicineId?.dosageForm} | Usage: {det.medicineId?.instruction}</small>
                           </td>
                           <td className="text-right">{formatVND(det.unitPrice)}</td>
                           <td className="text-right">{det.quantity}</td>
@@ -365,35 +365,35 @@ export default function AccountantDashboard() {
 
               <div className="receipt-summary">
                 <div className="summary-row">
-                  <span>Tổng tiền thanh toán:</span>
+                  <span>Total amount due:</span>
                   <strong className="text-primary" style={{ fontSize: 18 }}>{formatVND(selectedInvoice.totalAmount)}</strong>
                 </div>
                 <div className="summary-row">
-                  <span>Trạng thái:</span>
+                  <span>Status:</span>
                   <span className={`badge ${selectedInvoice.status === 'Paid' ? 'badge-success' : 'badge-danger'}`}>
-                    {selectedInvoice.status === 'Paid' ? 'Đan thu tiền' : 'Chưa thanh toán'}
+                    {selectedInvoice.status === 'Paid' ? 'Paid' : 'Unpaid'}
                   </span>
                 </div>
                 {selectedInvoice.processedBy && (
                   <div className="summary-row">
-                    <span>Nhân viên thu ngân:</span>
-                    <span>{selectedInvoice.processedBy?.fullName || 'Hệ thống'}</span>
+                    <span>Cashier:</span>
+                    <span>{selectedInvoice.processedBy?.fullName || 'System'}</span>
                   </div>
                 )}
               </div>
             </div>
             <div className="modal-footer">
-              <button className="btn btn-ghost" onClick={() => window.print()}>🖨️ In hóa đơn</button>
+              <button className="btn btn-ghost" onClick={() => window.print()}>🖨️ Print invoice</button>
               {selectedInvoice.status === 'Unpaid' && (
                 <button
                   className="btn btn-primary"
                   onClick={() => handleProcessPayment(selectedInvoice._id)}
                   disabled={submitting}
                 >
-                  Duyệt thanh toán
+                  Approve payment
                 </button>
               )}
-              <button className="btn btn-ghost" onClick={() => setSelectedInvoice(null)}>Đóng</button>
+              <button className="btn btn-ghost" onClick={() => setSelectedInvoice(null)}>Close</button>
             </div>
           </div>
         </div>

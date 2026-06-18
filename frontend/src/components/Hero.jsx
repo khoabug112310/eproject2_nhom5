@@ -40,10 +40,10 @@ export default function Hero() {
   }, []);
 
   const stats = [
-    { number: loading ? '...' : `${statsData.departments}`, label: 'Chuyên khoa sâu' },
-    { number: loading ? '...' : `${statsData.doctors}`, label: 'Bác sĩ chuyên khoa' },
-    { number: loading ? '...' : `${statsData.patients}`, label: 'Bệnh nhân tin tưởng' },
-    { number: loading ? '...' : `${statsData.appointments}`, label: 'Lượt khám y khoa' },
+    { number: loading ? '...' : `${statsData.departments}`, label: 'Specialties' },
+    { number: loading ? '...' : `${statsData.doctors}`, label: 'Specialist Doctors' },
+    { number: loading ? '...' : `${statsData.patients}`, label: 'Patients Served' },
+    { number: loading ? '...' : `${statsData.appointments}`, label: 'Appointments' },
   ];
 
   return (
@@ -53,14 +53,14 @@ export default function Hero() {
       gap: '16px',
       padding: '24px',
       
-      // GIỮ LẠI KHUNG TRẮNG NGUYÊN BẢN (KHÔNG BO GÓC)
+      // Keep the original white frame (no rounded corners)
       background: 'white',
       border: '1px solid var(--color-border)',
       boxShadow: 'var(--shadow-md)',
       
-      // CHỈNH LẠI KÍCH THƯỚC VÀ CĂN GIỮA ĐỂ CÂN ĐỐI
-      maxWidth: '1200px',    // Giới hạn chiều rộng của hộp trắng (bạn có thể đổi thành 1000px hoặc tùy ý để vừa vặn hơn)
-      margin: '0 auto 24px auto', // Căn đều trái/phải để hộp trắng nằm chính giữa màn hình, phía dưới cách 24px
+      // Adjust size and center for balance
+      maxWidth: '1200px',    // Limit the width of the white box
+      margin: '0 auto 24px auto', // Center horizontally with 24px bottom spacing
       
       textAlign: 'center',
     }}>

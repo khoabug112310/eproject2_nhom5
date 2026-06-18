@@ -9,11 +9,11 @@ const createBooking = async (req, res) => {
     
     if (!name || !phone) return fail(res, 'Name and phone are required', 400);
 
-    // Tìm hoặc tạo role patient
+    // Find or create the patient role
     const patientRole = await Role.findOne({ roleName: 'patient' });
     if (!patientRole) return fail(res, 'Patient role not configured', 500);
 
-    // Tìm user cũ hoặc tạo mới
+    // Find an existing user or create a new one
     let user = await User.findOne({ $or: [{ username: phone }, { phone }] });
     let createdUser = false;
     if (!user) {
@@ -22,7 +22,7 @@ const createBooking = async (req, res) => {
       createdUser = true;
     }
 
-    // Tìm hoặc tạo thông tin Patient
+    // Find or create the patient record
     let patient = await Patient.findOne({ userId: user._id });
     if (!patient) {
       const dob = new Date('1900-01-01');
@@ -71,14 +71,14 @@ const createBooking = async (req, res) => {
       }
     }
 
-    // Xử lý ngày cho Appointment (Vẫn giữ Date Object để bảng Appointment lưu chuẩn hệ thống)
+    // Handle the date for Appointment (keep a Date object for system-standard storage)
     const appointmentDate = reqDate ? new Date(reqDate) : new Date();
     appointmentDate.setHours(0, 0, 0, 0);
 
-    // Chuẩn hóa khung giờ (Dùng chung cho cả 2 bảng)
+    // Normalize the time slot (shared by both tables)
     const finalTime = time || '08:00 - 09:00'; 
 
-    // 1. Tạo lịch hẹn chính thức hệ thống (Appointment)
+    // 1. Create the official system appointment
     const appt = await Appointment.create({
       patientId: patient._id,
       requestedDate: appointmentDate,
@@ -89,23 +89,23 @@ const createBooking = async (req, res) => {
       status: 'Pending',
     });
 
-    // 🛠️ ĐÃ SỬA: Cắt chuỗi để ép bookingDate luôn chỉ có định dạng YYYY-MM-DD (Ví dụ: "2026-06-04")
-    // Dù Frontend gửi lên dạng ISO đầy đủ hay chuỗi ngắn, hệ thống vẫn sẽ bóc tách lấy phần ngày.
+    // Trim the string so bookingDate is always YYYY-MM-DD (e.g. "2026-06-04")
+    // Whether the frontend sends a full ISO string or a short one, the system extracts the date part.
     const stringDate = reqDate 
       ? String(reqDate).split('T')[0] 
       : new Date().toISOString().split('T')[0];
 
-    // 2. Tạo bản ghi QuickBooking (Chỉ lưu Chuỗi Ngày Tháng Năm thô)
+    // 2. Create the QuickBooking record (store the raw date string only)
     const booking = await QuickBooking.create({ 
       name, 
       phone, 
       department: departmentNameForQuick || reqDept, 
       doctor: doctorNameForQuick || reqDoc, 
-      bookingDate: stringDate, // 📌 Sẽ lưu thuần chuỗi chữ ngắn gọn "2026-06-04" vào DB
+      bookingDate: stringDate, // Stores a short plain date string "2026-06-04" in the DB
       time: finalTime          
     });
 
-    return ok(res, { appointment: appt, quickBooking: booking, createdUser }, 'Yêu cầu đặt lịch đã gửi cho nhân viên CSKH', 201);
+    return ok(res, { appointment: appt, quickBooking: booking, createdUser }, 'Your booking request has been sent to the customer care team', 201);
   } catch (error) {
     console.error('createBooking error', error);
     return fail(res, 'Server error when creating booking', 500, error.message);

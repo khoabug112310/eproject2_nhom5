@@ -1,11 +1,11 @@
 import React from 'react';
 
 export default function PostCard({ title, excerpt, date, thumbnail, onRead }) {
-  const displayDate = date ? new Date(date).toLocaleDateString('vi-VN', {
+  const displayDate = date ? new Date(date).toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
     day: 'numeric'
-  }) : 'Mới cập nhật';
+  }) : 'Recently updated';
 
   return (
     <div className="post-card fade-in" onClick={onRead} style={{ cursor: 'pointer' }}>
@@ -42,7 +42,7 @@ export default function PostCard({ title, excerpt, date, thumbnail, onRead }) {
         <div className="post-card-footer">
           <span className="post-date">📅 {displayDate}</span>
           <button className="post-read-btn">
-            Đọc bài
+            Read more
           </button>
         </div>
       </div>

@@ -36,7 +36,7 @@ export default function QuickBookingModal({ show, onClose }) {
           }}
           onMouseEnter={(e) => e.currentTarget.style.color = '#475569'}
           onMouseLeave={(e) => e.currentTarget.style.color = '#94a3b8'}
-          aria-label="Đóng"
+          aria-label="Close"
         >
           &times;
         </button>

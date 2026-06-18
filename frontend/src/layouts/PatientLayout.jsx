@@ -1,4 +1,4 @@
-// Layout Bệnh nhân (Dashboard, Lịch sử khám)
+// Patient layout (dashboard, visit history)
 import React from 'react';
 
 // export default function PatientLayout({ children }) {

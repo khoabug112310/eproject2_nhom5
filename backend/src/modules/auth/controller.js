@@ -1,5 +1,5 @@
 // Module Auth - Controller
-// Xử lý: Login, Register, Refresh Token, Logout
+// Handles: Login, Register, Refresh Token, Logout
 
 const jwt = require('jsonwebtoken');
 const config = require('../../config/env');
@@ -18,7 +18,7 @@ const login = async (req, res) => {
     
     // Check if account is active
     if (user.isActive === false) {
-      return fail(res, 'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ Admin.', 403);
+      return fail(res, 'Your account has been locked. Please contact the administrator.', 403);
     }
     // Fetch role name for payload & frontend convenience
     const role = await Role.findById(user.roleId);
@@ -58,7 +58,7 @@ const register = async (req, res) => {
     let user = await User.findOne({ $or: [{ username: phone }, { phone }] });
     if (user) {
       if (user.isRegistered) {
-        return fail(res, 'Số điện thoại này đã được đăng ký tài khoản. Vui lòng đăng nhập.', 422);
+        return fail(res, 'This phone number is already registered. Please log in.', 422);
       }
 
       // Account exists but not registered: if password provided, update password (activate)
@@ -89,10 +89,10 @@ const register = async (req, res) => {
         // create patient with placeholders where necessary
         const dob = dateOfBirth ? new Date(dateOfBirth) : new Date('1900-01-01');
         const idCard = identityCard || `REG-${Date.now()}-${phone}`;
-        await Patient.create({ userId: user._id, fullName: fullName || 'Khách hàng', dateOfBirth: dob, gender: gender || 'Khác', identityCard: idCard, phoneNumber: phone });
+        await Patient.create({ userId: user._id, fullName: fullName || 'Guest', dateOfBirth: dob, gender: gender || 'Khác', identityCard: idCard, phoneNumber: phone });
       }
 
-      return ok(res, { userId: user._id }, 'Tài khoản đã được kích hoạt');
+      return ok(res, { userId: user._id }, 'Account activated successfully');
     }
 
     // Create new user
@@ -102,9 +102,9 @@ const register = async (req, res) => {
     // Create patient record (fill placeholders if not provided)
     const dob = dateOfBirth ? new Date(dateOfBirth) : new Date('1900-01-01');
     const idCard = identityCard || `REG-${Date.now()}-${phone}`;
-    await Patient.create({ userId: newUser._id, fullName: fullName || 'Khách hàng', dateOfBirth: dob, gender: gender || 'Khác', identityCard: idCard, phoneNumber: phone, address: address || '' });
+    await Patient.create({ userId: newUser._id, fullName: fullName || 'Guest', dateOfBirth: dob, gender: gender || 'Khác', identityCard: idCard, phoneNumber: phone, address: address || '' });
 
-    return ok(res, { userId: newUser._id }, 'Đăng ký thành công');
+    return ok(res, { userId: newUser._id }, 'Registration successful');
   } catch (err) {
     console.error('register error', err);
     return fail(res, 'Server error', 500, err.message);
@@ -157,11 +157,11 @@ const impersonate = async (req, res) => {
     
     // Safety check: only admins can impersonate (this is also guarded in routes)
     if (req.user.role !== 'admin') {
-      return fail(res, 'Quyền truy cập bị từ chối. Chỉ Admin mới có quyền đăng nhập hộ.', 403);
+      return fail(res, 'Access denied. Only an administrator can impersonate users.', 403);
     }
     
     const user = await User.findById(userId);
-    if (!user) return fail(res, 'Không tìm thấy tài khoản người dùng', 404);
+    if (!user) return fail(res, 'User account not found', 404);
     
     const role = await Role.findById(user.roleId);
     const roleName = role ? role.roleName : null;
@@ -181,7 +181,7 @@ const impersonate = async (req, res) => {
       if (patient && patient.fullName) displayName = patient.fullName;
     }
     
-    return ok(res, { token, role: roleName, username: user.username, displayName }, 'Đăng nhập hộ thành công');
+    return ok(res, { token, role: roleName, username: user.username, displayName }, 'Impersonation successful');
   } catch (err) {
     console.error('impersonate error', err);
     return fail(res, 'Server error', 500, err.message);

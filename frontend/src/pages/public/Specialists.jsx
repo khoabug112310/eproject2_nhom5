@@ -124,12 +124,12 @@ export default function Specialists() {
             borderRadius: '50px',
             display: 'inline-block',
             marginBottom: '20px'
-          }}>Đội ngũ của chúng tôi</span>
+          }}>Our team</span>
           <h1 style={{ fontSize: '40px', fontWeight: '700', margin: '0 0 16px 0', letterSpacing: '-0.5px' }}>
-            Đội Ngũ Chuyên Gia Y Bác Sĩ
+            Our Team of Medical Specialists
           </h1>
           <p style={{ fontSize: '16px', color: 'rgba(255,255,255,0.85)', lineHeight: '1.6', maxWidth: '650px', margin: '0 auto' }}>
-            Phòng khám Đa Khoa Hợp Sơn Tài quy tụ đội ngũ bác sĩ, chuyên gia đầu ngành có học hàm học vị cao, luôn tâm huyết với nghề và giàu kinh nghiệm điều trị lâm sàng.
+            Hopsontai General Clinic brings together a team of leading doctors and specialists with advanced degrees, deep dedication to their profession, and extensive clinical treatment experience.
           </p>
         </div>
       </section>
@@ -161,7 +161,7 @@ export default function Specialists() {
               }}>
                 <input 
                   type="text" 
-                  placeholder="Tìm kiếm bác sĩ theo tên..." 
+                  placeholder="Search doctors by name..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   style={{
@@ -213,7 +213,7 @@ export default function Specialists() {
                   marginBottom: '10px', 
                   letterSpacing: '0.5px' 
                 }}>
-                  Lọc theo khoa:
+                  Filter by department:
                 </div>
                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                   <button 
@@ -232,7 +232,7 @@ export default function Specialists() {
                       outline: 'none'
                     }}
                   >
-                    Tất cả khoa
+                    All departments
                   </button>
                   {departments.map((dept) => {
                     const name = dept.departmentName || dept.name;
@@ -280,7 +280,7 @@ export default function Specialists() {
               }}>
                 {loading ? (
                   <div style={{ padding: '60px', textAlign: 'center', gridColumn: '1/-1', color: '#64748b', fontWeight: '600' }}>
-                    ⏳ Đang tải thông tin bác sĩ...
+                    ⏳ Loading doctors...
                   </div>
                 ) : filteredDoctors.length ? (
                   filteredDoctors.map((doc) => (
@@ -292,7 +292,7 @@ export default function Specialists() {
                   ))
                 ) : (
                   <div style={{ padding: '60px', textAlign: 'center', gridColumn: '1/-1', color: '#64748b' }}>
-                    📭 Không tìm thấy bác sĩ nào phù hợp với bộ lọc hiện tại.
+                    📭 No doctors match the current filters.
                   </div>
                 )}
               </div>

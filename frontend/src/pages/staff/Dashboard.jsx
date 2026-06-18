@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { schedulingAPI, profilesAPI, clinicalAPI } from '../../services/api';
+import Swal from 'sweetalert2';
 import RoleTopNav from '../../components/RoleTopNav';
 import DoctorScheduleModal from '../../components/DoctorScheduleModal';
 
@@ -51,7 +52,7 @@ export default function StaffDashboard() {
       setPatients(patientsRes.data.data);
     } catch (err) {
       console.error(err);
-      setErrorMessage('Lỗi khi lấy danh sách đặt lịch.');
+      setErrorMessage('Error loading the appointment list.');
     } finally {
       setLoading(false);
     }
@@ -100,27 +101,45 @@ export default function StaffDashboard() {
       // 2. Confirm the appointment
       await schedulingAPI.updateAppointment(activeApptId, { status: 'Confirmed' });
 
-      setSuccessMessage('Đã cập nhật thông tin bệnh nhân và XÁC NHẬN lịch khám thành công!');
+      setSuccessMessage('Patient information updated and appointment CONFIRMED successfully!');
       setEditingPatient(null);
       setActiveApptId(null);
       fetchData();
     } catch (err) {
-      setErrorMessage(err?.response?.data?.message || 'Có lỗi xảy ra khi xác nhận lịch khám.');
+      setErrorMessage(err?.response?.data?.message || 'An error occurred while confirming the appointment.');
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleDirectConfirm = async (apptId) => {
+    const appt = appointments.find(a => a._id === apptId);
+    // If no doctor is assigned yet, require choosing one first
+    if (!appt?.doctorId) {
+      setSelectedAppointmentForSchedule(appt);
+      setShowDoctorScheduleModal(true);
+      return;
+    }
+    const result = await Swal.fire({
+      title: 'Confirm appointment?',
+      text: `Confirm the appointment for patient ${appt?.patientId?.fullName || ''}. A consultation invoice will be created automatically.`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#10b981',
+      cancelButtonColor: '#64748b',
+      confirmButtonText: 'Confirm',
+      cancelButtonText: 'Cancel',
+    });
+    if (!result.isConfirmed) return;
     setSubmitting(true);
     setErrorMessage('');
     setSuccessMessage('');
     try {
       await schedulingAPI.updateAppointment(apptId, { status: 'Confirmed' });
-      setSuccessMessage('Xác nhận lịch khám thành công! Hóa đơn khám lâm sàng đã được tự động tạo.');
+      setSuccessMessage('Appointment confirmed successfully! The consultation invoice has been created automatically.');
       fetchData();
     } catch (err) {
-      setErrorMessage(err?.response?.data?.message || 'Không thể xác nhận lịch khám.');
+      setErrorMessage(err?.response?.data?.message || 'Could not confirm the appointment.');
     } finally {
       setSubmitting(false);
     }
@@ -130,16 +149,26 @@ export default function StaffDashboard() {
   const handleCancelAppointment = async (apptId) => {
     const appt = appointments.find((item) => item._id === apptId);
     if (!appt) return;
-    if (!window.confirm('Bạn có chắc muốn hủy lịch này?')) return;
+    const result = await Swal.fire({
+      title: 'Cancel appointment?',
+      text: `The appointment for patient ${appt?.patientId?.fullName || ''} will be cancelled.`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#64748b',
+      confirmButtonText: 'Cancel appointment',
+      cancelButtonText: 'Keep',
+    });
+    if (!result.isConfirmed) return;
     setSubmitting(true);
     setErrorMessage('');
     setSuccessMessage('');
     try {
       await schedulingAPI.updateAppointment(apptId, { status: 'Canceled' });
-      setSuccessMessage('Lịch đã được hủy.');
+      setSuccessMessage('The appointment has been cancelled.');
       fetchData();
     } catch (err) {
-      setErrorMessage(err?.response?.data?.message || 'Không thể hủy lịch.');
+      setErrorMessage(err?.response?.data?.message || 'Could not cancel the appointment.');
     } finally {
       setSubmitting(false);
     }
@@ -164,13 +193,13 @@ export default function StaffDashboard() {
       const updateData = { doctorId: newDoctorId, status: 'Confirmed' };
       await schedulingAPI.updateAppointment(selectedAppointmentForSchedule._id, updateData);
       
-      setSuccessMessage('Đã xác nhận lịch khám. Hóa đơn khám đã được tự động tạo.');
+      setSuccessMessage('Appointment confirmed. The consultation invoice has been created automatically.');
       
       setShowDoctorScheduleModal(false);
       setSelectedAppointmentForSchedule(null);
       fetchData();
     } catch (err) {
-      setErrorMessage(err?.response?.data?.message || 'Không thể cập nhật lịch khám.');
+      setErrorMessage(err?.response?.data?.message || 'Could not update the appointment.');
     } finally {
       setSubmitting(false);
     }
@@ -217,10 +246,10 @@ export default function StaffDashboard() {
   const renderStatus = (status) => {
     let cls = '';
     let label = status;
-    if (status === 'Pending') { cls = 'badge-warning'; label = 'Đang chờ duyệt'; }
-    else if (status === 'Confirmed') { cls = 'badge-primary'; label = 'Đã xác nhận'; }
-    else if (status === 'Completed') { cls = 'badge-success'; label = 'Đã khám xong'; }
-    else if (status === 'Canceled') { cls = 'badge-danger'; label = 'Đã hủy'; }
+    if (status === 'Pending') { cls = 'badge-warning'; label = 'Pending approval'; }
+    else if (status === 'Confirmed') { cls = 'badge-primary'; label = 'Confirmed'; }
+    else if (status === 'Completed') { cls = 'badge-success'; label = 'Completed'; }
+    else if (status === 'Canceled') { cls = 'badge-danger'; label = 'Cancelled'; }
     return <span className={`badge ${cls}`}>{label}</span>;
   };
 
@@ -232,7 +261,7 @@ export default function StaffDashboard() {
     return (
       <div className="dashboard-loading">
         <div className="spinner"></div>
-        <p>Đang tải danh sách đặt lịch...</p>
+        <p>Loading appointment list...</p>
       </div>
     );
   }
@@ -246,27 +275,27 @@ export default function StaffDashboard() {
         <aside className="dashboard-sidebar">
           <div className="patient-quick-info">
             <div className="p-avatar">📞</div>
-            <h4>Bộ phận CSKH</h4>
-            <p className="p-card-number">Tiếp nhận & Điều phối</p>
+            <h4>Customer Care</h4>
+            <p className="p-card-number">Reception &amp; Coordination</p>
           </div>
           <nav className="sidebar-nav">
             <button
               onClick={() => setFilterStatus('Pending')}
               className={filterStatus === 'Pending' ? 'active' : ''}
             >
-              ⏳ Lịch chờ duyệt ({appointments.filter(a => a.status === 'Pending').length})
+              ⏳ Pending approval ({appointments.filter(a => a.status === 'Pending').length})
             </button>
             <button
               onClick={() => setFilterStatus('Confirmed')}
               className={filterStatus === 'Confirmed' ? 'active' : ''}
             >
-              ✅ Lịch đã duyệt ({appointments.filter(a => a.status === 'Confirmed').length})
+              ✅ Confirmed ({appointments.filter(a => a.status === 'Confirmed').length})
             </button>
             <button
               onClick={() => setFilterStatus('All')}
               className={filterStatus === 'All' ? 'active' : ''}
             >
-              📅 Tất cả yêu cầu ({appointments.length})
+              📅 All requests ({appointments.length})
             </button>
           </nav>
         </aside>
@@ -277,31 +306,31 @@ export default function StaffDashboard() {
           {errorMessage && <div className="alert alert-danger">{errorMessage}</div>}
 
           <div className="dashboard-card">
-            <h2>Hàng đợi tiếp nhận khám bệnh</h2>
-            <p className="subtitle">CSKH kiểm tra thông tin liên hệ và CCCD của bệnh nhân trước khi đưa vào hàng chờ khám.</p>
+            <h2>Patient intake queue</h2>
+            <p className="subtitle">Customer care verifies the patient's contact details and ID before adding them to the examination queue.</p>
 
             {filteredAppointments.length === 0 ? (
               <div className="empty-state">
-                <p>Không có yêu cầu đặt lịch nào phù hợp.</p>
+                <p>No matching booking requests.</p>
               </div>
             ) : (
               <>
                 <div className="booking-summary-grid">
                   <div className="booking-summary-card booking-summary-card--account">
-                    <h4>Khách có tài khoản</h4>
-                    <p>{accountAppointments.length} ca</p>
+                    <h4>Registered customers</h4>
+                    <p>{accountAppointments.length} {accountAppointments.length === 1 ? 'request' : 'requests'}</p>
                   </div>
                   <div className="booking-summary-card booking-summary-card--guest">
-                    <h4>Khách vãng lai</h4>
-                    <p>{guestAppointments.length} ca</p>
+                    <h4>Walk-in guests</h4>
+                    <p>{guestAppointments.length} {guestAppointments.length === 1 ? 'request' : 'requests'}</p>
                   </div>
                 </div>
 
                 <div className="booking-group">
-                  <h3>Khách có tài khoản ({accountAppointments.length})</h3>
+                  <h3>Registered customers ({accountAppointments.length})</h3>
                   {accountAppointments.length === 0 ? (
                     <div className="empty-state">
-                      <p>Không có yêu cầu từ khách có tài khoản trong danh sách hiện tại.</p>
+                      <p>No requests from registered customers in the current list.</p>
                     </div>
                   ) : (
                     <div className="table-responsive">
@@ -309,10 +338,10 @@ export default function StaffDashboard() {
                         <thead>
                           <tr>
                             <th style={{ width: '50px' }}></th>
-                            <th>Bệnh nhân</th>
-                            <th>Tổng yêu cầu</th>
-                            <th>Trạng thái</th>
-                            <th>Hành động</th>
+                            <th>Patient</th>
+                            <th>Total requests</th>
+                            <th>Status</th>
+                            <th>Actions</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -332,18 +361,18 @@ export default function StaffDashboard() {
                                   </td>
                                   <td>
                                     <strong>{group.patient.fullName}</strong><br />
-                                    <small className="text-muted">SDT: {group.patient.phoneNumber}</small><br />
-                                    <small className="text-muted">CCCD: {group.patient.identityCard}</small>
+                                    <small className="text-muted">Phone: {group.patient.phoneNumber}</small><br />
+                                    <small className="text-muted">ID Card: {group.patient.identityCard}</small>
                                   </td>
                                   <td style={{ textAlign: 'center', fontWeight: 'bold' }}>
-                                    {group.appointments.length} ca
+                                    {group.appointments.length} {group.appointments.length === 1 ? 'request' : 'requests'}
                                   </td>
                                   <td style={{ textAlign: 'center' }}>
-                                    {pendingCount > 0 && <span className="badge badge-warning">Chờ: {pendingCount}</span>}
-                                    {confirmedCount > 0 && <span className="badge badge-primary" style={{ marginLeft: '5px' }}>Duyệt: {confirmedCount}</span>}
+                                    {pendingCount > 0 && <span className="badge badge-warning">Pending: {pendingCount}</span>}
+                                    {confirmedCount > 0 && <span className="badge badge-primary" style={{ marginLeft: '5px' }}>Confirmed: {confirmedCount}</span>}
                                   </td>
                                   <td style={{ textAlign: 'center' }}>
-                                    <small style={{ color: '#666' }}>Bấm để xem chi tiết</small>
+                                    <small style={{ color: '#666' }}>Click to view details</small>
                                   </td>
                                 </tr>
 
@@ -354,11 +383,11 @@ export default function StaffDashboard() {
                                     <tr key={appt._id} style={{ backgroundColor: '#fafafa', borderLeft: '4px solid #0066cc' }}>
                                       <td></td>
                                       <td>
-                                        <strong>{new Date(appt.requestedDate).toLocaleDateString('vi-VN')}</strong><br />
+                                        <strong>{new Date(appt.requestedDate).toLocaleDateString('en-US')}</strong><br />
                                         <small className="text-muted">{appt.requestedTime}</small>
                                       </td>
                                       <td>{appt.departmentId?.departmentName}</td>
-                                      <td>{appt.doctorId?.fullName || 'Bác sĩ bất kỳ'}</td>
+                                      <td>{appt.doctorId?.fullName || 'Any doctor'}</td>
                                       <td>
                                         <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', alignItems: 'center' }}>
                                           <span className="badge" style={{ 
@@ -366,9 +395,9 @@ export default function StaffDashboard() {
                                                            appt.status === 'Confirmed' ? '#007bff' : 
                                                            appt.status === 'Completed' ? '#28a745' : '#dc3545'
                                           }}>
-                                            {appt.status === 'Pending' ? 'Chờ duyệt' : 
-                                             appt.status === 'Confirmed' ? 'Đã duyệt' : 
-                                             appt.status === 'Completed' ? 'Đã khám' : 'Đã hủy'}
+                                            {appt.status === 'Pending' ? 'Pending' :
+                                             appt.status === 'Confirmed' ? 'Confirmed' :
+                                             appt.status === 'Completed' ? 'Examined' : 'Cancelled'}
                                           </span>
                                           {appt.status === 'Pending' && (
                                             <>
@@ -378,9 +407,9 @@ export default function StaffDashboard() {
                                                   e.stopPropagation();
                                                   handleOpenDoctorScheduleModal(appt);
                                                 }}
-                                                title="Xem lịch bác sĩ và đổi bác sĩ nếu cần"
+                                                title="View doctor schedule and reassign if needed"
                                               >
-                                                📅 Lịch bác sĩ
+                                                📅 Doctor schedule
                                               </button>
                                               {quick ? (
                                                 <button
@@ -390,7 +419,7 @@ export default function StaffDashboard() {
                                                     handleOpenEditModal(appt);
                                                   }}
                                                 >
-                                                  📝 Điền &amp; Duyệt
+                                                  📝 Fill &amp; Approve
                                                 </button>
                                               ) : (
                                                 <button
@@ -400,7 +429,7 @@ export default function StaffDashboard() {
                                                     handleDirectConfirm(appt._id);
                                                   }}
                                                 >
-                                                 Duyệt
+                                                 Approve
                                                 </button>
                                               )}
                                               <button
@@ -410,7 +439,7 @@ export default function StaffDashboard() {
                                                   handleCancelAppointment(appt._id);
                                                 }}
                                               >
-                                                Hủy
+                                                Cancel
                                               </button>
                                             </>
                                           )}
@@ -419,7 +448,7 @@ export default function StaffDashboard() {
                                               className="btn btn-warning btn-xs"
                                               onClick={(e) => { e.stopPropagation(); handleCancelAppointment(appt._id); }}
                                             >
-                                              Yêu cầu hủy
+                                              Request cancellation
                                             </button>
                                           )}
                                         </div>
@@ -437,10 +466,10 @@ export default function StaffDashboard() {
                 </div>
 
                 <div className="booking-group">
-                  <h3>Khách vãng lai ({guestAppointments.length})</h3>
+                  <h3>Walk-in guests ({guestAppointments.length})</h3>
                   {guestAppointments.length === 0 ? (
                     <div className="empty-state">
-                      <p>Không có yêu cầu từ khách vãng lai trong danh sách hiện tại.</p>
+                      <p>No requests from walk-in guests in the current list.</p>
                     </div>
                   ) : (
                     <div className="table-responsive">
@@ -448,10 +477,10 @@ export default function StaffDashboard() {
                         <thead>
                           <tr>
                             <th style={{ width: '50px' }}></th>
-                            <th>Bệnh nhân</th>
-                            <th>Tổng yêu cầu</th>
-                            <th>Trạng thái</th>
-                            <th>Hành động</th>
+                            <th>Patient</th>
+                            <th>Total requests</th>
+                            <th>Status</th>
+                            <th>Actions</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -471,18 +500,18 @@ export default function StaffDashboard() {
                                   </td>
                                   <td>
                                     <strong>{group.patient.fullName}</strong><br />
-                                    <small className="text-muted">SDT: {group.patient.phoneNumber}</small><br />
-                                    <small className="text-muted">CCCD: {group.patient.identityCard}</small>
+                                    <small className="text-muted">Phone: {group.patient.phoneNumber}</small><br />
+                                    <small className="text-muted">ID Card: {group.patient.identityCard}</small>
                                   </td>
                                   <td style={{ textAlign: 'center', fontWeight: 'bold' }}>
-                                    {group.appointments.length} ca
+                                    {group.appointments.length} {group.appointments.length === 1 ? 'request' : 'requests'}
                                   </td>
                                   <td style={{ textAlign: 'center' }}>
-                                    {pendingCount > 0 && <span className="badge badge-warning">Chờ: {pendingCount}</span>}
-                                    {confirmedCount > 0 && <span className="badge badge-primary" style={{ marginLeft: '5px' }}>Duyệt: {confirmedCount}</span>}
+                                    {pendingCount > 0 && <span className="badge badge-warning">Pending: {pendingCount}</span>}
+                                    {confirmedCount > 0 && <span className="badge badge-primary" style={{ marginLeft: '5px' }}>Confirmed: {confirmedCount}</span>}
                                   </td>
                                   <td style={{ textAlign: 'center' }}>
-                                    <small style={{ color: '#666' }}>Bấm để xem chi tiết</small>
+                                    <small style={{ color: '#666' }}>Click to view details</small>
                                   </td>
                                 </tr>
 
@@ -493,11 +522,11 @@ export default function StaffDashboard() {
                                     <tr key={appt._id} style={{ backgroundColor: '#fafafa', borderLeft: '4px solid #0066cc' }}>
                                       <td></td>
                                       <td>
-                                        <strong>{new Date(appt.requestedDate).toLocaleDateString('vi-VN')}</strong><br />
+                                        <strong>{new Date(appt.requestedDate).toLocaleDateString('en-US')}</strong><br />
                                         <small className="text-muted">{appt.requestedTime}</small>
                                       </td>
                                       <td>{appt.departmentId?.departmentName}</td>
-                                      <td>{appt.doctorId?.fullName || 'Bác sĩ bất kỳ'}</td>
+                                      <td>{appt.doctorId?.fullName || 'Any doctor'}</td>
                                       <td>
                                         <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', alignItems: 'center' }}>
                                           <span className="badge" style={{ 
@@ -505,9 +534,9 @@ export default function StaffDashboard() {
                                                            appt.status === 'Confirmed' ? '#007bff' : 
                                                            appt.status === 'Completed' ? '#28a745' : '#dc3545'
                                           }}>
-                                            {appt.status === 'Pending' ? 'Chờ duyệt' : 
-                                             appt.status === 'Confirmed' ? 'Đã duyệt' : 
-                                             appt.status === 'Completed' ? 'Đã khám' : 'Đã hủy'}
+                                            {appt.status === 'Pending' ? 'Pending' :
+                                             appt.status === 'Confirmed' ? 'Confirmed' :
+                                             appt.status === 'Completed' ? 'Examined' : 'Cancelled'}
                                           </span>
                                           {appt.status === 'Pending' && (
                                             <>
@@ -517,9 +546,9 @@ export default function StaffDashboard() {
                                                   e.stopPropagation();
                                                   handleOpenDoctorScheduleModal(appt);
                                                 }}
-                                                title="Xem lịch bác sĩ và đổi bác sĩ nếu cần"
+                                                title="View doctor schedule and reassign if needed"
                                               >
-                                                📅 Lịch bác sĩ
+                                                📅 Doctor schedule
                                               </button>
                                               {quick ? (
                                                 <button
@@ -529,7 +558,7 @@ export default function StaffDashboard() {
                                                     handleOpenEditModal(appt);
                                                   }}
                                                 >
-                                                  📝 Điền &amp; Duyệt
+                                                  📝 Fill &amp; Approve
                                                 </button>
                                               ) : (
                                                 <button
@@ -539,7 +568,7 @@ export default function StaffDashboard() {
                                                     handleDirectConfirm(appt._id);
                                                   }}
                                                 >
-                                                  ⚡ Duyệt
+                                                  ⚡ Approve
                                                 </button>
                                               )}
                                               <button
@@ -549,7 +578,7 @@ export default function StaffDashboard() {
                                                   handleCancelAppointment(appt._id);
                                                 }}
                                               >
-                                                Hủy
+                                                Cancel
                                               </button>
                                             </>
                                           )}
@@ -558,7 +587,7 @@ export default function StaffDashboard() {
                                               className="btn btn-warning btn-xs"
                                               onClick={(e) => { e.stopPropagation(); handleCancelAppointment(appt._id); }}
                                             >
-                                              Yêu cầu hủy
+                                              Request cancellation
                                             </button>
                                           )}
                                         </div>
@@ -585,18 +614,18 @@ export default function StaffDashboard() {
         <div className="modal-backdrop">
           <div className="modal-content patient-profile-modal">
             <div className="modal-header">
-              <h3>Điền thông tin hồ sơ & Duyệt khám</h3>
+              <h3>Complete patient profile &amp; Approve</h3>
               <button className="close-btn" onClick={() => setEditingPatient(null)}>&times;</button>
             </div>
             <form onSubmit={handleUpdateAndConfirm}>
               <div className="modal-body">
                 <p className="modal-alert-info">
-                  ⚠️ Bệnh nhân đặt lịch nhanh chưa có hồ sơ đầy đủ. Vui lòng hỏi thông tin và điền đầy đủ các thông tin bắt buộc trước khi cho phép xác nhận khám.
+                  ⚠️ This quick-booking patient does not have a complete profile yet. Please ask for and fill in all required information before confirming the appointment.
                 </p>
 
                 <div className="grid-form">
                   <div className="form-group">
-                    <label>Họ tên đầy đủ *</label>
+                    <label>Full name *</label>
                     <input
                       type="text"
                       value={patientForm.fullName}
@@ -606,7 +635,7 @@ export default function StaffDashboard() {
                   </div>
 
                   <div className="form-group">
-                    <label>Số điện thoại *</label>
+                    <label>Phone number *</label>
                     <input
                       type="tel"
                       value={patientForm.phoneNumber}
@@ -616,7 +645,7 @@ export default function StaffDashboard() {
                   </div>
 
                   <div className="form-group">
-                    <label>Ngày sinh *</label>
+                    <label>Date of birth *</label>
                     <input
                       type="date"
                       value={patientForm.dateOfBirth}
@@ -626,46 +655,46 @@ export default function StaffDashboard() {
                   </div>
 
                   <div className="form-group">
-                    <label>Giới tính *</label>
+                    <label>Gender *</label>
                     <select
                       value={patientForm.gender}
                       onChange={(e) => setPatientForm({ ...patientForm, gender: e.target.value })}
                       required
                     >
-                      <option value="Nam">Nam</option>
-                      <option value="Nữ">Nữ</option>
-                      <option value="Khác">Khác</option>
+                      <option value="Nam">Male</option>
+                      <option value="Nữ">Female</option>
+                      <option value="Khác">Other</option>
                     </select>
                   </div>
 
                   <div className="form-group">
-                    <label>Số CCCD / CMND *</label>
+                    <label>ID card number *</label>
                     <input
                       type="text"
                       value={patientForm.identityCard}
                       onChange={(e) => setPatientForm({ ...patientForm, identityCard: e.target.value })}
-                      placeholder="Số căn cước công dân"
+                      placeholder="National ID number"
                       required
                     />
                   </div>
 
                   <div className="form-group">
-                    <label>Mã thẻ bảo hiểm (BHYT)</label>
+                    <label>Health insurance number</label>
                     <input
                       type="text"
                       value={patientForm.insuranceCode}
                       onChange={(e) => setPatientForm({ ...patientForm, insuranceCode: e.target.value })}
-                      placeholder="Không bắt buộc"
+                      placeholder="Optional"
                     />
                   </div>
 
                   <div className="form-group full-width">
-                    <label>Địa chỉ thường trú *</label>
+                    <label>Permanent address *</label>
                     <input
                       type="text"
                       value={patientForm.address}
                       onChange={(e) => setPatientForm({ ...patientForm, address: e.target.value })}
-                      placeholder="Số nhà, Tên đường, Quận/Huyện..."
+                      placeholder="House no., street, district..."
                       required
                     />
                   </div>
@@ -673,8 +702,8 @@ export default function StaffDashboard() {
               </div>
 
               <div className="modal-footer">
-                <button type="button" className="btn btn-ghost" onClick={() => setEditingPatient(null)}>Đóng</button>
-                <button type="submit" className="btn btn-primary" disabled={submitting}>{submitting ? 'Đang xử lý...' : 'Cập nhật & Duyệt'}</button>
+                <button type="button" className="btn btn-ghost" onClick={() => setEditingPatient(null)}>Close</button>
+                <button type="submit" className="btn btn-primary" disabled={submitting}>{submitting ? 'Processing...' : 'Update &amp; Approve'}</button>
               </div>
             </form>
           </div>

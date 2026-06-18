@@ -1,5 +1,5 @@
 // Module Billing - Controller
-// Xử lý: Invoices
+// Handles: Invoices
 
 const Invoice = require('../../models/Invoice');
 const Invoice_Detail = require('../../models/Invoice_Detail');
@@ -11,7 +11,7 @@ const createInvoice = async (req, res) => {
   try {
     const { appointmentId, patientId, invoiceType, totalAmount } = req.body;
     if (!appointmentId || !patientId || !invoiceType || typeof totalAmount !== 'number') {
-      return res.status(400).json({ success: false, message: 'Thông tin hóa đơn thiếu hoặc không hợp lệ' });
+      return res.status(400).json({ success: false, message: 'Invoice information is missing or invalid' });
     }
 
     const invoice = await Invoice.create({
@@ -24,11 +24,11 @@ const createInvoice = async (req, res) => {
     });
 
     const { success: ok } = require('../../utils/response');
-    return ok(res, invoice, 'Tạo hóa đơn thành công');
+    return ok(res, invoice, 'Invoice created successfully');
   } catch (err) {
     console.error('createInvoice error', err);
     const { fail } = require('../../utils/response');
-    return fail(res, 'Lỗi khi tạo hóa đơn', 500, err.message);
+    return fail(res, 'Error creating the invoice', 500, err.message);
   }
 };
 
@@ -40,7 +40,7 @@ const getInvoices = async (req, res) => {
         const patient = await Patient.findOne({ userId: req.user.id });
         if (!patient) {
           const { success: ok } = require('../../utils/response');
-          return ok(res, [], 'Lấy danh sách hóa đơn thành công');
+          return ok(res, [], 'Invoice list loaded successfully');
         }
         q.patientId = patient._id;
       }
@@ -52,10 +52,7 @@ const getInvoices = async (req, res) => {
         path: 'appointmentId',
         populate: { path: 'doctorId departmentId' }
       })
-      .populate({
-        path: 'processedBy',
-        select: 'fullName'
-      })
+      .populate({ path: 'processedBy', select: 'username' })
       .sort({ createdAt: -1 })
       .lean();
 
@@ -65,15 +62,23 @@ const getInvoices = async (req, res) => {
         const details = await Invoice_Detail.find({ invoiceId: inv._id }).populate('medicineId').lean();
         inv.details = details;
       }
+      // Resolve processedBy display name from Staff profile
+      if (inv.processedBy && inv.processedBy._id) {
+        const staffProfile = await Staff.findOne({ userId: inv.processedBy._id }).select('fullName').lean();
+        inv.processedBy = {
+          _id: inv.processedBy._id,
+          fullName: staffProfile ? staffProfile.fullName : inv.processedBy.username,
+        };
+      }
       invoicesWithDetails.push(inv);
     }
 
     const { success: ok } = require('../../utils/response');
-    return ok(res, invoicesWithDetails, 'Lấy danh sách hóa đơn thành công');
+    return ok(res, invoicesWithDetails, 'Invoice list loaded successfully');
   } catch (err) {
     console.error('getInvoices error', err);
     const { fail } = require('../../utils/response');
-    return fail(res, 'Lỗi khi lấy danh sách hóa đơn', 500, err.message);
+    return fail(res, 'Error loading the invoice list', 500, err.message);
   }
 };
 
@@ -83,7 +88,7 @@ const updateInvoiceStatus = async (req, res) => {
     const { status, totalAmount } = req.body;
     
     const invoice = await Invoice.findById(id);
-    if (!invoice) return res.status(404).json({ success: false, message: 'Hóa đơn không tồn tại' });
+    if (!invoice) return res.status(404).json({ success: false, message: 'Invoice not found' });
 
     if (status) invoice.status = status;
     if (typeof totalAmount === 'number') invoice.totalAmount = totalAmount;
@@ -91,11 +96,11 @@ const updateInvoiceStatus = async (req, res) => {
     await invoice.save();
 
     const { success: ok } = require('../../utils/response');
-    return ok(res, invoice, 'Cập nhật hóa đơn thành công');
+    return ok(res, invoice, 'Invoice updated successfully');
   } catch (err) {
     console.error('updateInvoiceStatus error', err);
     const { fail } = require('../../utils/response');
-    return fail(res, 'Lỗi khi cập nhật hóa đơn', 500, err.message);
+    return fail(res, 'Error updating the invoice', 500, err.message);
   }
 };
 
@@ -103,27 +108,23 @@ const processPayment = async (req, res) => {
   try {
     const { id } = req.params;
     const invoice = await Invoice.findById(id);
-    if (!invoice) return res.status(404).json({ success: false, message: 'Hóa đơn không tồn tại' });
+    if (!invoice) return res.status(404).json({ success: false, message: 'Invoice not found' });
 
     if (invoice.status === INVOICE_STATUS.PAID) {
-      return res.status(400).json({ success: false, message: 'Hóa đơn này đã được thanh toán' });
+      return res.status(400).json({ success: false, message: 'This invoice has already been paid' });
     }
 
-    const staff = await Staff.findOne({ userId: req.user.id });
-    
     invoice.status = INVOICE_STATUS.PAID;
     invoice.paidAt = new Date();
-    if (staff) {
-      invoice.processedBy = staff._id;
-    }
+    invoice.processedBy = req.user.id || req.user._id;
     await invoice.save();
 
     const { success: ok } = require('../../utils/response');
-    return ok(res, invoice, 'Thanh toán hóa đơn thành công');
+    return ok(res, invoice, 'Invoice paid successfully');
   } catch (err) {
     console.error('processPayment error', err);
     const { fail } = require('../../utils/response');
-    return fail(res, 'Lỗi khi xử lý thanh toán', 500, err.message);
+    return fail(res, 'Error processing the payment', 500, err.message);
   }
 };
 

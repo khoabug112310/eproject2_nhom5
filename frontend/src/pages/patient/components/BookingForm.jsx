@@ -59,7 +59,7 @@ export default function BookingForm({ onBooked }) {
     setMessage('');
 
     if (!departmentId || !requestedDate || !requestedTime) {
-      setError('Vui lòng chọn khoa, ngày và giờ.');
+      setError('Please select a department, date, and time.');
       return;
     }
 
@@ -72,7 +72,7 @@ export default function BookingForm({ onBooked }) {
         requestedTime,
         symptoms,
       });
-      setMessage('Đặt lịch thành công. CSKH sẽ liên hệ xác nhận.');
+      setMessage('Appointment booked successfully. Our care team will contact you to confirm.');
       setRequestedDate('');
       setRequestedTime('08:00');
       setSymptoms('');
@@ -80,7 +80,7 @@ export default function BookingForm({ onBooked }) {
       if (onBooked) onBooked();
     } catch (err) {
       console.error(err);
-      setError(err.response?.data?.message || 'Lỗi khi đặt lịch.');
+      setError(err.response?.data?.message || 'Error booking the appointment.');
     } finally {
       setLoading(false);
     }
@@ -90,12 +90,12 @@ export default function BookingForm({ onBooked }) {
     <section className="quick-booking">
       <header className="quick-booking-header card-title-bar">
         <div>
-          <p>Đặt lịch nhanh</p>
-          <h4>Yêu cầu lịch khám mới</h4>
+          <p>Quick booking</p>
+          <h4>Request a new appointment</h4>
         </div>
       </header>
       <div className="quick-booking-subtitle">
-        <p>Chọn khoa và thời gian phù hợp, sau đó CSKH sẽ xác nhận.</p>
+        <p>Choose a department and a convenient time, then our care team will confirm.</p>
       </div>
 
       <form className="quick-booking-body" onSubmit={handleSubmit}>
@@ -104,9 +104,9 @@ export default function BookingForm({ onBooked }) {
 
         <div className="form-grid">
           <label className="form-group">
-            Khoa khám
+            Department
             <select value={departmentId} onChange={handleDepartmentChange}>
-              <option value="">Chọn khoa</option>
+              <option value="">Select department</option>
               {departments.map((dept) => (
                 <option key={dept._id} value={dept._id}>
                   {dept.departmentName || dept.name}
@@ -116,7 +116,7 @@ export default function BookingForm({ onBooked }) {
           </label>
 
           <label className="form-group">
-            Ngày khám
+            Appointment date
             <input type="date" value={requestedDate} onChange={(e) => setRequestedDate(e.target.value)} />
           </label>
         </div>
@@ -124,9 +124,9 @@ export default function BookingForm({ onBooked }) {
         {departmentId && (
           <div className="form-grid">
             <label className="form-group">
-              Bác sĩ mong muốn
+              Preferred doctor
               <select value={doctorId} onChange={(e) => setDoctorId(e.target.value)}>
-                <option value="">Chọn bác sĩ (tùy chọn)</option>
+                <option value="">Select a doctor (optional)</option>
                 {filteredDoctors.length > 0 ? (
                   filteredDoctors.map((doc) => (
                     <option key={doc.id || doc._id} value={doc.id || doc._id}>
@@ -134,7 +134,7 @@ export default function BookingForm({ onBooked }) {
                     </option>
                   ))
                 ) : (
-                  <option value="" disabled>Chưa có bác sĩ trong khoa này</option>
+                  <option value="" disabled>No doctors in this department yet</option>
                 )}
               </select>
             </label>
@@ -143,7 +143,7 @@ export default function BookingForm({ onBooked }) {
 
         <div className="form-grid">
           <label className="form-group">
-            Khung giờ
+            Time slot
             <select value={requestedTime} onChange={(e) => setRequestedTime(e.target.value)}>
               {TIME_SLOTS.map((slot) => (
                 <option key={slot} value={slot}>{slot}</option>
@@ -153,17 +153,17 @@ export default function BookingForm({ onBooked }) {
         </div>
 
         <label className="form-group">
-          Triệu chứng lâm sàng / Lý do khám
+          Symptoms / Reason for visit
           <textarea
             rows={5}
-            placeholder="Mô tả chi tiết triệu chứng, dấu hiệu hoặc lý do khám để bác sĩ nắm rõ hơn..."
+            placeholder="Describe your symptoms, signs, or reason for the visit so the doctor can understand better..."
             value={symptoms}
             onChange={(e) => setSymptoms(e.target.value)}
           />
         </label>
 
         <button className="btn btn-primary" type="submit" disabled={loading}>
-          {loading ? 'Đang gửi...' : 'Xác nhận đặt lịch'}
+          {loading ? 'Submitting...' : 'Confirm booking'}
         </button>
       </form>
     </section>

@@ -5,16 +5,16 @@ export default function RoleDashboardShell({ title, subtitle, cards, role }) {
   return (
     <div className="role-dashboard-shell" style={{
       fontFamily: 'system-ui, -apple-system, sans-serif',
-      backgroundColor: '#f8fafc', // Nền xám nhạt cực sang giúp nổi bật các card trắng
+      backgroundColor: '#f8fafc', // Light gray background to make white cards stand out
       minHeight: '100vh',
       paddingBottom: '40px'
     }}>
-      {/* Thanh điều hướng trên cùng */}
+      {/* Top navigation bar */}
       <RoleTopNav role={role} />
       
-      {/* Khu vực Hero chào đón */}
+      {/* Welcome hero area */}
       <div className="role-hero" style={{
-        background: 'linear-gradient(135deg, #e0f2fe 0%, #f8fafc 100%)', // Gradient xanh y tế nhạt
+        background: 'linear-gradient(135deg, #e0f2fe 0%, #f8fafc 100%)', // Soft medical-blue gradient
         padding: '48px 24px',
         textAlign: 'center',
         borderBottom: '1px solid #e2e8f0',
@@ -25,10 +25,10 @@ export default function RoleDashboardShell({ title, subtitle, cards, role }) {
           letterSpacing: '1.5px',
           fontSize: '12px',
           fontWeight: '700',
-          color: '#0284c7', // Màu xanh thương hiệu chính
+          color: '#0284c7',
           marginBottom: '8px'
         }}>
-          Phòng khám đa khoa Hợp Sơn Tài
+          Hopsontai General Clinic
         </p>
         <h1 style={{
           fontSize: '32px',
@@ -50,10 +50,10 @@ export default function RoleDashboardShell({ title, subtitle, cards, role }) {
         </p>
       </div>
 
-      {/* Lưới hiển thị các thẻ chức năng */}
+      {/* Feature cards grid */}
       <div className="role-card-grid" style={{
         display: 'grid',
-        // Tự động chia cột thông minh: tối thiểu 280px, tối đa xếp đều nhau
+        // Responsive auto-fit columns: min 280px
         gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
         gap: '24px',
         maxWidth: '1200px',
@@ -67,16 +67,16 @@ export default function RoleDashboardShell({ title, subtitle, cards, role }) {
             style={{
               background: '#ffffff',
               border: '1px solid #e2e8f0',
-              borderRadius: '16px', // Bo góc hiện đại
+              borderRadius: '16px', // Modern rounded corners
               padding: '28px',
-              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)', // Đổ bóng mịn
+              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)', // Soft shadow
               transition: 'transform 0.2s ease, box-shadow 0.2s ease',
               cursor: 'pointer',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'flex-start'
             }}
-            // Thêm hiệu ứng hover tương tác bằng JS inline đơn giản
+            // Simple inline JS hover effect
             onMouseEnter={(e) => {
               e.currentTarget.style.transform = 'translateY(-4px)';
               e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.1)';
@@ -86,10 +86,10 @@ export default function RoleDashboardShell({ title, subtitle, cards, role }) {
               e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.05)';
             }}
           >
-            {/* Vùng chứa Icon được chau chuốt */}
+            {/* Polished icon container */}
             <div className="role-card-icon" style={{
               fontSize: '24px',
-              backgroundColor: '#f0f9ff', // Nền xanh nhạt ôm lấy icon
+              backgroundColor: '#f0f9ff', // Light blue background around the icon
               color: '#0284c7',
               padding: '12px',
               borderRadius: '12px',

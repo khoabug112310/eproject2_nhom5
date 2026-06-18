@@ -3,11 +3,11 @@ import DepartmentCard from '../../components/cards/DepartmentCard';
 import { schedulingAPI } from '../../services/api';
 
 const filterTabs = [
-  { id: 'all', name: 'Tất cả chuyên khoa' },
-  { id: 'internal', name: 'Nội khoa & Tim mạch' },
-  { id: 'external', name: 'Ngoại khoa & Da liễu' },
-  { id: 'maternity', name: 'Sản & Nhi khoa' },
-  { id: 'specialty', name: 'Đông y & Chuyên khoa lẻ' }
+  { id: 'all', name: 'All Specialties' },
+  { id: 'internal', name: 'Internal Medicine & Cardiology' },
+  { id: 'external', name: 'Surgery & Dermatology' },
+  { id: 'maternity', name: 'Obstetrics & Pediatrics' },
+  { id: 'specialty', name: 'Traditional & Sub-specialties' }
 ];
 
 // Helper function to remove Vietnamese diacritics for search matching
@@ -76,16 +76,16 @@ export default function Departments() {
       const lowerName = name.toLowerCase();
       if (activeTab === 'all') return true;
       if (activeTab === 'internal') {
-        return lowerName.includes('nội') || lowerName.includes('tim') || lowerName.includes('mạch');
+        return lowerName.includes('medicine') || lowerName.includes('cardiology') || lowerName.includes('nội') || lowerName.includes('tim') || lowerName.includes('mạch');
       }
       if (activeTab === 'external') {
-        return lowerName.includes('ngoại') || lowerName.includes('da');
+        return lowerName.includes('surgery') || lowerName.includes('dermatology') || lowerName.includes('ngoại') || lowerName.includes('da');
       }
       if (activeTab === 'maternity') {
-        return lowerName.includes('sản') || lowerName.includes('phụ') || lowerName.includes('nhi');
+        return lowerName.includes('obstetric') || lowerName.includes('gynecology') || lowerName.includes('pediatric') || lowerName.includes('sản') || lowerName.includes('phụ') || lowerName.includes('nhi');
       }
       if (activeTab === 'specialty') {
-        return lowerName.includes('cổ truyền') || lowerName.includes('đông y') || lowerName.includes('tai') || lowerName.includes('họng') || lowerName.includes('răng') || lowerName.includes('nha') || lowerName.includes('mắt');
+        return lowerName.includes('traditional') || lowerName.includes('dental') || lowerName.includes('stomatology') || lowerName.includes('odonto') || lowerName.includes('ent') || lowerName.includes('otorhinolaryngology') || lowerName.includes('eye') || lowerName.includes('ophthalmology') || lowerName.includes('cổ truyền') || lowerName.includes('đông y') || lowerName.includes('tai') || lowerName.includes('họng') || lowerName.includes('răng') || lowerName.includes('nha') || lowerName.includes('mắt');
       }
       return true;
     });
@@ -96,7 +96,7 @@ export default function Departments() {
   return (
     <div style={{ width: '100%', boxSizing: 'border-box' }}>
       
-      {/* 1. HERO BANNER - GIỮ PHONG CÁCH DOANH NGHIỆP SANG TRỌNG */}
+      {/* 1. HERO BANNER */}
       <section style={{
         textAlign: 'center',
         padding: '80px 20px',
@@ -126,12 +126,12 @@ export default function Departments() {
             borderRadius: '50px',
             display: 'inline-block',
             marginBottom: '20px'
-          }}>Chuyên khoa lâm sàng</span>
+          }}>Clinical specialties</span>
           <h1 style={{ fontSize: '40px', fontWeight: '700', margin: '0 0 16px 0', letterSpacing: '-0.5px' }}>
-            Hệ Thống Chuyên Khoa Đa Dạng
+            A Comprehensive Range of Specialties
           </h1>
           <p style={{ fontSize: '16px', color: 'rgba(255,255,255,0.85)', lineHeight: '1.6', maxWidth: '650px', margin: '0 auto' }}>
-            Hợp Sơn Tài quy tụ các chuyên khoa lâm sàng đa dạng, kết hợp tinh hoa Y học Cổ truyền và trang thiết bị hiện đại nhất để chăm sóc sức khỏe toàn diện và tối ưu cho bạn và gia đình.
+            Hopsontai brings together a diverse range of clinical specialties, combining the essence of traditional medicine with the most modern equipment to provide comprehensive, optimal care for you and your family.
           </p>
         </div>
       </section>
@@ -155,9 +155,9 @@ export default function Departments() {
             gap: '16px'
           }}>
             <div>
-              <h2 style={{ fontSize: '24px', fontWeight: '700', color: '#1e293b', margin: 0 }}>Danh sách chuyên khoa</h2>
+              <h2 style={{ fontSize: '24px', fontWeight: '700', color: '#1e293b', margin: 0 }}>Department List</h2>
               <p style={{ fontSize: '13px', color: '#64748b', margin: '4px 0 0 0' }}>
-                Tìm thấy {filteredDepts.length} chuyên khoa phù hợp với bộ lọc
+                {filteredDepts.length} departments match your filters
               </p>
             </div>
 
@@ -169,7 +169,7 @@ export default function Departments() {
             }}>
               <input 
                 type="text" 
-                placeholder="Tìm kiếm nhanh chuyên khoa..." 
+                placeholder="Quick search departments..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 style={{
@@ -267,7 +267,7 @@ export default function Departments() {
         }}>
           {loading ? (
             <div style={{ padding: '60px', textAlign: 'center', gridColumn: '1/-1', color: '#64748b', fontWeight: '600' }}>
-              ⏳ Đang tải danh sách chuyên khoa...
+              ⏳ Loading departments...
             </div>
           ) : filteredDepts.length ? (
             filteredDepts.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE).map((d) => (
@@ -281,7 +281,7 @@ export default function Departments() {
             ))
           ) : (
             <div style={{ padding: '60px', textAlign: 'center', gridColumn: '1/-1', color: '#64748b' }}>
-              📭 Không tìm thấy chuyên khoa nào phù hợp với bộ lọc hiện tại.
+              📭 No departments match the current filters.
             </div>
           )}
         </div>
@@ -428,10 +428,10 @@ export default function Departments() {
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: '50px' }}>
             <h2 style={{ fontSize: '28px', fontWeight: '700', color: '#1e293b', margin: '0 0 10px 0' }}>
-              Cam Kết Về Chất Lượng Dịch Vụ
+              Our Commitment to Service Quality
             </h2>
             <p style={{ fontSize: '15px', color: '#64748b', margin: 0 }}>
-              Mỗi chuyên khoa tại Hợp Sơn Tài đều hoạt động theo quy chuẩn khắt khe nhất
+              Every department at Hopsontai operates to the most rigorous standards
             </p>
           </div>
 
@@ -449,9 +449,9 @@ export default function Departments() {
               boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)'
             }}>
               <div style={{ fontSize: '36px', marginBottom: '16px' }}>🔬</div>
-              <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#1e293b', margin: '0 0 10px 0' }}>Thiết bị tối tân</h3>
+              <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#1e293b', margin: '0 0 10px 0' }}>State-of-the-art equipment</h3>
               <p style={{ fontSize: '14px', lineHeight: '1.6', color: '#64748b', margin: 0 }}>
-                Hệ thống máy siêu âm, X-quang kỹ thuật số và thiết bị xét nghiệm được nhập khẩu trực tiếp từ Mỹ và Đức, cho kết quả chẩn đoán nhanh chóng và có độ chính xác cao nhất.
+                Our ultrasound, digital X-ray, and laboratory systems are imported directly from the US and Germany, delivering fast diagnostic results with the highest accuracy.
               </p>
             </div>
 
@@ -464,9 +464,9 @@ export default function Departments() {
               boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)'
             }}>
               <div style={{ fontSize: '36px', marginBottom: '16px' }}>👩‍⚕️</div>
-              <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#1e293b', margin: '0 0 10px 0' }}>Đội ngũ chuyên gia</h3>
+              <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#1e293b', margin: '0 0 10px 0' }}>Team of specialists</h3>
               <p style={{ fontSize: '14px', lineHeight: '1.6', color: '#64748b', margin: 0 }}>
-                Quy tụ các Phó giáo sư, Tiến sĩ và bác sĩ chuyên khoa cấp I, cấp II từ các bệnh viện lớn tuyến đầu trung ương, luôn sẵn lòng tư vấn tận tình bằng sự thấu cảm và y đức.
+                A team of Associate Professors, Doctors of Medicine, and Level I and II specialists from leading national hospitals, always ready to advise with empathy and medical ethics.
               </p>
             </div>
 
@@ -479,9 +479,9 @@ export default function Departments() {
               boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)'
             }}>
               <div style={{ fontSize: '36px', marginBottom: '16px' }}>🤝</div>
-              <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#1e293b', margin: '0 0 10px 0' }}>Quy trình tối giản</h3>
+              <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#1e293b', margin: '0 0 10px 0' }}>Streamlined process</h3>
               <p style={{ fontSize: '14px', lineHeight: '1.6', color: '#64748b', margin: 0 }}>
-                Đặt lịch khám trước thông qua website giúp bệnh nhân không còn mất nhiều giờ chờ đợi xếp hàng. Thủ tục hành chính được hỗ trợ xử lý nhanh gọn và thanh toán linh hoạt.
+                Booking online in advance means patients no longer waste hours waiting in line. Administrative procedures are handled quickly, with flexible payment options.
               </p>
             </div>
           </div>

@@ -7,7 +7,7 @@ const apiClient = axios.create({
   baseURL: API_BASE_URL,
 });
 
-// Interceptor để thêm JWT token
+// Interceptor to attach JWT token
 apiClient.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
   if (token) {
@@ -16,7 +16,7 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
-// Interceptor để xử lý tự động khi bị khóa tài khoản hoặc hết hạn token (401/403)
+// Interceptor to auto-handle locked accounts or expired tokens (401/403)
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
@@ -70,8 +70,20 @@ export const profilesAPI = {
 export const schedulingAPI = {
   getDepartments: () =>
     apiClient.get('/scheduling/departments'),
+  createDepartment: (data) =>
+    apiClient.post('/scheduling/departments', data),
+  updateDepartment: (id, data) =>
+    apiClient.put(`/scheduling/departments/${id}`, data),
+  deleteDepartment: (id) =>
+    apiClient.delete(`/scheduling/departments/${id}`),
   getSchedules: (doctorId, date) =>
     apiClient.get(`/scheduling/schedules?doctor=${doctorId}${date ? `&date=${date}` : ''}`),
+  getAllDoctorSchedules: () =>
+    apiClient.get('/scheduling/doctor-schedules'),
+  createDoctorSchedule: (data) =>
+    apiClient.post('/scheduling/doctor-schedules', data),
+  deleteDoctorSchedule: (id) =>
+    apiClient.delete(`/scheduling/doctor-schedules/${id}`),
   bookAppointment: (data) =>
     apiClient.post('/scheduling/appointments', data),
   getAppointments: () =>
@@ -84,6 +96,12 @@ export const schedulingAPI = {
 export const clinicalAPI = {
   getMedicines: () =>
     apiClient.get('/clinical/medicines'),
+  createMedicine: (data) =>
+    apiClient.post('/clinical/medicines', data),
+  updateMedicine: (id, data) =>
+    apiClient.put(`/clinical/medicines/${id}`, data),
+  deleteMedicine: (id) =>
+    apiClient.delete(`/clinical/medicines/${id}`),
   getDoctors: (params) =>
     apiClient.get('/clinical/doctors', { params }),
   getPublicStats: () =>

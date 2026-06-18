@@ -1,4 +1,4 @@
-// Layout Bác sĩ (Lịch trực, Ca khám, Kê đơn)
+// Doctor layout (shifts, examinations, prescriptions)
 import React from 'react';
 
 export default function DoctorLayout({ children }) {
