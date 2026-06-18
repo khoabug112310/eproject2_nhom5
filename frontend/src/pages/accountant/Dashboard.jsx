@@ -32,7 +32,7 @@ export default function AccountantDashboard() {
       setInvoices(res.data.data);
     } catch (err) {
       console.error(err);
-      setErrorMessage('Failed to load invoice list.');
+      setErrorMessage('Could not load the invoice list.');
     } finally {
       setLoading(false);
     }
@@ -40,8 +40,8 @@ export default function AccountantDashboard() {
 
   const handleProcessPayment = async (invoiceId) => {
     const result = await Swal.fire({
-      title: 'Confirm Payment Receipt',
-      text: 'Do you confirm that you have received cash/transfer for this invoice?',
+      title: 'Confirm payment collection',
+      text: 'Do you confirm that cash/bank transfer has actually been received for this invoice?',
       icon: 'question',
       showCancelButton: true,
       confirmButtonColor: '#10b981',
@@ -55,20 +55,20 @@ export default function AccountantDashboard() {
     setSuccessMessage('');
     try {
       await billingAPI.processPayment(invoiceId);
-      setSuccessMessage('Invoice has been successfully marked as PAID!');
+      setSuccessMessage('The invoice has been marked as PAID successfully!');
       fetchInvoices();
       if (selectedInvoice && selectedInvoice._id === invoiceId) {
         setSelectedInvoice(null);
       }
     } catch (err) {
-      setErrorMessage(err?.response?.data?.message || 'Error processing payment.');
+      setErrorMessage(err?.response?.data?.message || 'Error processing the invoice payment.');
     } finally {
       setSubmitting(false);
     }
   };
 
   const formatVND = (num) => {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(num);
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'VND', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(num);
   };
 
   // Filtered invoices logic
@@ -97,7 +97,7 @@ export default function AccountantDashboard() {
         <RoleTopNav role="accountant" />
         <div className="dashboard-loading">
           <div className="spinner"></div>
-          <p>Loading invoice data & financial reconciliation...</p>
+          <p>Loading invoices and financial reconciliation data...</p>
         </div>
       </div>
     );
@@ -112,21 +112,21 @@ export default function AccountantDashboard() {
         <aside className="dashboard-sidebar">
           <div className="patient-quick-info">
             <div className="p-avatar">💵</div>
-            <h4>Accountant Department</h4>
-            <p className="p-card-number">Cashier & Pharmacy Billing</p>
+            <h4>Accounting</h4>
+            <p className="p-card-number">Cashier &amp; Pharmacy Billing</p>
           </div>
           <nav className="sidebar-nav">
             <button
               onClick={() => setActiveTab('invoices')}
               className={activeTab === 'invoices' ? 'active' : ''}
             >
-              🧾 Hospital Invoices
+              🧾 Hospital fees
             </button>
             <button
               onClick={() => setActiveTab('reports')}
               className={activeTab === 'reports' ? 'active' : ''}
             >
-              📊 Daily Revenue Report
+              📊 Daily revenue report
             </button>
           </nav>
         </aside>
@@ -140,24 +140,24 @@ export default function AccountantDashboard() {
           {activeTab === 'invoices' && (
             <div className="dashboard-card">
               <div className="card-header flex-column md-row">
-                <h2>Patient Fee Invoice Management</h2>
+                <h2>Patient billing management</h2>
 
                 <div className="work-page-toolbar search-filter-bar">
                   <input
                     type="text"
-                    placeholder="Search: Patient Name, Phone or Invoice ID..."
+                    placeholder="Search: patient name, phone, or invoice ID..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="search-input"
-                    aria-label="Search Invoices"
+                    aria-label="Search invoices"
                   />
                   <select value={filterType} onChange={(e) => setFilterType(e.target.value)}>
-                    <option value="All">All Invoice Types</option>
-                    <option value="Consultation">Clinical Examination Fee</option>
-                    <option value="Pharmacy">Pharmacy Invoice</option>
+                    <option value="All">All invoice types</option>
+                    <option value="Consultation">Consultation fee</option>
+                    <option value="Pharmacy">Pharmacy invoice</option>
                   </select>
                   <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
-                    <option value="All">All Statuses</option>
+                    <option value="All">All statuses</option>
                     <option value="Unpaid">Unpaid</option>
                     <option value="Paid">Paid</option>
                   </select>
@@ -166,7 +166,7 @@ export default function AccountantDashboard() {
 
               {filteredInvoices.length === 0 ? (
                 <div className="empty-state">
-                  <p>No invoices found matching the filters.</p>
+                  <p>No invoices match the filters.</p>
                 </div>
               ) : (
                 <div className="table-responsive">
@@ -175,11 +175,11 @@ export default function AccountantDashboard() {
                       <tr>
                         <th>Invoice ID</th>
                         <th>Patient</th>
-                        <th>Fee Type</th>
-                        <th>Total Amount</th>
-                        <th>Issue Date</th>
+                        <th>Fee type</th>
+                        <th>Total</th>
+                        <th>Issue date</th>
                         <th>Status</th>
-                        <th>Action</th>
+                        <th>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -192,11 +192,11 @@ export default function AccountantDashboard() {
                           </td>
                           <td>
                             <span className={`badge ${inv.invoiceType === 'Consultation' ? 'badge-info' : 'badge-purple'}`}>
-                              {inv.invoiceType === 'Consultation' ? 'Clinical Examination' : 'Prescription Medicine'}
+                              {inv.invoiceType === 'Consultation' ? 'Consultation' : 'Prescription medicine'}
                             </span>
                           </td>
                           <td className="font-bold text-primary">{formatVND(inv.totalAmount)}</td>
-                          <td>{new Date(inv.issuedAt).toLocaleDateString('en-GB')}</td>
+                          <td>{new Date(inv.issuedAt).toLocaleDateString('en-US')}</td>
                           <td>
                             <span className={`badge ${inv.status === 'Paid' ? 'badge-success' : 'badge-danger'}`}>
                               {inv.status === 'Paid' ? 'Paid' : 'Unpaid'}
@@ -204,7 +204,7 @@ export default function AccountantDashboard() {
                           </td>
                           <td className="btn-cell">
                             <button className="btn btn-ghost btn-xs" onClick={() => setSelectedInvoice(inv)}>
-                              View Receipt
+                              View receipt
                             </button>
                             {inv.status === 'Unpaid' && (
                               <button
@@ -212,7 +212,7 @@ export default function AccountantDashboard() {
                                 onClick={() => handleProcessPayment(inv._id)}
                                 disabled={submitting}
                               >
-                                💵 Receive Payment
+                                💵 Collect payment
                               </button>
                             )}
                           </td>
@@ -228,36 +228,36 @@ export default function AccountantDashboard() {
           {/* Tab: Daily Reports */}
           {activeTab === 'reports' && (
             <div className="dashboard-card">
-              <h2>Daily Cashier Financial Report</h2>
-              <p className="subtitle">Actual revenue collected today: {new Date().toLocaleDateString('en-GB')}</p>
+              <h2>Daily cashier financial report</h2>
+              <p className="subtitle">Actual revenue collected today: {new Date().toLocaleDateString('en-US')}</p>
 
               <div className="stats-cards-grid" style={{ marginBottom: 25 }}>
                 <div className="stat-card">
                   <div className="stat-icon">💰</div>
                   <h3>{formatVND(totalRevenue)}</h3>
-                  <p>Actual Revenue Received Today</p>
+                  <p>Revenue collected today</p>
                 </div>
                 <div className="stat-card">
                   <div className="stat-icon">🩺</div>
                   <h3>{formatVND(consultationRev)}</h3>
-                  <p>Total Clinical Examination Fees</p>
+                  <p>Total consultation fees</p>
                 </div>
                 <div className="stat-card">
                   <div className="stat-icon">💊</div>
                   <h3>{formatVND(pharmacyRev)}</h3>
-                  <p>Total Prescription Medicine Sales</p>
+                  <p>Total pharmacy sales</p>
                 </div>
                 <div className="stat-card">
                   <div className="stat-icon">📝</div>
                   <h3>{todayInvoices.length}</h3>
-                  <p>Number of Reconciled Invoices</p>
+                  <p>Invoices reconciled</p>
                 </div>
               </div>
 
-              <h3>List of Completed Transactions Today</h3>
+              <h3>Transactions completed today</h3>
               {todayInvoices.length === 0 ? (
                 <div className="empty-state">
-                  <p>No successful transactions recorded today.</p>
+                  <p>No completed transactions recorded today yet.</p>
                 </div>
               ) : (
                 <div className="table-responsive" style={{ marginTop: 15 }}>
@@ -266,10 +266,10 @@ export default function AccountantDashboard() {
                       <tr>
                         <th>Invoice</th>
                         <th>Patient</th>
-                        <th>Invoice Type</th>
+                        <th>Invoice type</th>
                         <th>Amount</th>
-                        <th>Payment Time</th>
-                        <th>Processed By</th>
+                        <th>Payment time</th>
+                        <th>Processed by</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -277,9 +277,9 @@ export default function AccountantDashboard() {
                         <tr key={inv._id}>
                           <td className="monospace font-bold">{inv._id.substring(18).toUpperCase()}</td>
                           <td>{inv.patientId?.fullName}</td>
-                          <td>{inv.invoiceType === 'Consultation' ? 'Clinical Examination Fee' : 'Prescription Medicine Fee'}</td>
+                          <td>{inv.invoiceType === 'Consultation' ? 'Consultation fee' : 'Prescription medicine'}</td>
                           <td className="font-bold text-success">{formatVND(inv.totalAmount)}</td>
-                          <td>{new Date(inv.paidAt).toLocaleTimeString('en-GB')}</td>
+                          <td>{new Date(inv.paidAt).toLocaleTimeString('en-US')}</td>
                           <td>{inv.processedBy?.fullName || 'System'}</td>
                         </tr>
                       ))}
@@ -290,7 +290,7 @@ export default function AccountantDashboard() {
 
               <div className="form-actions" style={{ marginTop: 20 }}>
                 <button className="btn btn-primary" onClick={() => window.print()}>
-                  🖨️ Export Print Report
+                  🖨️ Print report
                 </button>
               </div>
             </div>
@@ -298,17 +298,17 @@ export default function AccountantDashboard() {
         </main>
       </div>
 
-      {/* Invoice Detail / Receipt Modal */}
+      {/* Invoice Detail / Receipt Modal (Shared component representation) */}
       {selectedInvoice && (
         <div className="modal-backdrop">
           <div className="modal-content invoice-modal">
             <div className="modal-header">
-              <h3>Medical Fee Receipt</h3>
+              <h3>Medical fee receipt</h3>
               <button className="close-btn" onClick={() => setSelectedInvoice(null)}>&times;</button>
             </div>
             <div className="modal-body print-section" id="print-area">
               <div className="receipt-brand">
-                <h2>HOP SON TAI GENERAL CLINIC</h2>
+                <h2>HOPSONTAI GENERAL CLINIC</h2>
                 <p>123 Hop Son Street, Hai Ba Trung District, Hanoi | Hotline: 1900 6868</p>
               </div>
               <hr />
@@ -316,12 +316,12 @@ export default function AccountantDashboard() {
                 <div>
                   <p><strong>Patient:</strong> {selectedInvoice.patientId?.fullName}</p>
                   <p><strong>Phone:</strong> {selectedInvoice.patientId?.phoneNumber}</p>
-                  <p><strong>ID Card:</strong> {selectedInvoice.patientId?.identityCard}</p>
+                  <p><strong>ID card:</strong> {selectedInvoice.patientId?.identityCard}</p>
                 </div>
                 <div className="text-right">
-                  <p><strong>Invoice No:</strong> <span className="monospace uppercase">{selectedInvoice._id.substring(14)}</span></p>
-                  <p><strong>Issue Date:</strong> {new Date(selectedInvoice.issuedAt).toLocaleDateString('en-GB')}</p>
-                  {selectedInvoice.paidAt && <p><strong>Payment Date:</strong> {new Date(selectedInvoice.paidAt).toLocaleDateString('en-GB')}</p>}
+                  <p><strong>Invoice no.:</strong> <span className="monospace uppercase">{selectedInvoice._id.substring(14)}</span></p>
+                  <p><strong>Issued:</strong> {new Date(selectedInvoice.issuedAt).toLocaleDateString('en-US')}</p>
+                  {selectedInvoice.paidAt && <p><strong>Paid on:</strong> {new Date(selectedInvoice.paidAt).toLocaleDateString('en-US')}</p>}
                 </div>
               </div>
 
@@ -329,18 +329,18 @@ export default function AccountantDashboard() {
                 <table className="receipt-table">
                   <thead>
                     <tr>
-                      <th>Payment Content</th>
-                      <th className="text-right">Unit Price</th>
-                      <th className="text-right">Quantity</th>
-                      <th className="text-right">Total</th>
+                      <th>Description</th>
+                      <th className="text-right">Unit price</th>
+                      <th className="text-right">Qty</th>
+                      <th className="text-right">Amount</th>
                     </tr>
                   </thead>
                   <tbody>
                     {selectedInvoice.invoiceType === 'Consultation' ? (
                       <tr>
                         <td>
-                          Clinical Examination - Specialty {selectedInvoice.appointmentId?.departmentId?.departmentName || 'General'}<br />
-                          <small className="text-muted">Consulting Doctor: {selectedInvoice.appointmentId?.doctorId?.fullName || 'Any'}</small>
+                          Consultation - {selectedInvoice.appointmentId?.departmentId?.departmentName || 'General'} department<br />
+                          <small className="text-muted">Examining doctor: {selectedInvoice.appointmentId?.doctorId?.fullName || 'Any'}</small>
                         </td>
                         <td className="text-right">{formatVND(selectedInvoice.totalAmount)}</td>
                         <td className="text-right">1</td>
@@ -350,8 +350,8 @@ export default function AccountantDashboard() {
                       selectedInvoice.details?.map((det, idx) => (
                         <tr key={idx}>
                           <td>
-                            {det.medicineId?.name || det.medicineId?.medicineName}<br />
-                            <small className="text-muted">{det.medicineId?.dosageForm} | Instruction: {det.medicineId?.instruction}</small>
+                            {det.medicineId?.name}<br />
+                            <small className="text-muted">{det.medicineId?.dosageForm} | Usage: {det.medicineId?.instruction}</small>
                           </td>
                           <td className="text-right">{formatVND(det.unitPrice)}</td>
                           <td className="text-right">{det.quantity}</td>
@@ -365,7 +365,7 @@ export default function AccountantDashboard() {
 
               <div className="receipt-summary">
                 <div className="summary-row">
-                  <span>Total Payment Amount:</span>
+                  <span>Total amount due:</span>
                   <strong className="text-primary" style={{ fontSize: 18 }}>{formatVND(selectedInvoice.totalAmount)}</strong>
                 </div>
                 <div className="summary-row">
@@ -383,14 +383,14 @@ export default function AccountantDashboard() {
               </div>
             </div>
             <div className="modal-footer">
-              <button className="btn btn-ghost" onClick={() => window.print()}>🖨️ Print Receipt</button>
+              <button className="btn btn-ghost" onClick={() => window.print()}>🖨️ Print invoice</button>
               {selectedInvoice.status === 'Unpaid' && (
                 <button
                   className="btn btn-primary"
                   onClick={() => handleProcessPayment(selectedInvoice._id)}
                   disabled={submitting}
                 >
-                  Confirm Payment
+                  Approve payment
                 </button>
               )}
               <button className="btn btn-ghost" onClick={() => setSelectedInvoice(null)}>Close</button>

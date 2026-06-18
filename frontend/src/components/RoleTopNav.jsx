@@ -1,34 +1,38 @@
 import React from 'react';
 
 const roleLabels = {
-  patient: 'Bệnh nhân',
-  doctor: 'Bác sĩ',
-  staff: 'CSKH',
-  accountant: 'Kế toán',
-  admin: 'Quản trị',
+  patient: 'Patient',
+  doctor: 'Doctor',
+  staff: 'Customer Care',
+  accountant: 'Accountant',
+  admin: 'Administrator',
 };
 
 const navByRole = {
   patient: [
     { label: 'Dashboard', href: '/patient/dashboard' },
-    { label: 'Đặt lịch nhanh', href: '/booking' },
+    { label: 'Home', href: '/' },
   ],
   doctor: [
     { label: 'Dashboard', href: '/doctor/schedule' },
+    { label: 'Home', href: '/' },
   ],
   staff: [
     { label: 'Dashboard', href: '/staff/dashboard' },
+    { label: 'Home', href: '/' },
   ],
   accountant: [
     { label: 'Dashboard', href: '/accountant/dashboard' },
+    { label: 'Home', href: '/' },
   ],
   admin: [
     { label: 'Dashboard', href: '/admin/dashboard' },
+    { label: 'Home', href: '/' },
   ],
 };
 
 export default function RoleTopNav({ role }) {
-  const displayName = localStorage.getItem('userDisplayName') || localStorage.getItem('userName') || 'Người dùng';
+  const displayName = localStorage.getItem('userDisplayName') || localStorage.getItem('userName') || 'User';
   const links = navByRole[role] || [];
   const initials = displayName
     .split(' ')
@@ -49,8 +53,8 @@ export default function RoleTopNav({ role }) {
   return (
     <header className="role-topnav">
       <div className="role-topnav__brand">
-        <div className="role-topnav__title">Phòng khám đa khoa Hợp Sơn Tài</div>
-        <div className="role-topnav__subtitle">{roleLabels[role] || 'Hệ thống'}</div>
+        <div className="role-topnav__title">Hopsontai General Clinic</div>
+        <div className="role-topnav__subtitle">{roleLabels[role] || 'System'}</div>
       </div>
 
       <nav className="role-topnav__nav">
@@ -62,8 +66,8 @@ export default function RoleTopNav({ role }) {
       <div className="role-topnav__user">
         <div className="role-topnav__avatar" aria-hidden="true">{initials || 'U'}</div>
         <span className="role-topnav__name">{displayName}</span>
-        <span className="role-topnav__role">{roleLabels[role] || 'Hệ thống'}</span>
-        <button type="button" className="role-topnav__logout" onClick={handleLogout}>Đăng xuất</button>
+        <span className="role-topnav__role">{roleLabels[role] || 'System'}</span>
+        <button type="button" className="role-topnav__logout" onClick={handleLogout}>Log out</button>
       </div>
     </header>
   );

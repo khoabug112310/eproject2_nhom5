@@ -3,20 +3,121 @@ import RoleTopNav from './RoleTopNav';
 
 export default function RoleDashboardShell({ title, subtitle, cards, role }) {
   return (
-    <div className="role-dashboard-shell">
+    <div className="role-dashboard-shell" style={{
+      fontFamily: 'system-ui, -apple-system, sans-serif',
+      backgroundColor: '#f8fafc', // Light gray background to make white cards stand out
+      minHeight: '100vh',
+      paddingBottom: '40px'
+    }}>
+      {/* Top navigation bar */}
       <RoleTopNav role={role} />
-      <div className="role-hero">
-        <p className="role-kicker">Phòng khám đa khoa Hợp Sơn Tài</p>
-        <h1>{title}</h1>
-        <p className="role-subtitle">{subtitle}</p>
+      
+      {/* Welcome hero area */}
+      <div className="role-hero" style={{
+        background: 'linear-gradient(135deg, #e0f2fe 0%, #f8fafc 100%)', // Soft medical-blue gradient
+        padding: '48px 24px',
+        textAlign: 'center',
+        borderBottom: '1px solid #e2e8f0',
+        marginBottom: '32px'
+      }}>
+        <p className="role-kicker" style={{
+          textTransform: 'uppercase',
+          letterSpacing: '1.5px',
+          fontSize: '12px',
+          fontWeight: '700',
+          color: '#0284c7',
+          marginBottom: '8px'
+        }}>
+          Hopsontai General Clinic
+        </p>
+        <h1 style={{
+          fontSize: '32px',
+          fontWeight: '800',
+          color: '#0f172a',
+          margin: '0 0 12px 0',
+          letterSpacing: '-0.5px'
+        }}>
+          {title}
+        </h1>
+        <p className="role-subtitle" style={{
+          fontSize: '16px',
+          color: '#64748b',
+          maxWidth: '600px',
+          margin: '0 auto',
+          lineHeight: '1.5'
+        }}>
+          {subtitle}
+        </p>
       </div>
 
-      <div className="role-card-grid">
+      {/* Feature cards grid */}
+      <div className="role-card-grid" style={{
+        display: 'grid',
+        // Responsive auto-fit columns: min 280px
+        gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+        gap: '24px',
+        maxWidth: '1200px',
+        margin: '0 auto',
+        padding: '0 24px'
+      }}>
         {cards.map((card) => (
-          <section className="role-card" key={card.title}>
-            <div className="role-card-icon">{card.icon}</div>
-            <h3>{card.title}</h3>
-            <p>{card.description}</p>
+          <section 
+            className="role-card" 
+            key={card.title}
+            style={{
+              background: '#ffffff',
+              border: '1px solid #e2e8f0',
+              borderRadius: '16px', // Modern rounded corners
+              padding: '28px',
+              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)', // Soft shadow
+              transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+              cursor: 'pointer',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'flex-start'
+            }}
+            // Simple inline JS hover effect
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-4px)';
+              e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.1)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.05)';
+            }}
+          >
+            {/* Polished icon container */}
+            <div className="role-card-icon" style={{
+              fontSize: '24px',
+              backgroundColor: '#f0f9ff', // Light blue background around the icon
+              color: '#0284c7',
+              padding: '12px',
+              borderRadius: '12px',
+              marginBottom: '20px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              {card.icon}
+            </div>
+            
+            <h3 style={{
+              fontSize: '18px',
+              fontWeight: '700',
+              color: '#1e293b',
+              margin: '0 0 8px 0'
+            }}>
+              {card.title}
+            </h3>
+            
+            <p style={{
+              fontSize: '14px',
+              color: '#64748b',
+              margin: 0,
+              lineHeight: '1.6'
+            }}>
+              {card.description}
+            </p>
           </section>
         ))}
       </div>

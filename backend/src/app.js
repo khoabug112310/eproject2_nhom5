@@ -14,6 +14,8 @@ const clinicalRoutes = require('./modules/clinical/routes');
 const billingRoutes = require('./modules/billing/routes');
 const cmsRoutes = require('./modules/cms/routes');
 
+const path = require('path');
+
 const app = express();
 
 // Connect Database
@@ -25,8 +27,9 @@ app.use(cors({
   origin: config.NODE_ENV === 'development' ? true : config.FRONTEND_URL,
   credentials: true,
 }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Routes
 app.get('/api/health', (req, res) => {

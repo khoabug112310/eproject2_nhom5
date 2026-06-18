@@ -17,6 +17,9 @@ export default function DoctorSchedule() {
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
 
+  // Print prescription state
+  const [printData, setPrintData] = useState(null);
+
   // Active examination state
   const [activeAppt, setActiveAppt] = useState(null);
   const [patientHistory, setPatientHistory] = useState([]);
@@ -31,7 +34,6 @@ export default function DoctorSchedule() {
   });
   
   // Prescriptions state
-  const [selectedRecordForPrescription, setSelectedRecordForPrescription] = useState(null);
   const [prescriptionItems, setPrescriptionItems] = useState([]);
   const [medSearch, setMedSearch] = useState('');
   const [selectedMed, setSelectedMed] = useState(null);
@@ -40,12 +42,8 @@ export default function DoctorSchedule() {
     dosage: '1 tablet',
     frequency: 'Twice a day',
     durationDays: 7,
-    specialInstructions: 'Take after meals',
+    specialInstructions: 'After meals',
   });
-
-  // Modal State for Record & Prescription Print
-  const [selectedRecord, setSelectedRecord] = useState(null);
-  const [recordPrescriptions, setRecordPrescriptions] = useState([]);
 
   useEffect(() => {
     fetchInitialData();
@@ -63,12 +61,21 @@ export default function DoctorSchedule() {
 
       // 2. Find doctor profile
       const doctorsRes = await clinicalAPI.getDoctors();
+      // In getDoctors, wait, does it return the full profiles?
+      // Yes, let's find the doctor whose userId matches or whose name contains or matches.
+      // But getDoctors returns public friendly fields. Let's see if we can find by me.displayName or fetch users list if admin.
+      // Wait, in public getDoctors list, we have: [{ id, fullName, avatar, specialization, department }]
+      // Wait! The doctor public route in clinical controller is getDoctorsPublic:
+      // it maps d._id to id. And in auth/controller.me:
+      // if doctor, displayName is doctor.fullName!
+      // So we can find doctor by comparing name:
       const matchedDoc = doctorsRes.data.data.find(d => d.fullName === me.displayName);
       if (matchedDoc) {
         setDoctor(matchedDoc);
         
         // Fetch appointments for this doctor
         const apptsRes = await schedulingAPI.getAppointments();
+        // The API returns appointments. If role=doctor, schedulingAPI.getAppointments automatically filters by this doctor!
         setAppointments(apptsRes.data.data);
 
         // Fetch schedules
@@ -82,9 +89,7 @@ export default function DoctorSchedule() {
 
       // Fetch all medical records (to allow looking up history)
       const recordsRes = await clinicalAPI.getMedicalRecords();
-      // Sort newest first
-      const sortedRecords = recordsRes.data.data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-      setMedicalRecords(sortedRecords);
+      setMedicalRecords(recordsRes.data.data);
     } catch (err) {
       console.error(err);
       setErrorMessage('Error loading doctor data. Please try again.');
@@ -113,6 +118,9 @@ export default function DoctorSchedule() {
       diagnosis: existingRecord?.diagnosis || '',
       clinicalNotes: existingRecord?.clinicalNotes || '',
     });
+    setPrescriptionItems([]);
+    setMedSearch('');
+    setSelectedMed(null);
 
     // Load patient history
     try {
@@ -130,11 +138,11 @@ export default function DoctorSchedule() {
     // Check if stock is sufficient
     if (selectedMed.stockQuantity < medForm.quantity) {
       Swal.fire({
-        title: 'Inventory Warning',
+        title: 'Stock warning',
         text: `Note: Only ${selectedMed.stockQuantity} ${selectedMed.unit} left in stock. Continue prescribing?`,
         icon: 'warning',
         confirmButtonColor: '#3085d6',
-        confirmButtonText: 'Agree'
+        confirmButtonText: 'OK'
       });
     }
 
@@ -157,7 +165,7 @@ export default function DoctorSchedule() {
       dosage: '1 tablet',
       frequency: 'Twice a day',
       durationDays: 7,
-      specialInstructions: 'Take after meals',
+      specialInstructions: 'After meals',
     });
   };
 
@@ -169,8 +177,8 @@ export default function DoctorSchedule() {
     e.preventDefault();
     if (!examForm.diagnosis) {
       Swal.fire({
-        title: 'Missing Information',
-        text: 'Please enter the Medical Diagnosis.',
+        title: 'Missing information',
+        text: 'Please enter the diagnosis.',
         icon: 'error',
         confirmButtonColor: '#3085d6',
         confirmButtonText: 'OK'
@@ -196,75 +204,43 @@ export default function DoctorSchedule() {
 
       const newRecord = recordRes.data.data;
 
-      setSuccessMessage(`Examination completed. Please prescribe medication for the patient.`);
-      setActiveAppt(null);
-      await fetchInitialData(); // update records list
-      
-      // Auto switch to prescription tab
-      setSelectedRecordForPrescription(newRecord._id);
-      setActiveTab('prescribe');
+      // 2. Create prescriptions if any
+      if (prescriptionItems.length > 0) {
+        await clinicalAPI.createPrescription({
+          recordId: newRecord._id,
+          medicines: prescriptionItems.map(item => ({
+            medicineId: item.medicineId,
+            quantity: item.quantity,
+            dosage: item.dosage,
+            frequency: item.frequency,
+            durationDays: item.durationDays,
+            specialInstructions: item.specialInstructions,
+          })),
+        });
+      }
 
+      setSuccessMessage(`Examination completed for patient ${activeAppt.patientId?.fullName || ''}. The medical record has been updated successfully!`);
+      // Store data for printing the prescription
+      if (prescriptionItems.length > 0) {
+        setPrintData({
+          patient: activeAppt.patientId,
+          doctor: currentUser,
+          appointment: activeAppt,
+          diagnosis: examForm.diagnosis,
+          clinicalNotes: examForm.clinicalNotes,
+          medicines: prescriptionItems,
+          date: new Date(),
+        });
+      }
+      setActiveAppt(null);
+      fetchInitialData();
+      setActiveTab('appointments');
     } catch (err) {
       const details = err?.response?.data?.details;
       const baseMsg = err?.response?.data?.message || 'An error occurred while creating the medical record.';
       setErrorMessage(details ? `${baseMsg} (${details})` : baseMsg);
     } finally {
       setSubmitting(false);
-    }
-  };
-
-  const handleSubmitPrescriptionOnly = async () => {
-    if (prescriptionItems.length === 0) {
-      Swal.fire('Error', 'Please add at least one medicine to the prescription.', 'error');
-      return;
-    }
-
-    setSubmitting(true);
-    setErrorMessage('');
-    setSuccessMessage('');
-    try {
-      await clinicalAPI.createPrescription({
-        recordId: selectedRecordForPrescription,
-        medicines: prescriptionItems.map(item => ({
-          medicineId: item.medicineId,
-          quantity: item.quantity,
-          dosage: item.dosage,
-          frequency: item.frequency,
-          durationDays: item.durationDays,
-          specialInstructions: item.specialInstructions,
-        })),
-      });
-      
-      // Fetch the populated prescriptions for printing
-      const presRes = await clinicalAPI.getPrescriptions(selectedRecordForPrescription);
-      const loadedPrescriptions = presRes.data.data;
-
-      // Populate patient info for modal
-      const recordObj = medicalRecords.find(r => r._id === selectedRecordForPrescription);
-      
-      setSelectedRecord(recordObj);
-      setRecordPrescriptions(loadedPrescriptions);
-
-      setSuccessMessage(`Prescription sent successfully!`);
-      setPrescriptionItems([]);
-      setSelectedRecordForPrescription(null);
-    } catch (err) {
-      const details = err?.response?.data?.details;
-      const baseMsg = err?.response?.data?.message || 'An error occurred while creating the prescription.';
-      setErrorMessage(details ? `${baseMsg} (${details})` : baseMsg);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleQuickView = async (rec) => {
-    try {
-      const res = await clinicalAPI.getPrescriptions(rec._id);
-      setSelectedRecord(rec);
-      setRecordPrescriptions(res.data.data);
-    } catch (err) {
-      console.error(err);
-      Swal.fire('Error', 'Could not load record details.', 'error');
     }
   };
 
@@ -281,7 +257,7 @@ export default function DoctorSchedule() {
         <RoleTopNav role="doctor" />
         <div className="dashboard-loading">
           <div className="spinner"></div>
-          <p>Loading doctor data. Please wait...</p>
+          <p>Loading doctor data. Please wait.</p>
         </div>
       </div>
     );
@@ -297,32 +273,26 @@ export default function DoctorSchedule() {
           <div className="patient-quick-info">
             <div className="p-avatar">🩺</div>
             <h4>Dr. {currentUser?.displayName || 'Doctor'}</h4>
-            <p className="p-card-number">{doctor?.specialization || 'Clinic Doctor'}</p>
+            <p className="p-card-number">{doctor?.specialization || 'Clinic doctor'}</p>
           </div>
           <nav className="sidebar-nav">
             <button
               onClick={() => { setActiveTab('appointments'); setActiveAppt(null); }}
               className={activeTab === 'appointments' ? 'active' : ''}
             >
-              📋 Patient List
+              📋 Patient list
             </button>
             <button
               onClick={() => { setActiveTab('history'); setActiveAppt(null); }}
               className={activeTab === 'history' ? 'active' : ''}
             >
-              📚 Medical Records
-            </button>
-            <button
-              onClick={() => { setActiveTab('prescribe'); setActiveAppt(null); }}
-              className={activeTab === 'prescribe' ? 'active' : ''}
-            >
-              💊 Prescribe Medication
+              📚 Medical records lookup
             </button>
             <button
               onClick={() => { setActiveTab('schedule'); setActiveAppt(null); }}
               className={activeTab === 'schedule' ? 'active' : ''}
             >
-              📅 Work Schedule
+              📅 Work schedule
             </button>
           </nav>
         </aside>
@@ -335,12 +305,12 @@ export default function DoctorSchedule() {
           {/* Tab: Appointments Queue / Examination Workspace */}
           {activeTab === 'appointments' && !activeAppt && (
             <div className="dashboard-card">
-              <h2>Today's Patient Queue</h2>
-              <p className="subtitle">View the list of patients confirmed by Reception / Customer Care.</p>
+              <h2>Patients to examine today</h2>
+              <p className="subtitle">View the list of patients confirmed by reception / customer care.</p>
 
               {appointments.filter(a => a.status === 'Confirmed' || a.status === 'Completed').length === 0 ? (
                 <div className="empty-state">
-                  <p>No patients in the queue for today.</p>
+                  <p>No patients in today's examination list.</p>
                 </div>
               ) : (
                 <div className="table-responsive">
@@ -348,11 +318,11 @@ export default function DoctorSchedule() {
                     <thead>
                       <tr>
                         <th>Patient</th>
-                        <th>Exam Date</th>
+                        <th>Date</th>
                         <th>Time</th>
-                        <th>Phone Number</th>
+                        <th>Phone</th>
                         <th>Status</th>
-                        <th>Action</th>
+                        <th>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -362,9 +332,9 @@ export default function DoctorSchedule() {
                           <tr key={appt._id}>
                             <td>
                               <strong>{appt.patientId?.fullName}</strong><br />
-                              <small className="text-muted">DOB: {appt.patientId?.dateOfBirth ? new Date(appt.patientId.dateOfBirth).toLocaleDateString('en-GB') : ''} | Gender: {appt.patientId?.gender}</small>
+                              <small className="text-muted">DOB: {appt.patientId?.dateOfBirth ? new Date(appt.patientId.dateOfBirth).toLocaleDateString('en-US') : ''} | Gender: {appt.patientId?.gender}</small>
                             </td>
-                            <td>{new Date(appt.requestedDate).toLocaleDateString('en-GB')}</td>
+                            <td>{new Date(appt.requestedDate).toLocaleDateString('en-US')}</td>
                             <td>{appt.requestedTime}</td>
                             <td>{appt.patientId?.phoneNumber}</td>
                             <td>
@@ -378,17 +348,17 @@ export default function DoctorSchedule() {
                                   className="btn btn-primary btn-xs"
                                   onClick={() => handleSelectAppointment(appt)}
                                 >
-                                  🩺 Start Examination
+                                  🩺 Start examination
                                 </button>
                               ) : appt.status === 'Confirmed' && getRecordForAppointment(appt._id) ? (
                                 <button
                                   className="btn btn-ghost btn-xs"
                                   onClick={() => handleSelectAppointment(appt)}
                                 >
-                                  ✏️ Update Record
+                                  ✏️ Update record
                                 </button>
                               ) : (
-                                <span className="text-muted">Record Saved</span>
+                                <span className="text-muted">Record saved</span>
                               )}
                             </td>
                           </tr>
@@ -405,32 +375,32 @@ export default function DoctorSchedule() {
             <div className="exam-workspace-container">
               <div className="workspace-header">
                 <button className="btn btn-ghost btn-sm" onClick={() => setActiveAppt(null)}>
-                  ⬅️ Back to List
+                  ⬅️ Back to list
                 </button>
-                <h2>Examination Room: {activeAppt.patientId?.fullName}</h2>
-                <span className="badge badge-primary">Record No: {activeAppt.patientId?._id?.substring(18)}</span>
+                <h2>Examination room: {activeAppt.patientId?.fullName}</h2>
+                <span className="badge badge-primary">Record no.: {activeAppt.patientId?._id?.substring(18)}</span>
               </div>
 
               <div className="exam-panels-grid">
                 {/* Left Panel: Historical EHR records */}
                 <div className="exam-panel panel-left">
-                  <h3>Patient Medical History</h3>
+                  <h3>Patient medical history</h3>
                   {patientHistory.length === 0 ? (
-                    <p className="empty-text">The patient has no medical history in the system.</p>
+                    <p className="empty-text">This patient has no medical history in the system yet.</p>
                   ) : (
                     <div className="history-timeline">
                       {patientHistory.map((rec) => (
                         <div className="history-card" key={rec._id}>
                           <div className="h-card-header">
-                            <span>📅 {new Date(rec.createdAt).toLocaleDateString('en-GB')}</span>
-                            <span>Doctor: Dr. {rec.doctorId?.fullName}</span>
+                            <span>📅 {new Date(rec.createdAt).toLocaleDateString('en-US')}</span>
+                            <span>Examined by: Dr. {rec.doctorId?.fullName}</span>
                           </div>
                           <div className="h-card-body">
                             <p><strong>Diagnosis:</strong> <span className="diagnosis-highlight">{rec.diagnosis}</span></p>
                             {rec.clinicalNotes && <p><strong>Notes:</strong> {rec.clinicalNotes}</p>}
                             <div className="h-card-vitals">
                               {rec.bloodPressure && <span>BP: {rec.bloodPressure} | </span>}
-                              {rec.heartRate && <span>HR: {rec.heartRate} bpm | </span>}
+                              {rec.heartRate && <span>Heart rate: {rec.heartRate} bpm | </span>}
                               {rec.temperature && <span>Temp: {rec.temperature}°C</span>}
                             </div>
                           </div>
@@ -440,13 +410,13 @@ export default function DoctorSchedule() {
                   )}
                 </div>
 
-                {/* Right Panel: Exam Form */}
+                {/* Right Panel: Exam Form & Prescriptions */}
                 <div className="exam-panel panel-right">
                   <form onSubmit={handleSubmitExamination}>
                     <h3>
                       {getRecordForAppointment(activeAppt._id)
-                        ? 'Update Current Medical Record'
-                        : 'Create Current Medical Record'}
+                        ? 'Update current medical record'
+                        : 'Create medical record'}
                     </h3>
                     
                     {/* Vitals inputs */}
@@ -455,7 +425,7 @@ export default function DoctorSchedule() {
                         <label>Height (cm)</label>
                         <input
                           type="number"
-                          placeholder="Ex: 170"
+                          placeholder="VD: 170"
                           value={examForm.height}
                           onChange={(e) => setExamForm({ ...examForm, height: e.target.value })}
                         />
@@ -464,25 +434,25 @@ export default function DoctorSchedule() {
                         <label>Weight (kg)</label>
                         <input
                           type="number"
-                          placeholder="Ex: 65"
+                          placeholder="VD: 65"
                           value={examForm.weight}
                           onChange={(e) => setExamForm({ ...examForm, weight: e.target.value })}
                         />
                       </div>
                       <div className="form-group-sm">
-                        <label>Blood Pressure (mmHg)</label>
+                        <label>Blood pressure (mmHg)</label>
                         <input
                           type="text"
-                          placeholder="Ex: 120/80"
+                          placeholder="VD: 120/80"
                           value={examForm.bloodPressure}
                           onChange={(e) => setExamForm({ ...examForm, bloodPressure: e.target.value })}
                         />
                       </div>
                       <div className="form-group-sm">
-                        <label>Heart Rate (bpm)</label>
+                        <label>Heart rate (bpm)</label>
                         <input
                           type="number"
-                          placeholder="Ex: 75"
+                          placeholder="VD: 75"
                           value={examForm.heartRate}
                           onChange={(e) => setExamForm({ ...examForm, heartRate: e.target.value })}
                         />
@@ -492,7 +462,7 @@ export default function DoctorSchedule() {
                         <input
                           type="number"
                           step="0.1"
-                          placeholder="Ex: 36.5"
+                          placeholder="VD: 36.5"
                           value={examForm.temperature}
                           onChange={(e) => setExamForm({ ...examForm, temperature: e.target.value })}
                         />
@@ -500,10 +470,10 @@ export default function DoctorSchedule() {
                     </div>
 
                     <div className="form-group">
-                      <label>Medical Diagnosis *</label>
+                      <label>Diagnosis *</label>
                       <input
                         type="text"
-                        placeholder="Ex: Acute pharyngitis, viral fever"
+                        placeholder="e.g. Acute follicular pharyngitis, viral fever"
                         value={examForm.diagnosis}
                         onChange={(e) => setExamForm({ ...examForm, diagnosis: e.target.value })}
                         required
@@ -511,13 +481,134 @@ export default function DoctorSchedule() {
                     </div>
 
                     <div className="form-group">
-                      <label>Doctor's Advice / Treatment Plan</label>
+                      <label>Doctor's notes / Treatment plan</label>
                       <textarea
                         rows="3"
-                        placeholder="Diet, rest, schedule a follow-up after..."
+                        placeholder="Lifestyle, rest, follow-up appointment..."
                         value={examForm.clinicalNotes}
                         onChange={(e) => setExamForm({ ...examForm, clinicalNotes: e.target.value })}
                       />
+                    </div>
+
+                    {/* Prescription sub-system */}
+                    <div className="prescription-block">
+                      <h4>Prescribe treatment medication</h4>
+                      
+                      <div className="medication-picker">
+                        <div style={{ position: 'relative', flex: 1 }}>
+                          <input
+                            type="text"
+                            placeholder="🔍 Search medicine in stock..."
+                            value={medSearch}
+                            onChange={(e) => {
+                              setMedSearch(e.target.value);
+                              if (selectedMed) setSelectedMed(null);
+                            }}
+                          />
+                          {medSearch && !selectedMed && filteredMeds.length > 0 && (
+                            <ul className="search-dropdown-menu">
+                              {filteredMeds.map((med) => (
+                                <li key={med._id} onClick={() => { setSelectedMed(med); setMedSearch(med.medicineName || med.name || ''); }}>
+                                  {med.medicineName || med.name} ({med.usageRoute || med.dosageForm || 'Oral'}) - Stock: {med.stockQuantity} {med.unit}
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                      </div>
+
+                      {selectedMed && (
+                        <div className="selected-medication-panel">
+                          <p>
+                            Prescribing: <strong>{selectedMed.medicineName || selectedMed.name}</strong> ({selectedMed.usageRoute || selectedMed.dosageForm})
+                            | Price: {selectedMed.unitPrice} VND | Stock: {selectedMed.stockQuantity} {selectedMed.unit}
+                            <button 
+                              type="button" 
+                              className="btn btn-ghost btn-xs" 
+                              style={{ marginLeft: '10px', color: '#ef4444', minHeight: '28px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center' }} 
+                              onClick={() => { setSelectedMed(null); setMedSearch(''); }}
+                            >
+                              ❌ Deselect
+                            </button>
+                          </p>
+                          <div className="med-fields-grid">
+                            <div className="form-group-xs">
+                              <label>Quantity</label>
+                              <input
+                                type="number"
+                                min="1"
+                                value={medForm.quantity}
+                                onChange={(e) => setMedForm({ ...medForm, quantity: e.target.value })}
+                              />
+                            </div>
+                            <div className="form-group-xs">
+                              <label>Dosage</label>
+                              <input
+                                type="text"
+                                value={medForm.dosage}
+                                onChange={(e) => setMedForm({ ...medForm, dosage: e.target.value })}
+                              />
+                            </div>
+                            <div className="form-group-xs">
+                              <label>Frequency</label>
+                              <input
+                                type="text"
+                                value={medForm.frequency}
+                                onChange={(e) => setMedForm({ ...medForm, frequency: e.target.value })}
+                              />
+                            </div>
+                            <div className="form-group-xs">
+                              <label>Days</label>
+                              <input
+                                type="number"
+                                value={medForm.durationDays}
+                                onChange={(e) => setMedForm({ ...medForm, durationDays: e.target.value })}
+                              />
+                            </div>
+                            <div className="form-group-xs full">
+                              <label>Usage notes</label>
+                              <input
+                                type="text"
+                                value={medForm.specialInstructions}
+                                onChange={(e) => setMedForm({ ...medForm, specialInstructions: e.target.value })}
+                              />
+                            </div>
+                          </div>
+                          <button type="button" className="btn btn-quick btn-xs" onClick={handleAddMedicine}>
+                            Add to prescription
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Prescribed Items list */}
+                      {prescriptionItems.length > 0 && (
+                        <table className="prescription-list-table">
+                          <thead>
+                            <tr>
+                              <th>Medicine</th>
+                              <th>Qty</th>
+                              <th>Dosage</th>
+                              <th>Usage</th>
+                              <th>Action</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {prescriptionItems.map((item, idx) => (
+                              <tr key={idx}>
+                                <td>{item.name} <small className="text-muted">({item.dosageForm})</small></td>
+                                <td><strong>{item.quantity}</strong></td>
+                                <td>{item.dosage} - {item.frequency}</td>
+                                <td>{item.durationDays} days ({item.specialInstructions})</td>
+                                <td>
+                                  <button type="button" className="btn-remove" onClick={() => handleRemoveMedicine(idx)}>
+                                    &times;
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      )}
                     </div>
 
                     <div className="form-actions" style={{ marginTop: 20 }}>
@@ -525,7 +616,7 @@ export default function DoctorSchedule() {
                         Cancel
                       </button>
                       <button type="submit" className="btn btn-primary" disabled={submitting}>
-                        {submitting ? 'Saving...' : '💾 Complete Exam & Move to Prescription'}
+                        {submitting ? 'Finalizing...' : '💾 Complete exam & Prescribe'}
                       </button>
                     </div>
                   </form>
@@ -534,183 +625,15 @@ export default function DoctorSchedule() {
             </div>
           )}
 
-          {/* Tab: Prescribe Medication */}
-          {activeTab === 'prescribe' && (
-            <div className="dashboard-card">
-              <h2>Prescribe Medication</h2>
-              <p className="subtitle">Select a patient's medical record to create a prescription.</p>
-
-              <div className="form-group" style={{ maxWidth: '600px', marginBottom: '30px' }}>
-                <label style={{ fontWeight: 'bold' }}>1. Select Medical Record</label>
-                <select 
-                  className="form-control" 
-                  style={{ padding: '10px', fontSize: '15px' }}
-                  value={selectedRecordForPrescription || ''} 
-                  onChange={(e) => setSelectedRecordForPrescription(e.target.value)}
-                >
-                  <option value="">-- Choose a recent examination record --</option>
-                  {medicalRecords.map(rec => (
-                    <option key={rec._id} value={rec._id}>
-                      {new Date(rec.createdAt).toLocaleDateString('en-GB')} - Patient: {rec.patientId?.fullName} - Diagnosis: {rec.diagnosis}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {selectedRecordForPrescription ? (
-                <div className="prescription-block" style={{ padding: '20px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                  <h4 style={{ borderBottom: '2px solid #e2e8f0', paddingBottom: '10px', marginBottom: '20px' }}>
-                    2. Add Medicines to Prescription
-                  </h4>
-                  
-                  <div className="medication-picker">
-                    <div style={{ position: 'relative', flex: 1 }}>
-                      <input
-                        type="text"
-                        placeholder="🔍 Search medicine in inventory..."
-                        value={medSearch}
-                        onChange={(e) => {
-                          setMedSearch(e.target.value);
-                          if (selectedMed) setSelectedMed(null);
-                        }}
-                      />
-                      {medSearch && !selectedMed && filteredMeds.length > 0 && (
-                        <ul className="search-dropdown-menu">
-                          {filteredMeds.map((med) => (
-                            <li key={med._id} onClick={() => { setSelectedMed(med); setMedSearch(med.medicineName || med.name || ''); }}>
-                              {med.medicineName || med.name} ({med.usageRoute || med.dosageForm || 'Oral'}) - Stock: {med.stockQuantity} {med.unit}
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                  </div>
-
-                  {selectedMed && (
-                    <div className="selected-medication-panel" style={{ background: '#fff', padding: '15px', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-                      <p>
-                        Prescribing: <strong>{selectedMed.medicineName || selectedMed.name}</strong> ({selectedMed.usageRoute || selectedMed.dosageForm}) 
-                        | Price: {selectedMed.unitPrice}đ | Stock: {selectedMed.stockQuantity} {selectedMed.unit}
-                        <button 
-                          type="button" 
-                          className="btn btn-ghost btn-xs" 
-                          style={{ marginLeft: '10px', color: '#ef4444', minHeight: '28px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center' }} 
-                          onClick={() => { setSelectedMed(null); setMedSearch(''); }}
-                        >
-                          ❌ Cancel Selection
-                        </button>
-                      </p>
-                      <div className="med-fields-grid">
-                        <div className="form-group-xs">
-                          <label>Quantity</label>
-                          <input
-                            type="number"
-                            min="1"
-                            value={medForm.quantity}
-                            onChange={(e) => setMedForm({ ...medForm, quantity: e.target.value })}
-                          />
-                        </div>
-                        <div className="form-group-xs">
-                          <label>Dosage</label>
-                          <input
-                            type="text"
-                            value={medForm.dosage}
-                            onChange={(e) => setMedForm({ ...medForm, dosage: e.target.value })}
-                          />
-                        </div>
-                        <div className="form-group-xs">
-                          <label>Frequency</label>
-                          <input
-                            type="text"
-                            value={medForm.frequency}
-                            onChange={(e) => setMedForm({ ...medForm, frequency: e.target.value })}
-                          />
-                        </div>
-                        <div className="form-group-xs">
-                          <label>Duration (days)</label>
-                          <input
-                            type="number"
-                            value={medForm.durationDays}
-                            onChange={(e) => setMedForm({ ...medForm, durationDays: e.target.value })}
-                          />
-                        </div>
-                        <div className="form-group-xs full">
-                          <label>Special Instructions</label>
-                          <input
-                            type="text"
-                            value={medForm.specialInstructions}
-                            onChange={(e) => setMedForm({ ...medForm, specialInstructions: e.target.value })}
-                          />
-                        </div>
-                      </div>
-                      <button type="button" className="btn btn-quick btn-xs" onClick={handleAddMedicine}>
-                        + Add to Prescription
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Prescribed Items list */}
-                  {prescriptionItems.length > 0 && (
-                    <div style={{ marginTop: '20px' }}>
-                      <h5>Selected Medicines:</h5>
-                      <table className="prescription-list-table">
-                        <thead>
-                          <tr>
-                            <th>Medicine Name</th>
-                            <th>Qty</th>
-                            <th>Dosage</th>
-                            <th>Instructions</th>
-                            <th>Action</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {prescriptionItems.map((item, idx) => (
-                            <tr key={idx}>
-                              <td>{item.name} <small className="text-muted">({item.dosageForm})</small></td>
-                              <td><strong>{item.quantity}</strong></td>
-                              <td>{item.dosage} - {item.frequency}</td>
-                              <td>{item.durationDays} days ({item.specialInstructions})</td>
-                              <td>
-                                <button type="button" className="btn-remove" onClick={() => handleRemoveMedicine(idx)}>
-                                  &times;
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-
-                  <div className="form-actions" style={{ marginTop: 30, paddingTop: 20, borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end' }}>
-                    <button 
-                      type="button" 
-                      className="btn btn-primary" 
-                      style={{ fontSize: '16px', padding: '10px 20px' }}
-                      onClick={handleSubmitPrescriptionOnly}
-                      disabled={submitting || prescriptionItems.length === 0}
-                    >
-                      {submitting ? 'Sending...' : '💊 Gửi đơn thuốc (Send Prescription)'}
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="empty-state" style={{ padding: '40px' }}>
-                  <p>Please select a medical record from the dropdown above to start prescribing.</p>
-                </div>
-              )}
-            </div>
-          )}
-
           {/* Tab: Medical Records Lookup */}
           {activeTab === 'history' && (
             <div className="dashboard-card">
-              <h2>Clinic Medical Records History</h2>
+              <h2>Clinic-wide medical record lookup</h2>
               <p className="subtitle">Search and review diagnoses and prescriptions for all patients.</p>
 
               {medicalRecords.length === 0 ? (
                 <div className="empty-state">
-                  <p>No medical records have been recorded in the system yet.</p>
+                  <p>No medical records in the system yet.</p>
                 </div>
               ) : (
                 <div className="table-responsive">
@@ -718,7 +641,7 @@ export default function DoctorSchedule() {
                     <thead>
                       <tr>
                         <th>Patient</th>
-                        <th>Record Date</th>
+                        <th>Record date</th>
                         <th>Doctor</th>
                         <th>Diagnosis</th>
                         <th>Action</th>
@@ -731,15 +654,43 @@ export default function DoctorSchedule() {
                             <strong>{rec.patientId?.fullName}</strong><br />
                             <small className="text-muted">ID: {rec.patientId?.identityCard} | Phone: {rec.patientId?.phoneNumber}</small>
                           </td>
-                          <td>{new Date(rec.createdAt).toLocaleDateString('en-GB')}</td>
+                          <td>{new Date(rec.createdAt).toLocaleDateString('en-US')}</td>
                           <td>Dr. {rec.doctorId?.fullName}</td>
                           <td className="font-bold">{rec.diagnosis}</td>
                           <td>
                             <button
                               className="btn btn-ghost btn-xs"
-                              onClick={() => handleQuickView(rec)}
+                              onClick={() => {
+                                // Find prescriptions and set modal view
+                                clinicalAPI.getPrescriptions(rec._id)
+                                  .then((res) => {
+                                    Swal.fire({
+                                      title: 'Medical record details',
+                                      html: `
+                                        <div style="text-align: left; font-size: 14px; line-height: 1.6;">
+                                          <p><strong>Patient:</strong> ${rec.patientId?.fullName || 'N/A'}</p>
+                                          <p><strong>Diagnosis:</strong> <span style="color: #10b981; font-weight: bold;">${rec.diagnosis}</span></p>
+                                          <p><strong>Vital signs:</strong> BP: ${rec.bloodPressure || '--'} mmHg | Heart rate: ${rec.heartRate || '--'} bpm</p>
+                                          <p><strong>Doctor's notes:</strong> ${rec.clinicalNotes || 'None'}</p>
+                                          <hr style="border-top: 1px solid #e2e8f0; margin: 15px 0;">
+                                          <p><strong>PRESCRIPTION DETAILS:</strong></p>
+                                          <ul style="padding-left: 20px; margin: 0;">
+                                            ${res.data.data.length === 0
+                                              ? '<li>No medication prescribed</li>'
+                                              : res.data.data.map(p => `<li><strong>${p.medicineId?.medicineName || p.medicineId?.name || 'Medicine'}</strong>: ${p.quantity} units (${p.dosage} - ${p.frequency} - for ${p.durationDays} days)</li>`).join('')
+                                            }
+                                          </ul>
+                                        </div>
+                                      `,
+                                      icon: 'info',
+                                      confirmButtonColor: '#3085d6',
+                                      confirmButtonText: 'Close'
+                                    });
+                                  })
+                                  .catch(console.error);
+                              }}
                             >
-                              Quick View & Print
+                              Quick view
                             </button>
                           </td>
                         </tr>
@@ -754,30 +705,30 @@ export default function DoctorSchedule() {
           {/* Tab: Doctor Schedules */}
           {activeTab === 'schedule' && (
             <div className="dashboard-card">
-              <h2>My Work Schedule</h2>
-              <p className="subtitle">View upcoming shifts and booked patients count.</p>
+              <h2>My work schedule</h2>
+              <p className="subtitle">View your shifts and the number of patients booked.</p>
 
               {schedules.length === 0 ? (
                 <div className="empty-state">
-                  <p>You have no scheduled shifts configured by the Administrator.</p>
+                  <p>You don't have any shifts configured by the administrator yet.</p>
                 </div>
               ) : (
                 <div className="table-responsive">
                   <table className="custom-table">
                     <thead>
                       <tr>
-                        <th>Work Date</th>
-                        <th>Start Time</th>
-                        <th>End Time</th>
-                        <th>Patient Limit</th>
-                        <th>Registered</th>
-                        <th>Status</th>
+                        <th>Work date</th>
+                        <th>Start time</th>
+                        <th>End time</th>
+                        <th>Patient limit</th>
+                        <th>Booked</th>
+                        <th>Shift status</th>
                       </tr>
                     </thead>
                     <tbody>
                       {schedules.map((s) => (
                         <tr key={s._id}>
-                          <td className="font-bold">{new Date(s.workDate).toLocaleDateString('en-GB')}</td>
+                          <td className="font-bold">{new Date(s.workDate).toLocaleDateString('en-US')}</td>
                           <td>{s.startTime}</td>
                           <td>{s.endTime}</td>
                           <td>{s.maxPatients} patients</td>
@@ -792,7 +743,7 @@ export default function DoctorSchedule() {
                           </td>
                           <td>
                             <span className={`badge ${s.status === 'Available' ? 'badge-success' : 'badge-danger'}`}>
-                              {s.status === 'Available' ? 'Available' : 'Paused / Full'}
+                              {s.status === 'Available' ? 'Active' : 'Paused / Full'}
                             </span>
                           </td>
                         </tr>
@@ -806,78 +757,92 @@ export default function DoctorSchedule() {
         </main>
       </div>
 
-      {/* Record Detail & Prescription Print Modal */}
-      {selectedRecord && (
+      {/* Print Prescription Modal */}
+      {printData && (
         <div className="modal-backdrop">
-          <div className="modal-content invoice-modal">
+          <div className="modal-content" style={{ maxWidth: 680 }}>
             <div className="modal-header">
-              <h3>Medical Record & Prescription</h3>
-              <button className="close-btn" onClick={() => setSelectedRecord(null)}>&times;</button>
+              <h3>Prescription completed — Ready to print</h3>
+              <button className="close-btn" onClick={() => setPrintData(null)}>&times;</button>
             </div>
-            <div className="modal-body print-section" id="print-area">
-              <div className="receipt-brand">
-                <h2>HOP SON TAI GENERAL CLINIC</h2>
-                <p>123 Hop Son Street, Hai Ba Trung District, Hanoi | Hotline: 1900 6868</p>
-              </div>
-              <hr />
-              <div className="receipt-meta">
-                <div>
-                  <p><strong>Patient:</strong> {selectedRecord.patientId?.fullName || 'N/A'}</p>
-                  <p><strong>Diagnosis:</strong> <span style={{ color: '#10b981', fontWeight: 'bold' }}>{selectedRecord.diagnosis}</span></p>
-                  <p><strong>Vitals:</strong> BP: {selectedRecord.bloodPressure || '--'} mmHg | HR: {selectedRecord.heartRate || '--'} bpm</p>
-                  <p><strong>Doctor's Notes:</strong> {selectedRecord.clinicalNotes || 'None'}</p>
+            <div className="modal-body">
+              <div id="prescription-print-area" style={{ fontFamily: 'Arial, sans-serif', fontSize: 13, lineHeight: 1.6, color: '#111' }}>
+                {/* Clinic header */}
+                <div style={{ textAlign: 'center', borderBottom: '2px solid #0066cc', paddingBottom: 12, marginBottom: 16 }}>
+                  <div style={{ fontWeight: 700, fontSize: 16, color: '#0066cc' }}>HOPSONTAI GENERAL CLINIC</div>
+                  <div style={{ fontSize: 11, color: '#555' }}>123 Hop Son Street, Hai Ba Trung District, Hanoi | Hotline: 1900 6868</div>
+                  <div style={{ fontWeight: 700, fontSize: 18, marginTop: 8, letterSpacing: 2 }}>PRESCRIPTION</div>
+                  <div style={{ fontSize: 11, color: '#555' }}>Date: {printData.date.toLocaleDateString('en-US')} — Record no.: {printData.appointment?._id?.slice(-8).toUpperCase()}</div>
                 </div>
-                <div className="text-right">
-                  <p><strong>Date:</strong> {new Date(selectedRecord.createdAt).toLocaleDateString('en-GB')}</p>
-                  <p><strong>Doctor:</strong> Dr. {selectedRecord.doctorId?.fullName || currentUser?.displayName}</p>
-                </div>
-              </div>
 
-              {recordPrescriptions && recordPrescriptions.length > 0 ? (
-                <div className="receipt-items-container" style={{ marginTop: 20 }}>
-                  <h4 style={{ textAlign: 'center', marginBottom: 15, fontSize: '18px', textTransform: 'uppercase' }}>Prescription</h4>
-                  <table className="receipt-table">
-                    <thead>
-                      <tr>
-                        <th>Medicine</th>
-                        <th className="text-center">Quantity</th>
-                        <th>Dosage & Frequency</th>
-                        <th>Duration & Instructions</th>
+                {/* Patient info */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 20px', marginBottom: 14, padding: '10px 0', borderBottom: '1px solid #ddd' }}>
+                  <div><strong>Full name:</strong> {printData.patient?.fullName}</div>
+                  <div><strong>Date of birth:</strong> {printData.patient?.dateOfBirth ? new Date(printData.patient.dateOfBirth).toLocaleDateString('en-US') : '--'}</div>
+                  <div><strong>Gender:</strong> {printData.patient?.gender}</div>
+                  <div><strong>Phone:</strong> {printData.patient?.phoneNumber}</div>
+                  <div style={{ gridColumn: '1/-1' }}><strong>Address:</strong> {printData.patient?.address || '--'}</div>
+                </div>
+
+                {/* Diagnosis */}
+                <div style={{ marginBottom: 14, padding: '8px 12px', background: '#f0f7ff', borderLeft: '4px solid #0066cc', borderRadius: 4 }}>
+                  <strong>Diagnosis:</strong> {printData.diagnosis}
+                  {printData.clinicalNotes && <div style={{ marginTop: 4, fontSize: 12, color: '#333' }}><strong>Notes:</strong> {printData.clinicalNotes}</div>}
+                </div>
+
+                {/* Medicine table */}
+                <div style={{ fontWeight: 700, marginBottom: 6 }}>Medication list:</div>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                  <thead>
+                    <tr style={{ background: '#e8f0fe' }}>
+                      <th style={{ border: '1px solid #ccc', padding: '6px 8px', textAlign: 'left' }}>STT</th>
+                      <th style={{ border: '1px solid #ccc', padding: '6px 8px', textAlign: 'left' }}>Medicine</th>
+                      <th style={{ border: '1px solid #ccc', padding: '6px 8px', textAlign: 'center' }}>Route</th>
+                      <th style={{ border: '1px solid #ccc', padding: '6px 8px', textAlign: 'center' }}>SL</th>
+                      <th style={{ border: '1px solid #ccc', padding: '6px 8px', textAlign: 'left' }}>Usage</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {printData.medicines.map((m, i) => (
+                      <tr key={i} style={{ background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
+                        <td style={{ border: '1px solid #ccc', padding: '5px 8px', textAlign: 'center' }}>{i + 1}</td>
+                        <td style={{ border: '1px solid #ccc', padding: '5px 8px', fontWeight: 600 }}>{m.name}</td>
+                        <td style={{ border: '1px solid #ccc', padding: '5px 8px', textAlign: 'center' }}>{m.dosageForm || 'Oral'}</td>
+                        <td style={{ border: '1px solid #ccc', padding: '5px 8px', textAlign: 'center' }}>{m.quantity}</td>
+                        <td style={{ border: '1px solid #ccc', padding: '5px 8px' }}>{m.dosage} — {m.frequency} — {m.durationDays} days ({m.specialInstructions})</td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {recordPrescriptions.map((p, idx) => (
-                        <tr key={idx}>
-                          <td>
-                            <strong>{p.medicineId?.medicineName || p.medicineId?.name || 'Medicine'}</strong>
-                          </td>
-                          <td className="text-center">{p.quantity}</td>
-                          <td>{p.dosage} - {p.frequency}</td>
-                          <td>{p.durationDays} days ({p.specialInstructions})</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                    ))}
+                  </tbody>
+                </table>
+
+                {/* Signature footer */}
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 32, paddingRight: 40 }}>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: 12, color: '#555' }}>{printData.date.toLocaleDateString('en-US')}</div>
+                    <div style={{ fontWeight: 700 }}>Examining doctor</div>
+                    <div style={{ marginTop: 48, fontWeight: 600 }}>Dr. {printData.doctor?.displayName}</div>
+                  </div>
                 </div>
-              ) : (
-                <div style={{ marginTop: 20, textAlign: 'center' }}>
-                  <p><em>No prescription was issued for this examination.</em></p>
-                </div>
-              )}
-              
-              <div className="receipt-summary" style={{ marginTop: 30, display: 'flex', justifyContent: 'flex-end' }}>
-                <div style={{ textAlign: 'center', width: '200px' }}>
-                  <p><strong>Physician's Signature</strong></p>
-                  <br /><br /><br />
-                  <p>Dr. {selectedRecord.doctorId?.fullName || currentUser?.displayName}</p>
+
+                <div style={{ marginTop: 20, fontSize: 11, color: '#888', borderTop: '1px solid #ddd', paddingTop: 8 }}>
+                  * This prescription is valid for 5 days from the date of issue. Please bring it to the cashier to pay and collect your medication.
                 </div>
               </div>
             </div>
             <div className="modal-footer">
-              {recordPrescriptions && recordPrescriptions.length > 0 && (
-                <button className="btn btn-primary" onClick={() => window.print()}>🖨️ Print Prescription</button>
-              )}
-              <button className="btn btn-ghost" onClick={() => setSelectedRecord(null)}>Close</button>
+              <button className="btn btn-ghost" onClick={() => setPrintData(null)}>Close</button>
+              <button
+                className="btn btn-primary"
+                onClick={() => {
+                  const content = document.getElementById('prescription-print-area').innerHTML;
+                  const w = window.open('', '_blank');
+                  w.document.write(`<html><head><title>Prescription</title><style>body{margin:24px;font-family:Arial,sans-serif;}@media print{body{margin:0;}}</style></head><body>${content}</body></html>`);
+                  w.document.close();
+                  w.print();
+                }}
+              >
+                Print prescription
+              </button>
             </div>
           </div>
         </div>

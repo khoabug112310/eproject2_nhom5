@@ -18,4 +18,7 @@ module.exports = {
   // File Upload
   MAX_FILE_SIZE: parseInt(process.env.MAX_FILE_SIZE || '5242880'), // 5MB
   UPLOAD_DIR: process.env.UPLOAD_DIR || './uploads',
+  
+  // Gemini API Key
+  GEMINI_API_KEY: process.env.GEMINI_API_KEY || '',
 };

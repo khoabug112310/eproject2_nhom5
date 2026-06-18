@@ -1,11 +1,49 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { clinicalAPI } from '../services/api';
 
 export default function Hero() {
+  const [statsData, setStatsData] = useState({
+    departments: 0,
+    doctors: 0,
+    patients: 0,
+    appointments: 0
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    const fetchStats = async () => {
+      try {
+        const res = await clinicalAPI.getPublicStats();
+        if (res.data?.success && active) {
+          setStatsData(res.data.data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch public stats', err);
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+
+    fetchStats();
+
+    const handleBookingSuccess = () => {
+      fetchStats();
+    };
+
+    window.addEventListener('booking-success', handleBookingSuccess);
+
+    return () => {
+      active = false;
+      window.removeEventListener('booking-success', handleBookingSuccess);
+    };
+  }, []);
+
   const stats = [
-    { number: '15+', label: 'Chuyên khoa sâu' },
-    { number: '50+', label: 'Bác sĩ chuyên khoa' },
-    { number: '10K+', label: 'Bệnh nhân tin tưởng' },
-    { number: '24/7', label: 'Tư vấn trực tuyến' },
+    { number: loading ? '...' : `${statsData.departments}`, label: 'Specialties' },
+    { number: loading ? '...' : `${statsData.doctors}`, label: 'Specialist Doctors' },
+    { number: loading ? '...' : `${statsData.patients}`, label: 'Patients Served' },
+    { number: loading ? '...' : `${statsData.appointments}`, label: 'Appointments' },
   ];
 
   return (
@@ -14,11 +52,16 @@ export default function Hero() {
       gridTemplateColumns: 'repeat(4, 1fr)',
       gap: '16px',
       padding: '24px',
+      
+      // Keep the original white frame (no rounded corners)
       background: 'white',
       border: '1px solid var(--color-border)',
-      borderRadius: 'var(--radius-card)',
       boxShadow: 'var(--shadow-md)',
-      marginBottom: '24px',
+      
+      // Adjust size and center for balance
+      maxWidth: '1200px',    // Limit the width of the white box
+      margin: '0 auto 24px auto', // Center horizontally with 24px bottom spacing
+      
       textAlign: 'center',
     }}>
       {stats.map((s, idx) => (

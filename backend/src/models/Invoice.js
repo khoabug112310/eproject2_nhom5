@@ -37,8 +37,8 @@ const invoiceSchema = new mongoose.Schema({
   paidAt: Date,
   processedBy: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Staff',
-    note: 'Tham chiếu StaffID của Thu ngân/Kế toán chốt đơn',
+    ref: 'User',
+    note: 'Tham chiếu UserID của Thu ngân/Kế toán chốt đơn',
   },
 }, { timestamps: true });
 

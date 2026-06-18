@@ -1,4 +1,4 @@
-// Routing setup với React Router
+// Routing setup with React Router
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import PublicLayout from '../layouts/PublicLayout';
@@ -7,10 +7,9 @@ import AccountantDashboard from '../pages/accountant/Dashboard';
 
 // Public Pages
 import Home from '../pages/public/Home';
-import Login from '../pages/auth/Login';
 import Departments from '../pages/public/Departments';
 import Specialists from '../pages/public/Specialists';
-import Services from '../pages/public/Services';
+import About from '../pages/public/About';
 import Posts from '../pages/public/Posts';
 import Contact from '../pages/public/Contact';
 
@@ -56,12 +55,16 @@ const AppRoutes = () => {
           }
         />
         <Route
-          path="/services"
+          path="/about"
           element={
             <PublicLayout>
-              <Services />
+              <About />
             </PublicLayout>
           }
+        />
+        <Route
+          path="/services"
+          element={<Navigate to="/about" replace />}
         />
         <Route
           path="/news"
@@ -79,14 +82,7 @@ const AppRoutes = () => {
             </PublicLayout>
           }
         />
-        <Route
-          path="/login"
-          element={
-            <PublicLayout>
-              <Login />
-            </PublicLayout>
-          }
-        />
+
 
         {/* Patient Routes */}
         <Route

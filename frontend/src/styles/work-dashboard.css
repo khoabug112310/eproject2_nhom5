@@ -1,4 +1,4 @@
-/* Giao diện làm việc chuyên nghiệp — Kế toán & Bác sĩ */
+/* Professional work dashboard — Accountant & Doctor */
 
 .work-dashboard {
   --work-bg: #eef1f6;
@@ -366,7 +366,7 @@
   background: #f8fafc;
 }
 
-/* Báo cáo kế toán */
+/* Accountant reports */
 .work-dashboard .stats-cards-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -398,7 +398,7 @@
   color: var(--work-text-muted);
 }
 
-/* Buồng khám bác sĩ */
+/* Doctor examination room */
 .work-dashboard .exam-workspace-container {
   background: var(--work-surface);
   border: 1px solid var(--work-border);

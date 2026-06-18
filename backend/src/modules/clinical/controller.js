@@ -1,5 +1,5 @@
 // Module Clinical - Controller
-// Xử lý: Medicines, Medical_Records, Prescriptions
+// Handles: Medicines, Medical_Records, Prescriptions
 
 const Medicine = require('../../models/Medicine');
 const Doctor = require('../../models/Doctor');
@@ -9,31 +9,41 @@ const getMedicines = async (req, res) => {
   try {
     const items = await Medicine.find().lean();
     const { success: ok, fail } = require('../../utils/response');
-    return ok(res, items, 'Lấy danh sách thuốc thành công');
+    return ok(res, items, 'Medicine list loaded successfully');
   } catch (err) {
     console.error('getMedicines error', err);
-    return res.status(500).json({ message: 'Lỗi khi lấy danh sách thuốc' });
+    return res.status(500).json({ message: 'Error loading the medicine list' });
   }
 };
 
 // Public: list doctors for frontend
 const getDoctorsPublic = async (req, res) => {
   try {
-    const docs = await Doctor.find({ isActive: true }).limit(50).populate('departmentId').lean();
+    const query = { isActive: true };
+    if (req.query.department) {
+      query.departmentId = req.query.department;
+    }
+    const docs = await Doctor.find(query).limit(50).populate('departmentId').lean();
     // Map to frontend-friendly fields
     const mapped = docs.map(d => ({
+      _id: d._id,
       id: d._id,
       fullName: d.fullName,
       avatar: d.avatarURL || null,
       specialization: d.specialization,
+      departmentId: d.departmentId ? d.departmentId._id : null,
       department: d.departmentId ? d.departmentId.departmentName : null,
+      experienceYears: d.experienceYears,
+      qualifications: d.qualifications,
+      baseFee: d.baseFee,
+      bio: d.bio,
     }));
     const { success: ok, fail } = require('../../utils/response');
-    return ok(res, mapped, 'Lấy danh sách bác sĩ thành công');
+    return ok(res, mapped, 'Doctor list loaded successfully');
   } catch (err) {
     console.error('getDoctorsPublic error', err);
     const { fail } = require('../../utils/response');
-    return fail(res, 'Lỗi khi lấy danh sách bác sĩ', 500, err.message);
+    return fail(res, 'Error loading the doctor list', 500, err.message);
   }
 };
 
@@ -49,17 +59,17 @@ const createMedicalRecord = async (req, res) => {
   try {
     const { appointmentId, height, weight, bloodPressure, heartRate, temperature, diagnosis, clinicalNotes } = req.body;
     if (!appointmentId || !diagnosis) {
-      return res.status(400).json({ success: false, message: 'appointmentId và diagnosis là bắt buộc' });
+      return res.status(400).json({ success: false, message: 'appointmentId and diagnosis are required' });
     }
 
     const doc = await Doctor.findOne({ userId: req.user.id });
     if (!doc) {
-      return res.status(403).json({ success: false, message: 'Chỉ tài khoản bác sĩ mới có thể tạo bệnh án' });
+      return res.status(403).json({ success: false, message: 'Only a doctor account can create medical records' });
     }
 
     const appt = await Appointment.findById(appointmentId);
     if (!appt) {
-      return res.status(404).json({ success: false, message: 'Lịch khám không tồn tại' });
+      return res.status(404).json({ success: false, message: 'Appointment not found' });
     }
 
     const recordFields = {
@@ -75,12 +85,12 @@ const createMedicalRecord = async (req, res) => {
     };
 
     let record = await Medical_Record.findOne({ appointmentId });
-    let message = 'Tạo hồ sơ bệnh án thành công';
+    let message = 'Medical record created successfully';
 
     if (record) {
       Object.assign(record, recordFields);
       await record.save();
-      message = 'Cập nhật hồ sơ bệnh án thành công';
+      message = 'Medical record updated successfully';
     } else {
       record = await Medical_Record.create({
         appointmentId,
@@ -99,9 +109,9 @@ const createMedicalRecord = async (req, res) => {
     console.error('createMedicalRecord error', err);
     const { fail } = require('../../utils/response');
     if (err.code === 11000) {
-      return fail(res, 'Lịch khám này đã có hồ sơ bệnh án', 409, err.message);
+      return fail(res, 'This appointment already has a medical record', 409, err.message);
     }
-    return fail(res, 'Lỗi khi tạo hồ sơ bệnh án', 500, err.message);
+    return fail(res, 'Error creating the medical record', 500, err.message);
   }
 };
 
@@ -113,7 +123,7 @@ const getMedicalRecords = async (req, res) => {
         const patient = await Patient.findOne({ userId: req.user.id });
         if (!patient) {
           const { success: ok } = require('../../utils/response');
-          return ok(res, [], 'Lấy danh sách bệnh án thành công');
+          return ok(res, [], 'Medical record list loaded successfully');
         }
         q.patientId = patient._id;
       } else {
@@ -132,11 +142,11 @@ const getMedicalRecords = async (req, res) => {
       .lean();
 
     const { success: ok } = require('../../utils/response');
-    return ok(res, items, 'Lấy danh sách bệnh án thành công');
+    return ok(res, items, 'Medical record list loaded successfully');
   } catch (err) {
     console.error('getMedicalRecords error', err);
     const { fail } = require('../../utils/response');
-    return fail(res, 'Lỗi khi lấy danh sách bệnh án', 500, err.message);
+    return fail(res, 'Error loading medical records', 500, err.message);
   }
 };
 
@@ -144,12 +154,12 @@ const createPrescription = async (req, res) => {
   try {
     const { recordId, medicines } = req.body;
     if (!recordId || !Array.isArray(medicines)) {
-      return res.status(400).json({ success: false, message: 'recordId và danh sách medicines là bắt buộc' });
+      return res.status(400).json({ success: false, message: 'recordId and the medicines list are required' });
     }
 
     const record = await Medical_Record.findById(recordId);
     if (!record) {
-      return res.status(404).json({ success: false, message: 'Hồ sơ bệnh án không tồn tại' });
+      return res.status(404).json({ success: false, message: 'Medical record not found' });
     }
 
     let totalAmount = 0;
@@ -159,7 +169,7 @@ const createPrescription = async (req, res) => {
     for (const item of medicines) {
       const med = await Medicine.findById(item.medicineId);
       if (!med) {
-        return res.status(404).json({ success: false, message: `Thuốc với ID ${item.medicineId} không tồn tại` });
+        return res.status(404).json({ success: false, message: `Medicine with ID ${item.medicineId} not found` });
       }
 
       const qty = Number(item.quantity) || 1;
@@ -170,8 +180,8 @@ const createPrescription = async (req, res) => {
         recordId,
         medicineId: item.medicineId,
         quantity: qty,
-        dosage: item.dosage || '1 viên',
-        frequency: item.frequency || '2 lần/ngày',
+        dosage: item.dosage || '1 tablet',
+        frequency: item.frequency || 'Twice a day',
         durationDays: Number(item.durationDays) || 7,
         specialInstructions: item.specialInstructions || '',
       });
@@ -214,11 +224,11 @@ const createPrescription = async (req, res) => {
     }
 
     const { success: ok } = require('../../utils/response');
-    return ok(res, prescriptionsCreated, 'Kê đơn thuốc thành công');
+    return ok(res, prescriptionsCreated, 'Prescription created successfully');
   } catch (err) {
     console.error('createPrescription error', err);
     const { fail } = require('../../utils/response');
-    return fail(res, 'Lỗi khi kê đơn thuốc', 500, err.message);
+    return fail(res, 'Error creating the prescription', 500, err.message);
   }
 };
 
@@ -229,12 +239,78 @@ const getPrescriptions = async (req, res) => {
     const items = await Prescription.find(q).populate('medicineId').lean();
 
     const { success: ok } = require('../../utils/response');
-    return ok(res, items, 'Lấy danh sách đơn thuốc thành công');
+    return ok(res, items, 'Prescription list loaded successfully');
   } catch (err) {
     console.error('getPrescriptions error', err);
     const { fail } = require('../../utils/response');
-    return fail(res, 'Lỗi khi lấy danh sách đơn thuốc', 500, err.message);
+    return fail(res, 'Error loading prescriptions', 500, err.message);
   }
 };
 
-module.exports = { getMedicines, createMedicalRecord, getMedicalRecords, createPrescription, getPrescriptions, getDoctorsPublic };
+const getPublicStats = async (req, res) => {
+  try {
+    const Department = require('../../models/Department');
+    const Doctor = require('../../models/Doctor');
+    const Patient = require('../../models/Patient');
+    const Appointment = require('../../models/Appointment');
+
+    const departmentCount = await Department.countDocuments();
+    const doctorCount = await Doctor.countDocuments({ isActive: true });
+    const patientCount = await Patient.countDocuments();
+    const appointmentCount = await Appointment.countDocuments();
+
+    const { success: ok } = require('../../utils/response');
+    return ok(res, {
+      departments: departmentCount,
+      doctors: doctorCount,
+      patients: patientCount,
+      appointments: appointmentCount
+    }, 'Public statistics loaded successfully');
+  } catch (err) {
+    console.error('getPublicStats error', err);
+    const { fail } = require('../../utils/response');
+    return fail(res, 'Error loading public statistics', 500, err.message);
+  }
+};
+
+const createMedicine = async (req, res) => {
+  try {
+    const { medicineName, medicineCode, activeIngredient, usageRoute, unit, unitPrice, stockQuantity } = req.body;
+    if (!medicineName || !medicineCode || !unit || unitPrice === undefined) {
+      return res.status(400).json({ success: false, message: 'Required medicine information is missing' });
+    }
+    const med = await Medicine.create({ medicineName, medicineCode, activeIngredient, usageRoute, unit, unitPrice: Number(unitPrice), stockQuantity: Number(stockQuantity) || 0, isActive: true });
+    const { success: ok } = require('../../utils/response');
+    return ok(res, med, 'Medicine added successfully', 201);
+  } catch (err) {
+    const { fail } = require('../../utils/response');
+    if (err.code === 11000) return fail(res, 'Medicine code already exists', 409);
+    return fail(res, 'Error adding the medicine', 500, err.message);
+  }
+};
+
+const updateMedicine = async (req, res) => {
+  try {
+    const med = await Medicine.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+    if (!med) return res.status(404).json({ success: false, message: 'Medicine not found' });
+    const { success: ok } = require('../../utils/response');
+    return ok(res, med, 'Medicine updated successfully');
+  } catch (err) {
+    const { fail } = require('../../utils/response');
+    return fail(res, 'Error updating the medicine', 500, err.message);
+  }
+};
+
+const deleteMedicine = async (req, res) => {
+  try {
+    const med = await Medicine.findByIdAndUpdate(req.params.id, { isActive: false }, { new: true });
+    if (!med) return res.status(404).json({ success: false, message: 'Medicine not found' });
+    const { success: ok } = require('../../utils/response');
+    return ok(res, null, 'Medicine deactivated');
+  } catch (err) {
+    const { fail } = require('../../utils/response');
+    return fail(res, 'Error deleting the medicine', 500, err.message);
+  }
+};
+
+module.exports = { getMedicines, createMedicine, updateMedicine, deleteMedicine, createMedicalRecord, getMedicalRecords, createPrescription, getPrescriptions, getDoctorsPublic, getPublicStats };

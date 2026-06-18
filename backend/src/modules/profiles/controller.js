@@ -1,5 +1,5 @@
 // Module Profiles - Controller
-// Xử lý: Users (Admin, Doctor, Staff), Patients, Doctors, Staffs
+// Handles: Users (Admin, Doctor, Staff), Patients, Doctors, Staffs
 
 const User = require('../../models/User');
 const Role = require('../../models/Role');
@@ -28,11 +28,11 @@ const getAllUsers = async (req, res) => {
       });
     }
     const { success: ok } = require('../../utils/response');
-    return ok(res, mapped, 'Lấy danh sách người dùng thành công');
+    return ok(res, mapped, 'User list loaded successfully');
   } catch (err) {
     console.error('getAllUsers error', err);
     const { fail } = require('../../utils/response');
-    return fail(res, 'Lỗi khi lấy danh sách người dùng', 500, err.message);
+    return fail(res, 'Error loading the user list', 500, err.message);
   }
 };
 
@@ -43,20 +43,20 @@ const getUserById = async (req, res) => {
     // Check if doctor profile id
     const doc = await Doctor.findById(id).populate('departmentId').lean();
     const { success: ok } = require('../../utils/response');
-    if (doc) return ok(res, doc, 'Lấy thông tin bác sĩ thành công');
+    if (doc) return ok(res, doc, 'Doctor information loaded successfully');
     
     // Otherwise check Patient profile id
     const pat = await Patient.findById(id).lean();
-    if (pat) return ok(res, pat, 'Lấy thông tin bệnh nhân thành công');
+    if (pat) return ok(res, pat, 'Patient information loaded successfully');
 
     // Otherwise check User
     const user = await User.findById(id).populate('roleId').lean();
-    if (!user) return res.status(404).json({ success: false, message: 'Không tìm thấy người dùng' });
-    return ok(res, user, 'Lấy thông tin người dùng thành công');
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+    return ok(res, user, 'User information loaded successfully');
   } catch (err) {
     console.error('getUserById error', err);
     const { fail } = require('../../utils/response');
-    return fail(res, 'Lỗi khi lấy thông tin người dùng', 500, err.message);
+    return fail(res, 'Error loading user information', 500, err.message);
   }
 };
 
@@ -78,7 +78,7 @@ const updateUser = async (req, res) => {
       if (body.emergencyContact !== undefined) patient.emergencyContact = body.emergencyContact;
       await patient.save();
       const { success: ok } = require('../../utils/response');
-      return ok(res, patient, 'Cập nhật thông tin bệnh nhân thành công');
+      return ok(res, patient, 'Patient information updated successfully');
     }
 
     // Check if doctor
@@ -94,7 +94,7 @@ const updateUser = async (req, res) => {
       if (body.avatarURL !== undefined) doctor.avatarURL = body.avatarURL;
       await doctor.save();
       const { success: ok } = require('../../utils/response');
-      return ok(res, doctor, 'Cập nhật thông tin bác sĩ thành công');
+      return ok(res, doctor, 'Doctor information updated successfully');
     }
 
     // Check if staff
@@ -105,7 +105,7 @@ const updateUser = async (req, res) => {
       if (body.position) staff.position = body.position;
       await staff.save();
       const { success: ok } = require('../../utils/response');
-      return ok(res, staff, 'Cập nhật nhân viên thành công');
+      return ok(res, staff, 'Staff updated successfully');
     }
 
     // Check if user
@@ -116,32 +116,32 @@ const updateUser = async (req, res) => {
       if (body.isActive !== undefined) user.isActive = body.isActive;
       await user.save();
       const { success: ok } = require('../../utils/response');
-      return ok(res, user, 'Cập nhật tài khoản thành công');
+      return ok(res, user, 'Account updated successfully');
     }
 
-    return res.status(404).json({ success: false, message: 'Không tìm thấy đối tượng cần cập nhật' });
+    return res.status(404).json({ success: false, message: 'The record to update was not found' });
   } catch (err) {
     console.error('updateUser error', err);
     const { fail } = require('../../utils/response');
-    return fail(res, 'Lỗi khi cập nhật thông tin', 500, err.message);
+    return fail(res, 'Error updating information', 500, err.message);
   }
 };
 
 const createDoctor = async (req, res) => {
   try {
-    const { username, password, roleName, fullName, email, phone, departmentId, specialization, experienceYears, baseFee, bio, position } = req.body;
+    const { username, password, roleName, fullName, email, phone, departmentId, specialization, experienceYears, qualifications, baseFee, bio, position } = req.body;
     if (!username || !password || !roleName || !fullName) {
-      return res.status(400).json({ success: false, message: 'username, password, roleName, fullName là bắt buộc' });
+      return res.status(400).json({ success: false, message: 'username, password, roleName, and fullName are required' });
     }
 
     const exists = await User.findOne({ username });
     if (exists) {
-      return res.status(409).json({ success: false, message: 'Tên đăng nhập đã tồn tại' });
+      return res.status(409).json({ success: false, message: 'Username already exists' });
     }
 
     const role = await Role.findOne({ roleName });
     if (!role) {
-      return res.status(400).json({ success: false, message: 'Quyền roleName không hợp lệ hoặc chưa định cấu hình' });
+      return res.status(400).json({ success: false, message: 'The roleName is invalid or not configured' });
     }
 
     const user = await User.create({
@@ -150,7 +150,8 @@ const createDoctor = async (req, res) => {
       roleId: role._id,
       email,
       phone: phone || username,
-      isActive: true
+      isActive: true,
+      isRegistered: true
     });
 
     let details = null;
@@ -158,9 +159,10 @@ const createDoctor = async (req, res) => {
       details = await Doctor.create({
         userId: user._id,
         fullName,
-        specialization: specialization || 'Chuyên khoa',
+        specialization: specialization || 'Specialist',
         departmentId: departmentId,
         experienceYears: Number(experienceYears) || 0,
+        qualifications: qualifications || 'Specialist Doctor',
         baseFee: Number(baseFee) || 150000,
         bio: bio || '',
         avatarURL: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?q=80&w=300&auto=format&fit=crop'
@@ -170,7 +172,7 @@ const createDoctor = async (req, res) => {
         userId: user._id,
         fullName,
         phoneNumber: phone || username,
-        position: position || (roleName === 'accountant' ? 'Kế toán' : 'CSKH')
+        position: position || (roleName === 'accountant' ? 'Accountant' : 'Customer Care')
       });
     } else if (roleName === 'patient') {
       details = await Patient.create({
@@ -184,11 +186,11 @@ const createDoctor = async (req, res) => {
     }
 
     const { success: ok } = require('../../utils/response');
-    return ok(res, { user, profile: details }, 'Đăng ký tài khoản thành công', 201);
+    return ok(res, { user, profile: details }, 'Account registered successfully', 201);
   } catch (err) {
     console.error('createDoctor error', err);
     const { fail } = require('../../utils/response');
-    return fail(res, 'Lỗi khi đăng ký tài khoản', 500, err.message);
+    return fail(res, 'Error registering the account', 500, err.message);
   }
 };
 
@@ -196,11 +198,11 @@ const getPatients = async (req, res) => {
   try {
     const list = await Patient.find().populate('userId').sort({ fullName: 1 }).lean();
     const { success: ok } = require('../../utils/response');
-    return ok(res, list, 'Lấy danh sách bệnh nhân thành công');
+    return ok(res, list, 'Patient list loaded successfully');
   } catch (err) {
     console.error('getPatients error', err);
     const { fail } = require('../../utils/response');
-    return fail(res, 'Lỗi khi lấy danh sách bệnh nhân', 500, err.message);
+    return fail(res, 'Error loading the patient list', 500, err.message);
   }
 };
 
@@ -263,18 +265,647 @@ const getAdminStats = async (req, res) => {
       if (item._id === 'Pharmacy') breakdownData.pharmacy = item.total;
     });
 
+    // === CALCULATE TIME SERIES DATA FOR CHARTS ===
+    // 1. WEEK CHART (Monday to Sunday of the current week)
+    const weekLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const weekRevenue = [];
+    const weekTraffic = [];
+
+    const mondayOffset = day === 0 ? -6 : 1 - day;
+    const monday = new Date(now);
+    monday.setDate(now.getDate() + mondayOffset);
+    monday.setHours(0, 0, 0, 0);
+
+    for (let i = 0; i < 7; i++) {
+      const dStart = new Date(monday);
+      dStart.setDate(monday.getDate() + i);
+      const dEnd = new Date(dStart);
+      dEnd.setHours(23, 59, 59, 999);
+
+      const dailyRevRes = await Invoice.aggregate([
+        { $match: { status: 'Paid', paidAt: { $gte: dStart, $lte: dEnd } } },
+        { $group: { _id: null, total: { $sum: '$totalAmount' } } }
+      ]);
+      const dailyRev = dailyRevRes.length > 0 ? dailyRevRes[0].total : 0;
+      weekRevenue.push(dailyRev);
+
+      const dailyPatients = await Appointment.countDocuments({
+        requestedDate: { $gte: dStart, $lte: dEnd }
+      });
+      weekTraffic.push(dailyPatients);
+    }
+
+    // 2. MONTH CHART (4 weeks of the current month)
+    const monthLabels = ['Week 1', 'Week 2', 'Week 3', 'Week 4'];
+    const monthRevenue = [];
+    const monthTraffic = [];
+
+    for (let w = 1; w <= 4; w++) {
+      const wStart = new Date(now.getFullYear(), now.getMonth(), (w - 1) * 7 + 1, 0, 0, 0, 0);
+      let wEnd;
+      if (w === 4) {
+        wEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+      } else {
+        wEnd = new Date(now.getFullYear(), now.getMonth(), w * 7, 23, 59, 59, 999);
+      }
+
+      const weeklyRevRes = await Invoice.aggregate([
+        { $match: { status: 'Paid', paidAt: { $gte: wStart, $lte: wEnd } } },
+        { $group: { _id: null, total: { $sum: '$totalAmount' } } }
+      ]);
+      const weeklyRev = weeklyRevRes.length > 0 ? weeklyRevRes[0].total : 0;
+      monthRevenue.push(weeklyRev);
+
+      const weeklyPatients = await Appointment.countDocuments({
+        requestedDate: { $gte: wStart, $lte: wEnd }
+      });
+      monthTraffic.push(weeklyPatients);
+    }
+
+    // 3. YEAR CHART (12 months of the current year)
+    const yearLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const yearRevenue = [];
+    const yearTraffic = [];
+
+    for (let m = 0; m < 12; m++) {
+      const mStart = new Date(now.getFullYear(), m, 1, 0, 0, 0, 0);
+      const mEnd = new Date(now.getFullYear(), m + 1, 0, 23, 59, 59, 999);
+
+      const monthlyRevRes = await Invoice.aggregate([
+        { $match: { status: 'Paid', paidAt: { $gte: mStart, $lte: mEnd } } },
+        { $group: { _id: null, total: { $sum: '$totalAmount' } } }
+      ]);
+      const monthlyRev = monthlyRevRes.length > 0 ? monthlyRevRes[0].total : 0;
+      yearRevenue.push(monthlyRev);
+
+      const monthlyPatients = await Appointment.countDocuments({
+        requestedDate: { $gte: mStart, $lte: mEnd }
+      });
+      yearTraffic.push(monthlyPatients);
+    }
+
+    // === CALCULATE QUALITY METRICS ===
+    const Doctor = require('../../models/Doctor');
+    const Staff = require('../../models/Staff');
+    const User = require('../../models/User');
+
+    const confirmedAppts = await Appointment.find({
+      status: { $in: ['Confirmed', 'Completed'] },
+      confirmedBy: { $exists: true }
+    }).select('createdAt updatedAt');
+    
+    let totalMinutes = 0;
+    let count = 0;
+    confirmedAppts.forEach(appt => {
+      const diffMs = appt.updatedAt - appt.createdAt;
+      if (diffMs > 0) {
+        totalMinutes += diffMs / 1000 / 60;
+        count++;
+      }
+    });
+    const avgConfirmationTime = count > 0 ? Math.round(totalMinutes / count) : 15;
+
+    // Rates: Success vs Canceled
+    const successCount = await Appointment.countDocuments({ status: { $in: ['Confirmed', 'Completed'] } });
+    const canceledCount = await Appointment.countDocuments({ status: 'Canceled' });
+    const pendingCount = await Appointment.countDocuments({ status: 'Pending' });
+    const totalAppts = successCount + canceledCount + pendingCount;
+    
+    const successRate = totalAppts > 0 ? Math.round((successCount / totalAppts) * 100) : 100;
+    const cancellationRate = totalAppts > 0 ? Math.round((canceledCount / totalAppts) * 100) : 0;
+    const pendingRate = totalAppts > 0 ? Math.round((pendingCount / totalAppts) * 100) : 0;
+
+    // Peak Hours
+    const timeSlots = await Appointment.aggregate([
+      { $match: { status: { $ne: 'Canceled' } } },
+      { $group: { _id: '$requestedTime', count: { $sum: 1 } } },
+      { $sort: { count: -1 } }
+    ]);
+    const peakHours = timeSlots.slice(0, 3).map(slot => ({
+      time: slot._id || 'Not scheduled',
+      count: slot.count
+    }));
+
+    // Performance comparison
+    const doctorStats = await Appointment.aggregate([
+      { $match: { status: 'Completed', doctorId: { $ne: null } } },
+      { $group: { _id: '$doctorId', count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+      { $limit: 5 }
+    ]);
+
+    const doctorsPerformance = [];
+    for (const docStat of doctorStats) {
+      const doc = await Doctor.findById(docStat._id).select('fullName');
+      if (doc) {
+        doctorsPerformance.push({
+          name: doc.fullName,
+          count: docStat.count
+        });
+      }
+    }
+
+    const cskhStats = await Appointment.aggregate([
+      { $match: { status: { $in: ['Confirmed', 'Completed'] }, confirmedBy: { $ne: null } } },
+      { $group: { _id: '$confirmedBy', count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+      { $limit: 5 }
+    ]);
+
+    const cskhPerformance = [];
+    for (const staffStat of cskhStats) {
+      const staff = await Staff.findOne({ userId: staffStat._id }).select('fullName');
+      if (staff) {
+        cskhPerformance.push({
+          name: staff.fullName,
+          count: staffStat.count
+        });
+      } else {
+        const usr = await User.findById(staffStat._id).select('username');
+        cskhPerformance.push({
+          name: usr ? usr.username : `NV #${staffStat._id.toString().substring(18)}`,
+          count: staffStat.count
+        });
+      }
+    }
+
     const { success: ok } = require('../../utils/response');
     return ok(res, {
       registrations: { day: regToday, week: regThisWeek, month: regThisMonth },
       examinations: { day: examToday, week: examThisWeek, month: examThisMonth },
       revenue: { day: revToday, week: revThisWeek, month: revThisMonth },
-      breakdown: breakdownData
-    }, 'Lấy số liệu thống kê thành công');
+      breakdown: breakdownData,
+      qualityMetrics: {
+        avgConfirmationTime,
+        rates: {
+          success: successRate,
+          canceled: cancellationRate,
+          pending: pendingRate,
+          counts: {
+            success: successCount,
+            canceled: canceledCount,
+            pending: pendingCount
+          }
+        },
+        peakHours,
+        performance: {
+          doctors: doctorsPerformance,
+          cskh: cskhPerformance
+        }
+      },
+      charts: {
+        week: { labels: weekLabels, revenue: weekRevenue, traffic: weekTraffic },
+        month: { labels: monthLabels, revenue: monthRevenue, traffic: monthTraffic },
+        year: { labels: yearLabels, revenue: yearRevenue, traffic: yearTraffic }
+      }
+    }, 'Statistics loaded successfully');
   } catch (err) {
     console.error('getAdminStats error', err);
     const { fail } = require('../../utils/response');
-    return fail(res, 'Lỗi khi lấy số liệu thống kê', 500, err.message);
+    return fail(res, 'Error loading statistics', 500, err.message);
   }
 };
 
-module.exports = { getAllUsers, getUserById, updateUser, createDoctor, getPatients, getAdminStats };
+const queryClinicAI = async (req, res) => {
+  try {
+    const { query } = req.body;
+    if (!query) {
+      return res.status(400).json({ success: false, message: 'An AI query is required' });
+    }
+
+    const Appointment = require('../../models/Appointment');
+    const Invoice = require('../../models/Invoice');
+    const User = require('../../models/User');
+    const Post = require('../../models/Post');
+
+    // 1. Fetch clinic figures to construct the system prompt context
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const usersCount = await User.countDocuments({});
+    const doctorsCount = await User.countDocuments({ role: 'doctor', isActive: true });
+    const staffCount = await User.countDocuments({ role: { $in: ['staff', 'accountant'] }, isActive: true });
+    const inactiveCount = await User.countDocuments({ isActive: false });
+
+    const postsCount = await Post.countDocuments({});
+    const publishedPostsCount = await Post.countDocuments({ status: 'Published' });
+    const draftPostsCount = await Post.countDocuments({ status: 'Draft' });
+
+    // Revenue month
+    const match = await Invoice.aggregate([
+      { $match: { status: 'Paid', paidAt: { $gte: startOfMonth } } },
+      { $group: { _id: '$invoiceType', total: { $sum: '$totalAmount' } } }
+    ]);
+    let revenueMonth = 0;
+    let consultationRev = 0;
+    let pharmacyRev = 0;
+    match.forEach(item => {
+      revenueMonth += item.total;
+      if (item._id === 'Consultation') consultationRev = item.total;
+      if (item._id === 'Pharmacy') pharmacyRev = item.total;
+    });
+
+    // Peak hours
+    const timeSlots = await Appointment.aggregate([
+      { $match: { status: { $ne: 'Canceled' } } },
+      { $group: { _id: '$requestedTime', count: { $sum: 1 } } },
+      { $sort: { count: -1 } }
+    ]);
+    const peakTime = timeSlots.length > 0 ? timeSlots[0]._id : 'Undetermined';
+    const peakCount = timeSlots.length > 0 ? timeSlots[0].count : 0;
+
+    // CSKH stats
+    const confirmedAppts = await Appointment.find({
+      status: { $in: ['Confirmed', 'Completed'] },
+      confirmedBy: { $exists: true }
+    }).select('createdAt updatedAt');
+    
+    let totalMinutes = 0;
+    let confirmedCount = 0;
+    confirmedAppts.forEach(appt => {
+      const diffMs = appt.updatedAt - appt.createdAt;
+      if (diffMs > 0) {
+        totalMinutes += diffMs / 1000 / 60;
+        confirmedCount++;
+      }
+    });
+    const avgConfirmationTime = confirmedCount > 0 ? Math.round(totalMinutes / confirmedCount) : 15;
+
+    const successCount = await Appointment.countDocuments({ status: { $in: ['Confirmed', 'Completed'] } });
+    const canceledCount = await Appointment.countDocuments({ status: 'Canceled' });
+    const pendingCount = await Appointment.countDocuments({ status: 'Pending' });
+    const totalAppts = successCount + canceledCount + pendingCount;
+    const successRate = totalAppts > 0 ? Math.round((successCount / totalAppts) * 100) : 100;
+    const cancellationRate = totalAppts > 0 ? Math.round((canceledCount / totalAppts) * 100) : 0;
+
+    // 2. Load API Key
+    const env = require('../../config/env');
+    const apiKey = env.GEMINI_API_KEY || process.env.GEMINI_API_KEY || '';
+
+    // 3. Construct System Prompt
+    const systemPrompt = `You are the AI Analysis Assistant integrated into the Hopsontai Clinic management system.
+Below are the clinic's current statistics for you to analyze:
+- Total user accounts: ${usersCount}
+- Active doctors: ${doctorsCount}
+- Active care & accounting staff: ${staffCount}
+- Locked (deactivated) accounts: ${inactiveCount}
+- Total medical articles (CMS): ${postsCount} (Published: ${publishedPostsCount}, Drafts: ${draftPostsCount})
+- Total revenue this month: ${revenueMonth} VND (Consultation fees: ${consultationRev} VND, Pharmacy revenue: ${pharmacyRev} VND)
+- Busiest examination hours: ${peakTime} (${peakCount} bookings)
+- Average care-team approval time: ${avgConfirmationTime} min (Success rate: ${successRate}%, Cancellation rate: ${cancellationRate}%)
+
+Respond to the administrator's request or question in English, professionally and accurately based on the data above, concise and with specific, actionable optimization recommendations.
+Format the entire answer in Markdown (use ### for section headings, ** for bold, and - or numbered lists). Do not use HTML or script tags.
+
+The administrator's analysis request: "${query}"`;
+
+    // 4. Call Gemini API
+    const https = require('https');
+    
+    const callGemini = (prompt, key) => {
+      return new Promise((resolve, reject) => {
+        const payload = JSON.stringify({
+          contents: [{
+            parts: [{ text: prompt }]
+          }]
+        });
+
+        const options = {
+          hostname: 'generativelanguage.googleapis.com',
+          port: 443,
+          path: `/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(payload)
+          }
+        };
+
+        const req = https.request(options, (res) => {
+          let body = '';
+          res.on('data', (chunk) => body += chunk);
+          res.on('end', () => {
+            try {
+              if (res.statusCode !== 200) {
+                return reject(new Error(`Gemini API returned status code ${res.statusCode}: ${body}`));
+              }
+              const json = JSON.parse(body);
+              if (json.candidates && json.candidates[0] && json.candidates[0].content && json.candidates[0].content.parts && json.candidates[0].content.parts[0]) {
+                resolve(json.candidates[0].content.parts[0].text);
+              } else {
+                reject(new Error(json.error?.message || 'Could not parse the response from the Gemini API'));
+              }
+            } catch (e) {
+              reject(e);
+            }
+          });
+        });
+
+        req.on('error', (e) => reject(e));
+        req.write(payload);
+        req.end();
+      });
+    };
+
+    const aiResponseText = await callGemini(systemPrompt, apiKey);
+    
+    const { success: ok } = require('../../utils/response');
+    return ok(res, { text: aiResponseText }, 'AI system analysis completed successfully');
+  } catch (err) {
+    console.error('queryClinicAI error', err);
+    const { fail } = require('../../utils/response');
+    return fail(res, 'Error calling the AI analysis assistant', 500, err.message);
+  }
+};
+
+const bcrypt = require('bcryptjs');
+
+const editUserAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { username, password, email, phone, isActive, fullName, departmentId, specialization, experienceYears, baseFee, bio, position } = req.body;
+
+    const user = await User.findById(id);
+    if (!user) return res.status(404).json({ success: false, message: 'User account not found' });
+
+    if (username && username !== user.username) {
+      const exists = await User.findOne({ username });
+      if (exists) return res.status(409).json({ success: false, message: 'Username already exists' });
+      user.username = username;
+    }
+
+    if (email !== undefined) user.email = email;
+    if (phone !== undefined) user.phone = phone;
+    if (isActive !== undefined) user.isActive = isActive;
+
+    if (password) {
+      user.passwordHash = await bcrypt.hash(password, 10);
+    }
+
+    await user.save();
+
+    const role = await Role.findById(user.roleId);
+    const roleName = role ? role.roleName : null;
+
+    if (roleName === 'doctor') {
+      let doctor = await Doctor.findOne({ userId: user._id });
+      if (!doctor) {
+        doctor = new Doctor({ userId: user._id });
+      }
+      if (fullName !== undefined) doctor.fullName = fullName;
+      if (specialization !== undefined) doctor.specialization = specialization;
+      if (departmentId !== undefined) doctor.departmentId = departmentId;
+      if (experienceYears !== undefined) doctor.experienceYears = Number(experienceYears) || 0;
+      if (baseFee !== undefined) doctor.baseFee = Number(baseFee) || 150000;
+      if (bio !== undefined) doctor.bio = bio;
+      await doctor.save();
+    } else if (roleName === 'staff' || roleName === 'accountant') {
+      let staff = await Staff.findOne({ userId: user._id });
+      if (!staff) {
+        staff = new Staff({ userId: user._id, fullName: fullName || 'Staff' });
+      }
+      if (fullName !== undefined) staff.fullName = fullName;
+      if (phone !== undefined) staff.phoneNumber = phone;
+      if (position !== undefined) staff.position = position;
+      await staff.save();
+    } else if (roleName === 'patient') {
+      let patient = await Patient.findOne({ userId: user._id });
+      if (!patient) {
+        patient = new Patient({ userId: user._id, fullName: fullName || 'Patient' });
+      }
+      if (fullName !== undefined) patient.fullName = fullName;
+      if (phone !== undefined) patient.phoneNumber = phone;
+      await patient.save();
+    }
+
+    const { success: ok } = require('../../utils/response');
+    return ok(res, user, 'Account updated successfully');
+  } catch (err) {
+    console.error('editUserAdmin error', err);
+    const { fail } = require('../../utils/response');
+    return fail(res, 'Error updating the account', 500, err.message);
+  }
+};
+
+const deleteUserAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const user = await User.findById(id);
+    if (!user) return res.status(404).json({ success: false, message: 'User account not found' });
+
+    const role = await Role.findById(user.roleId);
+    const roleName = role ? role.roleName : null;
+
+    if (roleName === 'doctor') {
+      await Doctor.deleteOne({ userId: user._id });
+    } else if (roleName === 'staff' || roleName === 'accountant') {
+      await Staff.deleteOne({ userId: user._id });
+    } else if (roleName === 'patient') {
+      await Patient.deleteOne({ userId: user._id });
+    }
+
+    await User.deleteOne({ _id: user._id });
+
+    const { success: ok } = require('../../utils/response');
+    return ok(res, null, 'Account deleted successfully');
+  } catch (err) {
+    console.error('deleteUserAdmin error', err);
+    const { fail } = require('../../utils/response');
+    return fail(res, 'Error deleting the account', 500, err.message);
+  }
+};
+
+const deleteAppointmentAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const Appointment = require('../../models/Appointment');
+    const Invoice = require('../../models/Invoice');
+    const Invoice_Detail = require('../../models/Invoice_Detail');
+    const Medical_Record = require('../../models/Medical_Record');
+    const Prescription = require('../../models/Prescription');
+
+    const appt = await Appointment.findById(id);
+    if (!appt) return res.status(404).json({ success: false, message: 'Appointment not found' });
+
+    const invoices = await Invoice.find({ appointmentId: appt._id });
+    for (const inv of invoices) {
+      await Invoice_Detail.deleteMany({ invoiceId: inv._id });
+    }
+    await Invoice.deleteMany({ appointmentId: appt._id });
+
+    const medRecords = await Medical_Record.find({ appointmentId: appt._id });
+    for (const rec of medRecords) {
+      await Prescription.deleteMany({ recordId: rec._id });
+    }
+    await Medical_Record.deleteMany({ appointmentId: appt._id });
+
+    await Appointment.deleteOne({ _id: appt._id });
+
+    const { success: ok } = require('../../utils/response');
+    return ok(res, null, 'Appointment and related data deleted successfully');
+  } catch (err) {
+    console.error('deleteAppointmentAdmin error', err);
+    const { fail } = require('../../utils/response');
+    return fail(res, 'Error deleting the appointment', 500, err.message);
+  }
+};
+
+const updateTimelineStepAdmin = async (req, res) => {
+  try {
+    const { appointmentId, stepIndex, action, status } = req.body;
+    if (!appointmentId || typeof stepIndex !== 'number') {
+      return res.status(400).json({ success: false, message: 'appointmentId and stepIndex are required' });
+    }
+
+    const Appointment = require('../../models/Appointment');
+    const Invoice = require('../../models/Invoice');
+    const Medical_Record = require('../../models/Medical_Record');
+    const Prescription = require('../../models/Prescription');
+
+    const appt = await Appointment.findById(appointmentId);
+    if (!appt) return res.status(404).json({ success: false, message: 'Appointment not found' });
+
+    if (stepIndex === 2) {
+      if (action === 'update') {
+        appt.status = status;
+        if (status === 'Confirmed') {
+          appt.confirmedBy = req.user.id;
+          const existingInv = await Invoice.findOne({ appointmentId: appt._id, invoiceType: 'Consultation' });
+          if (!existingInv) {
+            let fee = 150000;
+            if (appt.doctorId) {
+              const doc = await Doctor.findOne({ userId: appt.doctorId }) || await Doctor.findById(appt.doctorId);
+              if (doc && typeof doc.baseFee === 'number') fee = doc.baseFee;
+            }
+            await Invoice.create({
+              appointmentId: appt._id,
+              patientId: appt.patientId,
+              invoiceType: 'Consultation',
+              totalAmount: fee,
+              status: 'Unpaid',
+              issuedAt: new Date()
+            });
+          }
+        } else {
+          appt.confirmedBy = undefined;
+        }
+      } else if (action === 'delete') {
+        appt.status = 'Pending';
+        appt.confirmedBy = undefined;
+      }
+      await appt.save();
+    }
+    else if (stepIndex === 3) {
+      let inv = await Invoice.findOne({ appointmentId: appt._id, invoiceType: 'Consultation' });
+      if (action === 'update') {
+        if (!inv) {
+          let fee = 150000;
+          if (appt.doctorId) {
+            const doc = await Doctor.findById(appt.doctorId);
+            if (doc && typeof doc.baseFee === 'number') fee = doc.baseFee;
+          }
+          inv = await Invoice.create({
+            appointmentId: appt._id,
+            patientId: appt.patientId,
+            invoiceType: 'Consultation',
+            totalAmount: fee,
+            status: 'Unpaid',
+            issuedAt: new Date()
+          });
+        }
+        inv.status = status;
+        if (status === 'Paid') {
+          inv.paidAt = new Date();
+          const staff = await Staff.findOne({ userId: req.user.id });
+          if (staff) inv.processedBy = staff._id;
+        } else {
+          inv.paidAt = undefined;
+          inv.processedBy = undefined;
+        }
+        await inv.save();
+      } else if (action === 'delete') {
+        if (inv) {
+          await Invoice.deleteOne({ _id: inv._id });
+        }
+      }
+    }
+    else if (stepIndex === 4) {
+      if (action === 'update') {
+        if (status === 'Completed') {
+          appt.status = 'Completed';
+          await appt.save();
+          let rec = await Medical_Record.findOne({ appointmentId: appt._id });
+          if (!rec) {
+            let doc = await Doctor.findOne({ userId: req.user.id });
+            if (!doc) doc = await Doctor.findById(appt.doctorId);
+            await Medical_Record.create({
+              appointmentId: appt._id,
+              patientId: appt.patientId,
+              doctorId: doc ? doc._id : undefined,
+              diagnosis: 'Clinical examination (admin override)',
+              clinicalNotes: 'Updated by admin via the workflow'
+            });
+          }
+        } else {
+          appt.status = 'Confirmed';
+          await appt.save();
+          const rec = await Medical_Record.findOne({ appointmentId: appt._id });
+          if (rec) {
+            await Prescription.deleteMany({ recordId: rec._id });
+            await Medical_Record.deleteOne({ _id: rec._id });
+          }
+        }
+      } else if (action === 'delete') {
+        appt.status = 'Confirmed';
+        await appt.save();
+        const rec = await Medical_Record.findOne({ appointmentId: appt._id });
+        if (rec) {
+          await Prescription.deleteMany({ recordId: rec._id });
+          await Medical_Record.deleteOne({ _id: rec._id });
+        }
+      }
+    }
+    else if (stepIndex === 5) {
+      let inv = await Invoice.findOne({ appointmentId: appt._id, invoiceType: 'Pharmacy' });
+      if (action === 'update') {
+        if (!inv) {
+          inv = await Invoice.create({
+            appointmentId: appt._id,
+            patientId: appt.patientId,
+            invoiceType: 'Pharmacy',
+            totalAmount: 100000,
+            status: 'Unpaid',
+            issuedAt: new Date()
+          });
+        }
+        inv.status = status;
+        if (status === 'Paid') {
+          inv.paidAt = new Date();
+          const staff = await Staff.findOne({ userId: req.user.id });
+          if (staff) inv.processedBy = staff._id;
+        } else {
+          inv.paidAt = undefined;
+          inv.processedBy = undefined;
+        }
+        await inv.save();
+      } else if (action === 'delete') {
+        if (inv) {
+          const Invoice_Detail = require('../../models/Invoice_Detail');
+          await Invoice_Detail.deleteMany({ invoiceId: inv._id });
+          await Invoice.deleteOne({ _id: inv._id });
+        }
+      }
+    }
+
+    const { success: ok } = require('../../utils/response');
+    return ok(res, null, 'Workflow step updated successfully');
+  } catch (err) {
+    console.error('updateTimelineStepAdmin error', err);
+    const { fail } = require('../../utils/response');
+    return fail(res, 'Error updating the workflow step', 500, err.message);
+  }
+};
+
+module.exports = { getAllUsers, getUserById, updateUser, createDoctor, getPatients, getAdminStats, queryClinicAI, editUserAdmin, deleteUserAdmin, deleteAppointmentAdmin, updateTimelineStepAdmin };
+

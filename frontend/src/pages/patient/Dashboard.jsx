@@ -1,1040 +1,723 @@
 import React, { useState, useEffect } from 'react';
-import { profilesAPI, schedulingAPI, clinicalAPI, billingAPI, authAPI } from '../../services/api';
+import { profilesAPI, schedulingAPI, clinicalAPI, billingAPI } from '../../services/api';
 import RoleTopNav from '../../components/RoleTopNav';
+import Footer from '../../components/Footer';
+import PatientSidebar from './components/PatientSidebar';
+import BookingForm from './components/BookingForm';
+import Swal from 'sweetalert2';
 
 export default function PatientDashboard() {
-  const [activeTab, setActiveTab] = useState('appointments');
-  const [currentUser, setCurrentUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [patient, setPatient] = useState(null);
   const [appointments, setAppointments] = useState([]);
   const [invoices, setInvoices] = useState([]);
   const [records, setRecords] = useState([]);
-  const [departments, setDepartments] = useState([]);
-  const [doctors, setDoctors] = useState([]);
-  const [schedules, setSchedules] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
-
-  // Booking Form State
-  const [bookingForm, setBookingForm] = useState({
-    departmentId: '',
-    doctorId: '',
-    requestedDate: '',
-    requestedTime: '',
-    symptoms: '',
-  });
-
-  // Profile Form State
+  const [expandedRecords, setExpandedRecords] = useState([]);
+  const [expandedInvoices, setExpandedInvoices] = useState([]);
+  const [showBilling, setShowBilling] = useState(false);
+  const [showAppointmentsSection, setShowAppointmentsSection] = useState(false);
+  const [showPaymentsSection, setShowPaymentsSection] = useState(false);
+  const [showBookingSection, setShowBookingSection] = useState(false);
+  const [showRecordsSection, setShowRecordsSection] = useState(false);
+  const [selectedAppointment, setSelectedAppointment] = useState(null);
+  const [showAppointmentModal, setShowAppointmentModal] = useState(false);
   const [profileForm, setProfileForm] = useState({
     fullName: '',
     dateOfBirth: '',
-    gender: 'Nam',
-    identityCard: '',
+    gender: 'Khác',
     phoneNumber: '',
     address: '',
-    insuranceCode: '',
-    emergencyContact: '',
+    identityCard: '',
+    insuranceCode: ''
   });
-
-  // Modals
-  const [selectedInvoice, setSelectedInvoice] = useState(null);
-  const [selectedRecord, setSelectedRecord] = useState(null);
-  const [paymentInvoice, setPaymentInvoice] = useState(null);
-  const [paymentMethod, setPaymentMethod] = useState('bank');
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileMessage, setProfileMessage] = useState('');
   const [paymentProcessing, setPaymentProcessing] = useState(false);
+  const [paymentMessage, setPaymentMessage] = useState('');
 
   useEffect(() => {
-    fetchInitialData();
+    let mounted = true;
+    const load = async () => {
+      try {
+        setLoading(true);
+        const patientRes = await profilesAPI.getMyPatientProfile();
+        const currentPatient = patientRes.data?.data || null;
+        if (mounted) setPatient(currentPatient);
+        if (mounted && currentPatient) {
+          setProfileForm({
+            fullName: currentPatient.fullName || '',
+            dateOfBirth: currentPatient.dateOfBirth ? new Date(currentPatient.dateOfBirth).toISOString().slice(0, 10) : '',
+            gender: currentPatient.gender || 'Khác',
+            phoneNumber: currentPatient.phoneNumber || '',
+            address: currentPatient.address || '',
+            identityCard: currentPatient.identityCard || '',
+            insuranceCode: currentPatient.insuranceCode || ''
+          });
+        }
+
+        const apptsRes = await schedulingAPI.getAppointments();
+        if (mounted) setAppointments(apptsRes.data?.data || []);
+
+        const invRes = await billingAPI.getInvoices();
+        if (mounted) setInvoices(invRes.data?.data || []);
+
+        if (currentPatient) {
+          const recRes = await clinicalAPI.getMedicalRecords({ patientId: currentPatient._id });
+          if (mounted) setRecords(recRes.data?.data || []);
+        }
+      } catch (err) {
+        console.error(err);
+        if (mounted) setError('Failed to load data.');
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+    load();
+    return () => {
+      mounted = false;
+    };
   }, []);
 
-  const fetchInitialData = async () => {
-    try {
-      setLoading(true);
-      setErrorMessage('');
-      
-      // 1. Get Me
-      const meRes = await authAPI.me();
-      const me = meRes.data.data;
-      setCurrentUser(me);
-
-      // 2. Get Patients list to find matching profile
-      const patientsRes = await profilesAPI.getPatients();
-      const patientsList = patientsRes.data.data;
-      const matchedPatient = patientsList.find(
-        (p) => p.userId?._id === me.userId || p.userId === me.userId || p.phoneNumber === me.username
+  useEffect(() => {
+    // helper to open a specific panel and close others; scroll it into view
+    const openPanel = (panelId) => {
+      const isOpen = (
+        (panelId === 'book' && showBookingSection) ||
+        (panelId === 'appointments' && showAppointmentsSection) ||
+        (panelId === 'payments' && showPaymentsSection) ||
+        (panelId === 'records' && showRecordsSection)
       );
 
-      if (matchedPatient) {
-        setPatient(matchedPatient);
-        // Initialize profile form
-        setProfileForm({
-          fullName: matchedPatient.fullName || '',
-          dateOfBirth: matchedPatient.dateOfBirth ? new Date(matchedPatient.dateOfBirth).toISOString().split('T')[0] : '',
-          gender: matchedPatient.gender || 'Khác',
-          identityCard: matchedPatient.identityCard || '',
-          phoneNumber: matchedPatient.phoneNumber || '',
-          address: matchedPatient.address || '',
-          insuranceCode: matchedPatient.insuranceCode || '',
-          emergencyContact: matchedPatient.emergencyContact || '',
-        });
-
-        // Fetch user records, appointments, and invoices
-        const apptsRes = await schedulingAPI.getAppointments();
-        setAppointments(apptsRes.data.data);
-
-        const invoicesRes = await billingAPI.getInvoices();
-        setInvoices(invoicesRes.data.data);
-
-        const recordsRes = await clinicalAPI.getMedicalRecords({ patientId: matchedPatient._id });
-        setRecords(recordsRes.data.data);
-      } else {
-        // Patient profile doesn't exist yet, force user to profile tab to create it
-        setActiveTab('profile');
-        setProfileForm((prev) => ({
-          ...prev,
-          phoneNumber: me.username || '',
-        }));
+      // toggle: if already open, close all; otherwise open the requested and close others
+      if (isOpen) {
+        setShowBookingSection(false);
+        setShowAppointmentsSection(false);
+        setShowPaymentsSection(false);
+        setShowRecordsSection(false);
+        return;
       }
 
-      // Load static lists for booking
-      const deptsRes = await schedulingAPI.getDepartments();
-      setDepartments(deptsRes.data.data);
+      setShowBookingSection(panelId === 'book');
+      setShowAppointmentsSection(panelId === 'appointments');
+      setShowPaymentsSection(panelId === 'payments');
+      setShowRecordsSection(panelId === 'records');
 
-      const docsRes = await clinicalAPI.getDoctors();
-      setDoctors(docsRes.data.data);
+      // scroll to the panel after a tick so DOM updates
+      setTimeout(() => {
+        const el = document.getElementById(panelId);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } else {
+          // fallback: scroll main column to top
+          const main = document.querySelector('.patient-dashboard__main');
+          main?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 80);
+    };
+
+    const onToggleAppointments = () => openPanel('appointments');
+    const onTogglePayments = () => openPanel('payments');
+    const onToggleBooking = () => openPanel('book');
+    const onToggleRecords = () => openPanel('records');
+
+    window.addEventListener('toggleAppointments', onToggleAppointments);
+    window.addEventListener('togglePayments', onTogglePayments);
+    window.addEventListener('toggleBooking', onToggleBooking);
+    window.addEventListener('toggleRecords', onToggleRecords);
+
+    return () => {
+      window.removeEventListener('toggleAppointments', onToggleAppointments);
+      window.removeEventListener('togglePayments', onTogglePayments);
+      window.removeEventListener('toggleBooking', onToggleBooking);
+      window.removeEventListener('toggleRecords', onToggleRecords);
+    };
+  }, []);
+
+  const refreshAppointments = async () => {
+    try {
+      const apptsRes = await schedulingAPI.getAppointments();
+      setAppointments(apptsRes.data?.data || []);
     } catch (err) {
       console.error(err);
-      setErrorMessage('Lỗi khi tải dữ liệu. Vui lòng thử lại.');
-    } finally {
-      setLoading(false);
     }
   };
 
-  const handleCreatePatientProfile = async (e) => {
-    e.preventDefault();
-    setSubmitting(true);
-    setErrorMessage('');
-    setSuccessMessage('');
+  const refreshInvoices = async () => {
     try {
-      // Create user profile on backend (which also creates patient profile on profiles API or auth register activation)
-      // Since they are logged in but don't have patient details, we call profilesAPI.updateUser or register a new one.
-      // Wait, let's call createDoctor but passing patient role, or check what endpoints exist.
-      // Let's create the patient profile by calling register endpoint again, or profilesAPI.createUser.
-      // Wait, profilesAPI.updateUser(currentUser.userId, data): let's verify if we can update the User to patient.
-      // Or we can check if there's a POST /profiles/users or POST /auth/register.
-      // Wait, let's see profilesAPI.createUser which maps to POST /profiles/users.
-      const payload = {
-        roleName: 'patient',
-        username: currentUser.username,
-        password: 'Password123!', // backend needs it but user is already authenticated
-        fullName: profileForm.fullName,
-        phone: profileForm.phoneNumber,
-        email: currentUser.username + '@clinic.com',
-        gender: profileForm.gender,
-        dateOfBirth: profileForm.dateOfBirth,
-        identityCard: profileForm.identityCard,
-        address: profileForm.address,
-        insuranceCode: profileForm.insuranceCode,
-        emergencyContact: profileForm.emergencyContact
-      };
-
-      // Let's call the backend to create/update
-      // Since they already exist in User model, we should create Patient model directly.
-      // Let's see: profilesAPI.createUser will return 409 if username exists, but wait, does backend createDoctor handle updating?
-      // Let's check how we can create a patient record. In profiles/controller.js:
-      // If roleName === 'patient', it creates a patient in Patient collection!
-      // But user already exists. Wait, can we write a custom request, or does backend authorize updating User?
-      // Actually, let's check backend/src/modules/profiles/controller.js updateUser:
-      // If it matches patient id, it updates patient. If it matches user id, it updates user.
-      // But patient doesn't exist yet! How to create it?
-      // In backend/src/modules/auth/controller.js register:
-      // It allows creating a patient for existing user if password is correct!
-      // Or we can call authAPI.register(payload):
-      const regRes = await authAPI.register({
-        phone: currentUser.username,
-        fullName: profileForm.fullName,
-        dateOfBirth: profileForm.dateOfBirth,
-        gender: profileForm.gender,
-        identityCard: profileForm.identityCard,
-        address: profileForm.address,
-        insuranceCode: profileForm.insuranceCode,
-        emergencyContact: profileForm.emergencyContact
-      });
-
-      setSuccessMessage('Khởi tạo hồ sơ bệnh nhân thành công!');
-      fetchInitialData();
-      setActiveTab('appointments');
+      const invRes = await billingAPI.getInvoices();
+      setInvoices(invRes.data?.data || []);
     } catch (err) {
-      setErrorMessage(err?.response?.data?.message || 'Không thể tạo hồ sơ bệnh nhân.');
-    } finally {
-      setSubmitting(false);
+      console.error(err);
     }
   };
 
-  const handleUpdateProfile = async (e) => {
-    e.preventDefault();
-    if (!patient) return handleCreatePatientProfile(e);
-
-    setSubmitting(true);
-    setErrorMessage('');
-    setSuccessMessage('');
-    try {
-      await profilesAPI.updateUser(patient._id, {
-        fullName: profileForm.fullName,
-        dateOfBirth: profileForm.dateOfBirth,
-        gender: profileForm.gender,
-        identityCard: profileForm.identityCard,
-        phoneNumber: profileForm.phoneNumber,
-        address: profileForm.address,
-        insuranceCode: profileForm.insuranceCode,
-        emergencyContact: profileForm.emergencyContact,
-      });
-      setSuccessMessage('Cập nhật hồ sơ thành công!');
-      fetchInitialData();
-    } catch (err) {
-      setErrorMessage(err?.response?.data?.message || 'Không thể cập nhật hồ sơ.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  // Watch doctor change in booking form to load doctor's schedules
-  useEffect(() => {
-    if (bookingForm.doctorId) {
-      schedulingAPI.getSchedules(bookingForm.doctorId)
-        .then((res) => {
-          setSchedules(res.data.data);
-        })
-        .catch(console.error);
-    } else {
-      setSchedules([]);
-    }
-  }, [bookingForm.doctorId]);
-
-  const handleBookingSubmit = async (e) => {
-    e.preventDefault();
-    if (!patient) {
-      setErrorMessage('Bạn phải hoàn tất hồ sơ bệnh nhân trước khi đặt lịch.');
-      setActiveTab('profile');
+  const handlePayAllUnpaid = async () => {
+    const unpaidInvoices = invoices.filter((inv) => inv.status !== 'Paid');
+    if (unpaidInvoices.length === 0) {
+      setPaymentMessage('No unpaid invoices.');
       return;
     }
 
-    setSubmitting(true);
-    setErrorMessage('');
-    setSuccessMessage('');
-    try {
-      await schedulingAPI.bookAppointment({
-        patientId: patient._id,
-        departmentId: bookingForm.departmentId,
-        doctorId: bookingForm.doctorId || undefined,
-        requestedDate: bookingForm.requestedDate,
-        requestedTime: bookingForm.requestedTime,
-        symptoms: bookingForm.symptoms,
-      });
+    const result = await Swal.fire({
+      title: 'Confirm payment',
+      text: 'Do you want to pay all unpaid invoices?',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#10b981',
+      cancelButtonColor: '#64748b',
+      confirmButtonText: 'Pay',
+      cancelButtonText: 'Cancel'
+    });
+    if (!result.isConfirmed) return;
 
-      setSuccessMessage('Đặt lịch hẹn thành công! Lịch hẹn đang chờ CSKH xác nhận.');
-      setBookingForm({
-        departmentId: '',
-        doctorId: '',
-        requestedDate: '',
-        requestedTime: '',
-        symptoms: '',
-      });
-      fetchInitialData();
-      setActiveTab('appointments');
-    } catch (err) {
-      setErrorMessage(err?.response?.data?.message || 'Đã xảy ra lỗi khi đặt lịch.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleCancelAppointment = async (apptId) => {
-    if (!window.confirm('Bạn có chắc chắn muốn hủy lịch hẹn này?')) return;
-    try {
-      await schedulingAPI.updateAppointment(apptId, { status: 'Canceled' });
-      setSuccessMessage('Đã hủy lịch hẹn thành công.');
-      fetchInitialData();
-    } catch (err) {
-      setErrorMessage(err?.response?.data?.message || 'Không thể hủy lịch hẹn.');
-    }
-  };
-
-  // Mock Payment Flow
-  const handlePayInvoice = async (invoice) => {
-    setPaymentInvoice(invoice);
-    setPaymentMethod('bank');
-  };
-
-  const executePayment = async () => {
-    if (!paymentInvoice) return;
     setPaymentProcessing(true);
+    setPaymentMessage('');
     try {
-      // Simulating payment gateway response time
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      await billingAPI.payInvoice(paymentInvoice._id);
-      
-      setSuccessMessage('Thanh toán hóa đơn thành công!');
-      setPaymentInvoice(null);
-      fetchInitialData();
+      await Promise.all(unpaidInvoices.map((inv) => billingAPI.payInvoice(inv._id)));
+      await refreshInvoices();
+      setPaymentMessage('Successfully paid all unpaid invoices.');
     } catch (err) {
-      setErrorMessage('Lỗi xử lý thanh toán. Vui lòng liên hệ hỗ trợ.');
+      console.error(err);
+      setPaymentMessage('Payment failed. Please try again later.');
     } finally {
       setPaymentProcessing(false);
     }
   };
 
-  // Render Status Badge
-  const renderStatus = (status) => {
-    let cls = '';
-    let label = status;
-    if (status === 'Pending') { cls = 'badge-warning'; label = 'Chờ xác nhận'; }
-    else if (status === 'Confirmed') { cls = 'badge-primary'; label = 'Đã xác nhận'; }
-    else if (status === 'Completed') { cls = 'badge-success'; label = 'Hoàn thành'; }
-    else if (status === 'Canceled') { cls = 'badge-danger'; label = 'Đã hủy'; }
-    return <span className={`badge ${cls}`}>{label}</span>;
+  const handlePayInvoice = async (invoice) => {
+    if (invoice.status === 'Paid') {
+      setPaymentMessage('This invoice has already been paid.');
+      return;
+    }
+    const result = await Swal.fire({
+      title: 'Confirm payment',
+      text: `Are you sure you want to pay the ${translateInvoiceType(invoice.invoiceType)} of ${formatCurrency(invoice.totalAmount || 0)}?`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#10b981',
+      cancelButtonColor: '#64748b',
+      confirmButtonText: 'Pay',
+      cancelButtonText: 'Cancel'
+    });
+    if (!result.isConfirmed) return;
+
+    setPaymentProcessing(true);
+    setPaymentMessage('');
+    try {
+      await billingAPI.payInvoice(invoice._id);
+      await refreshInvoices();
+      setPaymentMessage(`Successfully paid invoice of ${formatCurrency(invoice.totalAmount || 0)}.`);
+    } catch (err) {
+      console.error(err);
+      setPaymentMessage('Could not pay the invoice. Please try again later.');
+    } finally {
+      setPaymentProcessing(false);
+    }
   };
 
-  const formatVND = (num) => {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(num);
+  const formatCurrency = (amount) => {
+    try {
+      return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'VND', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Number(amount) || 0);
+    } catch (e) {
+      return amount || 0;
+    }
+  };
+
+  const translateInvoiceType = (type) => {
+    if (!type) return 'Invoice';
+    if (type === 'Consultation') return 'Consultation Invoice';
+    if (type === 'Pharmacy') return 'Pharmacy Invoice';
+    return type;
+  };
+
+  const translateInvoiceStatus = (status) => {
+    if (!status) return '';
+    if (status === 'Unpaid') return 'Unpaid';
+    if (status === 'Paid') return 'Paid';
+    if (status === 'Refunded') return 'Refunded';
+    return status;
+  };
+
+  const handleCancel = async (id) => {
+    const result = await Swal.fire({
+      title: 'Confirm cancellation',
+      text: 'Are you sure you want to cancel this appointment?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#64748b',
+      confirmButtonText: 'Cancel appointment',
+      cancelButtonText: 'Close'
+    });
+    if (!result.isConfirmed) return;
+    try {
+      await schedulingAPI.updateAppointment(id, { status: 'Canceled' });
+      setAppointments((prev) => prev.filter((a) => a._id !== id));
+    } catch (err) {
+      console.error(err);
+      setError('Could not cancel the appointment.');
+    }
+  };
+
+  const handleToggleRecord = (id) => {
+    setExpandedRecords((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleToggleInvoice = (id) => {
+    setExpandedInvoices((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleEditPatient = () => {
+    if (!patient) return;
+    setProfileForm({
+      fullName: patient.fullName || '',
+      dateOfBirth: patient.dateOfBirth ? new Date(patient.dateOfBirth).toISOString().slice(0, 10) : '',
+      gender: patient.gender || 'Khác',
+      phoneNumber: patient.phoneNumber || '',
+      address: patient.address || '',
+      identityCard: patient.identityCard || '',
+      insuranceCode: patient.insuranceCode || ''
+    });
+    setProfileMessage('');
+    setIsEditingProfile(true);
+  };
+
+  const handleProfileChange = (field, value) => {
+    setProfileForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleSaveProfile = async () => {
+    setProfileSaving(true);
+    setProfileMessage('');
+    try {
+      const response = patient?._id
+        ? await profilesAPI.updateMyPatientProfile(profileForm)
+        : await profilesAPI.createMyPatientProfile(profileForm);
+      const savedPatient = response.data?.data;
+      setPatient(savedPatient);
+      setProfileForm({
+        fullName: savedPatient?.fullName || '',
+        dateOfBirth: savedPatient?.dateOfBirth ? new Date(savedPatient.dateOfBirth).toISOString().slice(0, 10) : '',
+        gender: savedPatient?.gender || 'Khác',
+        phoneNumber: savedPatient?.phoneNumber || '',
+        address: savedPatient?.address || '',
+        identityCard: savedPatient?.identityCard || '',
+        insuranceCode: savedPatient?.insuranceCode || ''
+      });
+      setProfileMessage('Profile updated successfully.');
+      setIsEditingProfile(false);
+    } catch (err) {
+      console.error(err);
+      setProfileMessage('Could not update your profile. Please try again later.');
+    } finally {
+      setProfileSaving(false);
+    }
+  };
+
+  const handleShowAppointmentDetails = (appointment) => {
+    setSelectedAppointment(appointment);
+    setShowAppointmentModal(true);
+  };
+
+  const handleCloseAppointmentModal = () => {
+    setSelectedAppointment(null);
+    setShowAppointmentModal(false);
   };
 
   if (loading) {
     return (
-      <div className="dashboard-loading">
-        <div className="spinner"></div>
-        <p>Đang đồng bộ dữ liệu EHR...</p>
+      <div>
+        <RoleTopNav role="patient" />
+        <main>
+          <div className="dashboard-loading">
+            <div className="spinner"></div>
+            <p>Loading data...</p>
+          </div>
+        </main>
       </div>
     );
   }
 
   return (
-    <div className="role-dashboard-shell">
+    <div>
       <RoleTopNav role="patient" />
+      <main className="patient-dashboard">
+        {error && <div className="alert alert--error">{error}</div>}
 
-      <div className="dashboard-layout">
-        {/* Navigation Sidebar/Tabs */}
-        <aside className="dashboard-sidebar">
-          <div className="patient-quick-info">
-            <div className="p-avatar">
-              {patient?.fullName?.charAt(0).toUpperCase() || 'U'}
-            </div>
-            <h4>{patient?.fullName || 'Khách hàng'}</h4>
-            <p className="p-card-number">{patient?.identityCard || 'Chưa hoàn tất hồ sơ'}</p>
+        <div className="patient-dashboard__hero card">
+          <div>
+            <h3>Hello, {patient?.fullName || 'guest'}</h3>
+            <p>View your appointments, payments, and medical records at a glance.</p>
           </div>
-          <nav className="sidebar-nav">
-            <button
-              onClick={() => setActiveTab('appointments')}
-              className={activeTab === 'appointments' ? 'active' : ''}
-            >
-              📅 Lịch hẹn của tôi
-            </button>
-            <button
-              onClick={() => setActiveTab('book')}
-              className={activeTab === 'book' ? 'active' : ''}
-            >
-              ➕ Đặt lịch khám mới
-            </button>
-            <button
-              onClick={() => setActiveTab('records')}
-              className={activeTab === 'records' ? 'active' : ''}
-            >
-              📑 Hồ sơ bệnh án
-            </button>
-            <button
-              onClick={() => setActiveTab('billing')}
-              className={activeTab === 'billing' ? 'active' : ''}
-            >
-              💳 Hóa đơn & Thanh toán
-            </button>
-            <button
-              onClick={() => setActiveTab('profile')}
-              className={activeTab === 'profile' ? 'active' : ''}
-            >
-              👤 Thông tin cá nhân
-            </button>
-          </nav>
-        </aside>
+        </div>
 
-        {/* Main Content Area */}
-        <main className="dashboard-main-content">
-          {successMessage && <div className="alert alert-success">{successMessage}</div>}
-          {errorMessage && <div className="alert alert-danger">{errorMessage}</div>}
-
-          {/* Tab: Appointments */}
-          {activeTab === 'appointments' && (
-            <div className="dashboard-card">
-              <div className="card-header">
-                <h2>Lịch hẹn khám bệnh</h2>
-                <button className="btn btn-primary btn-sm" onClick={() => setActiveTab('book')}>
-                  Đặt lịch mới
-                </button>
-              </div>
-
-              {appointments.length === 0 ? (
-                <div className="empty-state">
-                  <p>Bạn chưa có lịch hẹn khám nào.</p>
-                  <button className="btn btn-ghost" onClick={() => setActiveTab('book')}>
-                    Đặt lịch khám ngay
-                  </button>
-                </div>
-              ) : (
-                <div className="table-responsive">
-                  <table className="custom-table">
-                    <thead>
-                      <tr>
-                        <th>Ngày khám</th>
-                        <th>Khung giờ</th>
-                        <th>Khoa chuyên ngành</th>
-                        <th>Bác sĩ</th>
-                        <th>Trạng thái</th>
-                        <th>Thao tác</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {appointments.map((appt) => (
-                        <tr key={appt._id}>
-                          <td>{new Date(appt.requestedDate).toLocaleDateString('vi-VN')}</td>
-                          <td>{appt.requestedTime}</td>
-                          <td>{appt.departmentId?.departmentName || 'Chung'}</td>
-                          <td>{appt.doctorId?.fullName || 'Bác sĩ bất kỳ'}</td>
-                          <td>{renderStatus(appt.status)}</td>
-                          <td>
-                            {appt.status === 'Pending' && (
-                              <button
-                                className="btn btn-danger btn-xs"
-                                onClick={() => handleCancelAppointment(appt._id)}
-                              >
-                                Hủy lịch
-                              </button>
-                            )}
-                            {appt.status === 'Completed' && (
-                              <span className="text-muted">Đã khám xong</span>
-                            )}
-                            {appt.status === 'Canceled' && (
-                              <span className="text-muted">-</span>
-                            )}
-                            {appt.status === 'Confirmed' && (
-                              <span className="text-muted">Chờ gọi số</span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Tab: Book Appointment */}
-          {activeTab === 'book' && (
-            <div className="dashboard-card">
-              <h2>Đăng ký đặt lịch khám</h2>
-              <p className="subtitle">Lựa chọn chuyên khoa, bác sĩ và thời gian khám phù hợp.</p>
-
-              <form onSubmit={handleBookingSubmit} className="grid-form">
-                <div className="form-group full-width">
-                  <label>Chuyên khoa khám *</label>
-                  <select
-                    value={bookingForm.departmentId}
-                    onChange={(e) => setBookingForm({ ...bookingForm, departmentId: e.target.value, doctorId: '' })}
-                    required
-                  >
-                    <option value="">-- Chọn chuyên khoa --</option>
-                    {departments.map((d) => (
-                      <option key={d._id} value={d._id}>{d.departmentName}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="form-group">
-                  <label>Bác sĩ (Không bắt buộc)</label>
-                  <select
-                    value={bookingForm.doctorId}
-                    onChange={(e) => setBookingForm({ ...bookingForm, doctorId: e.target.value })}
-                    disabled={!bookingForm.departmentId}
-                  >
-                    <option value="">-- Chọn bác sĩ (Bất kỳ) --</option>
-                    {doctors
-                      .filter((doc) => !bookingForm.departmentId || doc.departmentId?._id === bookingForm.departmentId || doc.departmentId === bookingForm.departmentId)
-                      .map((doc) => (
-                        <option key={doc._id} value={doc._id}>{doc.fullName} ({doc.specialization})</option>
-                      ))}
-                  </select>
-                </div>
-
-                <div className="form-group">
-                  <label>Ngày khám bệnh *</label>
-                  <input
-                    type="date"
-                    min={new Date().toISOString().split('T')[0]}
-                    value={bookingForm.requestedDate}
-                    onChange={(e) => setBookingForm({ ...bookingForm, requestedDate: e.target.value })}
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>Khung giờ khám *</label>
-                  <select
-                    value={bookingForm.requestedTime}
-                    onChange={(e) => setBookingForm({ ...bookingForm, requestedTime: e.target.value })}
-                    required
-                  >
-                    <option value="">-- Chọn khung giờ --</option>
-                    {schedules.length > 0 ? (
-                      schedules.map((s) => (
-                        <option key={s._id} value={`${s.startTime} - ${s.endTime}`}>
-                          {s.startTime} - {s.endTime} (Còn trống: {s.maxPatients - s.currentBooked} chỗ)
-                        </option>
-                      ))
-                    ) : (
-                      <>
-                        <option value="08:00 - 09:00">08:00 - 09:00 (Sáng)</option>
-                        <option value="09:00 - 10:00">09:00 - 10:00 (Sáng)</option>
-                        <option value="10:00 - 11:00">10:00 - 11:00 (Sáng)</option>
-                        <option value="14:00 - 15:00">14:00 - 15:00 (Chiều)</option>
-                        <option value="15:00 - 16:00">15:00 - 16:00 (Chiều)</option>
-                        <option value="16:00 - 17:00">16:00 - 17:00 (Chiều)</option>
-                      </>
-                    )}
-                  </select>
-                </div>
-
-                <div className="form-group full-width">
-                  <label>Triệu chứng lâm sàng / Lý do khám</label>
-                  <textarea
-                    rows="4"
-                    placeholder="Mô tả các triệu chứng của bạn để bác sĩ nắm bắt thông tin nhanh chóng..."
-                    value={bookingForm.symptoms}
-                    onChange={(e) => setBookingForm({ ...bookingForm, symptoms: e.target.value })}
-                  />
-                </div>
-
-                <div className="form-actions">
-                  <button type="submit" className="btn btn-primary" disabled={submitting}>
-                    {submitting ? 'Đang gửi...' : 'Gửi đăng ký lịch hẹn'}
-                  </button>
-                </div>
-              </form>
-            </div>
-          )}
-
-          {/* Tab: Medical Records */}
-          {activeTab === 'records' && (
-            <div className="dashboard-card">
-              <h2>Lịch sử khám bệnh & Bệnh án</h2>
-              <p className="subtitle">Xem chẩn đoán chi tiết và hướng dẫn điều trị của bác sĩ.</p>
-
-              {records.length === 0 ? (
-                <div className="empty-state">
-                  <p>Hệ thống chưa ghi nhận hồ sơ bệnh án nào của bạn.</p>
-                </div>
-              ) : (
-                <div className="records-grid">
-                  {records.map((rec) => (
-                    <div className="record-item" key={rec._id}>
-                      <div className="record-meta">
-                        <span className="record-date">📅 {new Date(rec.createdAt).toLocaleDateString('vi-VN')}</span>
-                        <span className="record-doctor">🩺 BS. {rec.doctorId?.fullName}</span>
-                      </div>
-                      <div className="record-content">
-                        <h4 className="diagnosis-title">Chẩn đoán: {rec.diagnosis}</h4>
-                        {rec.clinicalNotes && <p className="record-notes"><strong>Lời dặn:</strong> {rec.clinicalNotes}</p>}
-                        <div className="record-vitals">
-                          {rec.bloodPressure && <span>💓 Huyết áp: {rec.bloodPressure} mmHg</span>}
-                          {rec.heartRate && <span>❤️ Nhịp tim: {rec.heartRate} lần/phút</span>}
-                          {rec.temperature && <span>🌡️ Nhiệt độ: {rec.temperature}°C</span>}
-                          {rec.weight && <span>⚖️ Cân nặng: {rec.weight} kg</span>}
-                        </div>
-                      </div>
-                      <div className="record-actions">
-                        <button className="btn btn-ghost btn-sm" onClick={() => {
-                          setSelectedRecord(rec);
-                          // Fetch prescriptions for this medical record
-                          clinicalAPI.getPrescriptions(rec._id)
-                            .then((res) => {
-                              setSelectedRecord(prev => ({ ...prev, prescriptions: res.data.data }));
-                            })
-                            .catch(console.error);
-                        }}>
-                          Xem đơn thuốc chi tiết
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Tab: Invoices & Payments */}
-          {activeTab === 'billing' && (
-            <div className="dashboard-card">
-              <h2>Hóa đơn & Viện phí</h2>
-              <p className="subtitle">Quản lý và thực hiện thanh toán các hóa đơn khám bệnh và tiền thuốc.</p>
-
-              {invoices.length === 0 ? (
-                <div className="empty-state">
-                  <p>Không tìm thấy hóa đơn nào.</p>
-                </div>
-              ) : (
-                <div className="table-responsive">
-                  <table className="custom-table">
-                    <thead>
-                      <tr>
-                        <th>Mã hóa đơn</th>
-                        <th>Loại hóa đơn</th>
-                        <th>Tổng tiền</th>
-                        <th>Ngày phát hành</th>
-                        <th>Trạng thái</th>
-                        <th>Thao tác</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {invoices.map((inv) => (
-                        <tr key={inv._id}>
-                          <td className="monospace font-bold">{inv._id.substring(18).toUpperCase()}</td>
-                          <td>
-                            {inv.invoiceType === 'Consultation' ? 'Phí khám bệnh (Lâm sàng)' : 'Hóa đơn nhà thuốc'}
-                          </td>
-                          <td className="font-bold text-primary">{formatVND(inv.totalAmount)}</td>
-                          <td>{new Date(inv.issuedAt).toLocaleDateString('vi-VN')}</td>
-                          <td>
-                            <span className={`badge ${inv.status === 'Paid' ? 'badge-success' : 'badge-danger'}`}>
-                              {inv.status === 'Paid' ? 'Đã thanh toán' : 'Chưa thanh toán'}
-                            </span>
-                          </td>
-                          <td className="btn-cell">
-                            <button className="btn btn-ghost btn-xs" onClick={() => setSelectedInvoice(inv)}>
-                              Xem biên lai
+        <div className="patient-dashboard__grid">
+          <div className="patient-dashboard__main">
+            <div className={`patient-dashboard__panels ${
+              (showBookingSection || showAppointmentsSection || showPaymentsSection || showRecordsSection) ? 'is-full' : ''
+            }`}>
+              {showAppointmentsSection && (
+                <section id="appointments" className="card patient-card">
+                  <div className="card-title-bar">
+                    <h4>Upcoming appointments</h4>
+                  </div>
+                  {appointments.length === 0 ? (
+                    <div className="patient-empty">You have no appointments yet.</div>
+                  ) : (
+                    <ul className="appointment-list">
+                      {appointments.slice(0, 5).map((a) => (
+                        <li key={a._id} className="appointment-item">
+                          <div>
+                            <strong>{new Date(a.requestedDate).toLocaleDateString('en-US')}</strong>
+                            <div>{a.requestedTime} · {a.departmentId?.departmentName || 'General'}</div>
+                          </div>
+                          <div className="appointment-item__actions">
+                            <button
+                              className="btn btn-secondary btn-xs"
+                              type="button"
+                              onClick={() => handleShowAppointmentDetails(a)}
+                            >
+                              Details
                             </button>
-                            {inv.status === 'Unpaid' && (
-                              <button className="btn btn-primary btn-xs" onClick={() => handlePayInvoice(inv)}>
-                                Thanh toán
+                            {a.status === 'Pending' && (
+                              <button
+                                className="btn btn-ghost btn-xs"
+                                type="button"
+                                onClick={() => handleCancel(a._id)}
+                              >
+                                Cancel
                               </button>
                             )}
-                          </td>
-                        </tr>
+                          </div>
+                        </li>
                       ))}
-                    </tbody>
-                  </table>
-                </div>
+                    </ul>
+                  )}
+                </section>
               )}
+
+              {showPaymentsSection && (
+                <section id="payments" className="card patient-card">
+                  <div className="card-title-bar">
+                    <h4>Payment overview</h4>
+                  </div>
+                  <div className="patient-summary">
+                    <p>Total invoices: <strong>{invoices.length}</strong></p>
+                    <p>Unpaid: <strong>{invoices.filter((i) => i.status !== 'Paid').length}</strong></p>
+                    <p>Total amount: <strong>{formatCurrency(invoices.reduce((s, it) => s + (it.totalAmount || 0), 0))}</strong></p>
+                    <div className="patient-summary__amounts">
+                      <p>Consultation: <strong>{formatCurrency(
+                        invoices.filter(i => i.invoiceType === 'Consultation').reduce((s, it) => s + (it.totalAmount || 0), 0)
+                      )}</strong></p>
+                      <p>Pharmacy: <strong>{formatCurrency(
+                        invoices.filter(i => i.invoiceType === 'Pharmacy').reduce((s, it) => s + (it.totalAmount || 0), 0)
+                      )}</strong></p>
+                    </div>
+                    {paymentMessage && (
+                      <div className={`booking-banner ${paymentMessage.toLowerCase().includes('success') ? 'success' : 'error'}`}>
+                        {paymentMessage}
+                      </div>
+                    )}
+                    <div className="patient-summary__actions">
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        onClick={handlePayAllUnpaid}
+                        disabled={paymentProcessing}
+                      >
+                        {paymentProcessing ? 'Processing...' : 'Pay all'}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-ghost"
+                        onClick={() => setShowBilling(true)}
+                      >
+                        Pay individually
+                      </button>
+                    </div>
+                  </div>
+                </section>
+              )}
+            </div>
+
+            {showBookingSection && (
+              <section id="book" className="patient-booking card quick-booking">
+                <BookingForm onBooked={refreshAppointments} />
+              </section>
+            )}
+
+            {showRecordsSection && (
+              <section id="records" className="card patient-card">
+                <div className="card-title-bar">
+                  <h4>Recent medical records</h4>
+                </div>
+                {records.length === 0 ? (
+                  <div className="patient-empty">After your visit, your medical records will appear here.</div>
+                ) : (
+                  <div className="record-list">
+                    {records.slice(0, 3).map((r) => {
+                      const isExpanded = expandedRecords.includes(r._id);
+                      return (
+                        <article key={r._id} className="record-item record-item--vitals">
+                          <div className="record-item__header">
+                            <div>
+                              <strong>{new Date(r.createdAt).toLocaleDateString('en-US')}</strong>
+                              <p>{r.appointmentId?.departmentId?.departmentName || 'General department'}</p>
+                              <span>Dr. <strong>{r.doctorId?.fullName || 'Not assigned'}</strong></span>
+                            </div>
+                            <button
+                              type="button"
+                              className="btn btn-ghost btn-sm"
+                              onClick={() => handleToggleRecord(r._id)}
+                            >
+                              {isExpanded ? 'Hide details' : 'View details'}
+                            </button>
+                          </div>
+
+                          <div className={`record-item__details ${isExpanded ? 'is-expanded' : ''}`}>
+                            <div className="record-item__vitals">
+                              <div><strong>Height:</strong> {r.height ? `${r.height} cm` : '---'}</div>
+                              <div><strong>Weight:</strong> {r.weight ? `${r.weight} kg` : '---'}</div>
+                              <div><strong>Blood pressure:</strong> {r.bloodPressure || '---'}</div>
+                              <div><strong>Heart rate:</strong> {r.heartRate ? `${r.heartRate} bpm` : '---'}</div>
+                              <div><strong>Temperature:</strong> {r.temperature ? `${r.temperature} °C` : '---'}</div>
+                            </div>
+                            <div className="record-item__summary">
+                              <p><strong>Diagnosis:</strong> {r.diagnosis || '---'}</p>
+                              {r.clinicalNotes && <p><strong>Notes:</strong> {r.clinicalNotes}</p>}
+                            </div>
+                          </div>
+                        </article>
+                      );
+                    })}
+                  </div>
+                )}
+              </section>
+            )}
+          </div>
+
+          {showAppointmentModal && selectedAppointment && (
+            <div
+              className="modal-overlay"
+              role="dialog"
+              aria-modal="true"
+              onClick={(e) => { if (e.target === e.currentTarget) handleCloseAppointmentModal(); }}
+            >
+              <div className="modal card appointment-modal">
+                <div className="card-title-bar modal-header">
+                  <div>
+                    <h4>Appointment details</h4>
+                    <p className="muted">{selectedAppointment.departmentId?.departmentName || 'General department'}</p>
+                  </div>
+                  <button type="button" className="btn btn-ghost" onClick={handleCloseAppointmentModal}>Close</button>
+                </div>
+
+                <div className="modal-body">
+                  <div className="appointment-detail-grid">
+                    <div>
+                      <p><strong>Date:</strong> {new Date(selectedAppointment.requestedDate).toLocaleDateString('en-US')}</p>
+                      <p><strong>Time:</strong> {selectedAppointment.requestedTime || 'Not set'}</p>
+                      <p><strong>Status:</strong> {selectedAppointment.status || 'Not updated'}</p>
+                      <p><strong>Room:</strong> {selectedAppointment.scheduleId?.room || 'To be updated'}</p>
+                    </div>
+                    <div>
+                      <p><strong>Doctor:</strong> Dr. {selectedAppointment.doctorId?.fullName || 'Not assigned'}</p>
+                      <p><strong>Specialty:</strong> {selectedAppointment.departmentId?.departmentName || 'General'}</p>
+                      <p><strong>Service:</strong> {selectedAppointment.scheduleId?.serviceName || 'Clinical examination'}</p>
+                      <p><strong>Department:</strong> {selectedAppointment.departmentId?.departmentName || 'Unknown'}</p>
+                    </div>
+                  </div>
+
+                  <div className="appointment-detail-extra">
+                    <p><strong>Symptoms / Description:</strong></p>
+                    <p>{selectedAppointment.symptoms || 'No description'}</p>
+                  </div>
+
+                  {selectedAppointment.scheduleId?.startTime || selectedAppointment.scheduleId?.endTime ? (
+                    <div className="appointment-detail-time">
+                      <p><strong>Working hours:</strong></p>
+                      <p>{selectedAppointment.scheduleId?.startTime || '---'} - {selectedAppointment.scheduleId?.endTime || '---'}</p>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
             </div>
           )}
 
-          {/* Tab: Profile */}
-          {activeTab === 'profile' && (
-            <div className="dashboard-card">
-              <h2>{patient ? 'Hồ sơ sức khỏe cá nhân' : 'Khởi tạo thông tin bệnh nhân'}</h2>
-              <p className="subtitle">
-                {patient
-                  ? 'Vui lòng điền chính xác thông tin để làm hồ sơ bệnh án điện tử (EHR).'
-                  : 'Hãy nhập thông tin ban đầu của bạn để hệ thống tạo mã bệnh nhân.'}
-              </p>
+          {showBilling && (
+              <div
+                className="modal-overlay"
+                role="dialog"
+                aria-modal="true"
+                onClick={(e) => { if (e.target === e.currentTarget) setShowBilling(false); }}
+              >
+                <div className="modal card">
+                  <div className="card-title-bar modal-header">
+                    <h4>Invoice details</h4>
+                    <button type="button" className="btn btn-ghost" onClick={() => setShowBilling(false)}>Close</button>
+                  </div>
 
-              <form onSubmit={handleUpdateProfile} className="grid-form">
+                  <div className="modal-body">
+                    {invoices.length === 0 ? (
+                      <div className="patient-empty">You have no invoices yet.</div>
+                    ) : (
+                      <div className="invoice-list">
+                        {invoices.map((inv) => {
+                          const isExpanded = expandedInvoices.includes(inv._id);
+                            return (
+                            <article key={inv._id} className="invoice-item">
+                              <div className="invoice-item__header">
+                                <div>
+                                  <strong>{translateInvoiceType(inv.invoiceType)}</strong>
+                                  <div className="muted">{new Date(inv.issuedAt || inv.createdAt).toLocaleString('en-US')}</div>
+                                </div>
+                                <div>
+                                  <div className="muted">Status: {translateInvoiceStatus(inv.status)}</div>
+                                  <div style={{ textAlign: 'right' }}><strong>{formatCurrency(inv.totalAmount || 0)}</strong></div>
+                                  <div className="invoice-item__actions">
+                                    {inv.status !== 'Paid' && (
+                                      <button
+                                        type="button"
+                                        className="btn btn-primary btn-xs"
+                                        disabled={paymentProcessing}
+                                        onClick={() => handlePayInvoice(inv)}
+                                      >
+                                        Pay
+                                      </button>
+                                    )}
+                                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => handleToggleInvoice(inv._id)}>
+                                      {isExpanded ? 'Hide' : 'View details'}
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className={`invoice-item__details ${isExpanded ? 'is-expanded' : ''}`}>
+                                {inv.invoiceType === 'Pharmacy' && inv.details && inv.details.length > 0 ? (
+                                  <div className="invoice-lines">
+                                    {inv.details.map((d) => (
+                                      <div key={d._id} className="invoice-line">
+                                        <div>{d.medicineId?.name || 'Medicine'}</div>
+                                        <div className="muted">x{d.quantity}</div>
+                                        <div>{formatCurrency((d.unitPrice || 0) * (d.quantity || 1))}</div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <div className="invoice-meta muted">{inv.appointmentId ? `Department: ${inv.appointmentId.departmentId?.departmentName || ''}` : ''}</div>
+                                )}
+                              </div>
+                            </article>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+          <aside className="patient-dashboard__aside">
+            <PatientSidebar patient={patient} invoices={invoices} onEditPatient={handleEditPatient} />
+          </aside>
+        </div>
+      </main>
+      {isEditingProfile && (
+        <div
+          className="modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          onClick={(e) => { if (e.target === e.currentTarget) setIsEditingProfile(false); }}
+        >
+          <div className="modal card">
+            <div className="card-title-bar modal-header">
+              <div>
+                <h4>Update personal information</h4>
+                <p className="muted">You can edit your patient profile information.</p>
+              </div>
+              <button type="button" className="btn btn-ghost" onClick={() => setIsEditingProfile(false)}>Close</button>
+            </div>
+            <div className="modal-body">
+              <div className="form-grid">
                 <div className="form-group">
-                  <label>Họ và tên *</label>
+                  <label>Full name</label>
                   <input
                     type="text"
                     value={profileForm.fullName}
-                    onChange={(e) => setProfileForm({ ...profileForm, fullName: e.target.value })}
-                    placeholder="Nguyễn Văn A"
-                    required
+                    onChange={(e) => handleProfileChange('fullName', e.target.value)}
                   />
                 </div>
-
                 <div className="form-group">
-                  <label>Số điện thoại liên lạc *</label>
-                  <input
-                    type="tel"
-                    value={profileForm.phoneNumber}
-                    onChange={(e) => setProfileForm({ ...profileForm, phoneNumber: e.target.value })}
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>Ngày sinh *</label>
+                  <label>Date of birth</label>
                   <input
                     type="date"
                     value={profileForm.dateOfBirth}
-                    onChange={(e) => setProfileForm({ ...profileForm, dateOfBirth: e.target.value })}
-                    required
+                    onChange={(e) => handleProfileChange('dateOfBirth', e.target.value)}
                   />
                 </div>
-
                 <div className="form-group">
-                  <label>Giới tính *</label>
+                  <label>Gender</label>
                   <select
                     value={profileForm.gender}
-                    onChange={(e) => setProfileForm({ ...profileForm, gender: e.target.value })}
-                    required
+                    onChange={(e) => handleProfileChange('gender', e.target.value)}
                   >
-                    <option value="Nam">Nam</option>
-                    <option value="Nữ">Nữ</option>
-                    <option value="Khác">Khác</option>
+                    <option value="Khác">Other</option>
+                    <option value="Nam">Male</option>
+                    <option value="Nữ">Female</option>
                   </select>
                 </div>
-
                 <div className="form-group">
-                  <label>Số CCCD / CMND *</label>
+                  <label>Phone number</label>
+                  <input
+                    type="text"
+                    value={profileForm.phoneNumber}
+                    onChange={(e) => handleProfileChange('phoneNumber', e.target.value)}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>ID card</label>
                   <input
                     type="text"
                     value={profileForm.identityCard}
-                    onChange={(e) => setProfileForm({ ...profileForm, identityCard: e.target.value })}
-                    placeholder="Mã số 12 số của định danh công dân"
-                    required
+                    onChange={(e) => handleProfileChange('identityCard', e.target.value)}
                   />
                 </div>
-
                 <div className="form-group">
-                  <label>Mã thẻ bảo hiểm y tế (BHYT)</label>
+                  <label>Health insurance no.</label>
                   <input
                     type="text"
                     value={profileForm.insuranceCode}
-                    onChange={(e) => setProfileForm({ ...profileForm, insuranceCode: e.target.value })}
-                    placeholder="VD: GD479102910"
+                    onChange={(e) => handleProfileChange('insuranceCode', e.target.value)}
                   />
                 </div>
-
-                <div className="form-group full-width">
-                  <label>Địa chỉ thường trú</label>
-                  <input
-                    type="text"
+                <div className="form-group form-group-full">
+                  <label>Address</label>
+                  <textarea
+                    rows="3"
                     value={profileForm.address}
-                    onChange={(e) => setProfileForm({ ...profileForm, address: e.target.value })}
-                    placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành phố..."
+                    onChange={(e) => handleProfileChange('address', e.target.value)}
                   />
                 </div>
-
-                <div className="form-group full-width">
-                  <label>Liên hệ khẩn cấp (Tên - SĐT người thân)</label>
-                  <input
-                    type="text"
-                    value={profileForm.emergencyContact}
-                    onChange={(e) => setProfileForm({ ...profileForm, emergencyContact: e.target.value })}
-                    placeholder="VD: Bố - Nguyễn Văn B (0987654321)"
-                  />
-                </div>
-
-                <div className="form-actions">
-                  <button type="submit" className="btn btn-primary" disabled={submitting}>
-                    {submitting ? 'Đang lưu...' : 'Lưu thay đổi'}
-                  </button>
-                </div>
-              </form>
-            </div>
-          )}
-        </main>
-      </div>
-
-      {/* Invoice Detail / Receipt Modal */}
-      {selectedInvoice && (
-        <div className="modal-backdrop">
-          <div className="modal-content invoice-modal">
-            <div className="modal-header">
-              <h3>Chi tiết biên lai thanh toán</h3>
-              <button className="close-btn" onClick={() => setSelectedInvoice(null)}>&times;</button>
-            </div>
-            <div className="modal-body print-section" id="print-area">
-              <div className="receipt-brand">
-                <h2>PHÒNG KHÁM ĐA KHOA HỢP SƠN TÀI</h2>
-                <p>123 Đường Hợp Sơn, Quận Hai Bà Trưng, Hà Nội | Hotline: 1900 6868</p>
               </div>
-              <hr />
-              <div className="receipt-meta">
-                <div>
-                  <p><strong>Bệnh nhân:</strong> {selectedInvoice.patientId?.fullName}</p>
-                  <p><strong>SĐT:</strong> {selectedInvoice.patientId?.phoneNumber}</p>
-                  <p><strong>CCCD:</strong> {selectedInvoice.patientId?.identityCard}</p>
-                </div>
-                <div className="text-right">
-                  <p><strong>Hóa đơn số:</strong> <span className="monospace uppercase">{selectedInvoice._id.substring(14)}</span></p>
-                  <p><strong>Ngày lập:</strong> {new Date(selectedInvoice.issuedAt).toLocaleDateString('vi-VN')}</p>
-                  {selectedInvoice.paidAt && <p><strong>Ngày thanh toán:</strong> {new Date(selectedInvoice.paidAt).toLocaleDateString('vi-VN')}</p>}
-                </div>
+              {profileMessage && <div className={`booking-banner ${profileMessage.toLowerCase().includes('success') ? 'success' : 'error'}`}>{profileMessage}</div>}
+              <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1rem' }}>
+                <button type="button" className="btn btn-secondary" onClick={() => setIsEditingProfile(false)}>Cancel</button>
+                <button type="button" className="btn btn-primary" disabled={profileSaving} onClick={handleSaveProfile}>
+                  {profileSaving ? 'Saving...' : 'Save changes'}
+                </button>
               </div>
-
-              <div className="receipt-items-container" style={{ marginTop: 20 }}>
-                <table className="receipt-table">
-                  <thead>
-                    <tr>
-                      <th>Nội dung thanh toán</th>
-                      <th className="text-right">Đơn giá</th>
-                      <th className="text-right">Số lượng</th>
-                      <th className="text-right">Thành tiền</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {selectedInvoice.invoiceType === 'Consultation' ? (
-                      <tr>
-                        <td>
-                          Khám lâm sàng - Chuyên khoa {selectedInvoice.appointmentId?.departmentId?.departmentName || 'Chung'}<br />
-                          <small className="text-muted">Bác sĩ khám: {selectedInvoice.appointmentId?.doctorId?.fullName || 'Bất kỳ'}</small>
-                        </td>
-                        <td className="text-right">{formatVND(selectedInvoice.totalAmount)}</td>
-                        <td className="text-right">1</td>
-                        <td className="text-right">{formatVND(selectedInvoice.totalAmount)}</td>
-                      </tr>
-                    ) : (
-                      selectedInvoice.details?.map((det, idx) => (
-                        <tr key={idx}>
-                          <td>
-                            {det.medicineId?.name}<br />
-                            <small className="text-muted">{det.medicineId?.dosageForm} | HD: {det.medicineId?.instruction}</small>
-                          </td>
-                          <td className="text-right">{formatVND(det.unitPrice)}</td>
-                          <td className="text-right">{det.quantity}</td>
-                          <td className="text-right">{formatVND(det.subTotal)}</td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="receipt-summary">
-                <div className="summary-row">
-                  <span>Tổng tiền thanh toán:</span>
-                  <strong className="text-primary" style={{ fontSize: 18 }}>{formatVND(selectedInvoice.totalAmount)}</strong>
-                </div>
-                <div className="summary-row">
-                  <span>Trạng thái:</span>
-                  <span className={`badge ${selectedInvoice.status === 'Paid' ? 'badge-success' : 'badge-danger'}`}>
-                    {selectedInvoice.status === 'Paid' ? 'ĐÃ THANH TOÁN' : 'CHƯA THANH TOÁN'}
-                  </span>
-                </div>
-                {selectedInvoice.processedBy && (
-                  <div className="summary-row">
-                    <span>Nhân viên thu ngân:</span>
-                    <span>{selectedInvoice.processedBy?.fullName || 'Hệ thống'}</span>
-                  </div>
-                )}
-              </div>
-
-              <div className="receipt-footer">
-                <p>Cảm ơn quý khách đã tin tưởng dịch vụ của phòng khám!</p>
-                <p className="small text-muted">Hóa đơn điện tử EHR có giá trị như hóa đơn đỏ.</p>
-              </div>
-            </div>
-            <div className="modal-footer">
-              <button className="btn btn-ghost" onClick={() => window.print()}>🖨️ In hóa đơn</button>
-              <button className="btn btn-primary" onClick={() => setSelectedInvoice(null)}>Đóng</button>
             </div>
           </div>
         </div>
       )}
-
-      {/* Medical Record / Prescriptions Detail Modal */}
-      {selectedRecord && (
-        <div className="modal-backdrop">
-          <div className="modal-content record-modal">
-            <div className="modal-header">
-              <h3>Chi tiết bệnh án & Đơn thuốc</h3>
-              <button className="close-btn" onClick={() => setSelectedRecord(null)}>&times;</button>
-            </div>
-            <div className="modal-body">
-              <div className="record-details-block">
-                <h4>Thông tin buổi khám</h4>
-                <div className="grid-details">
-                  <p><strong>Ngày khám:</strong> {new Date(selectedRecord.createdAt).toLocaleDateString('vi-VN')}</p>
-                  <p><strong>Bác sĩ phụ trách:</strong> BS. {selectedRecord.doctorId?.fullName}</p>
-                  <p><strong>Chuyên khoa:</strong> {selectedRecord.appointmentId?.departmentId?.departmentName || 'Chung'}</p>
-                  <p><strong>Mã bệnh án:</strong> <span className="monospace">{selectedRecord._id}</span></p>
-                </div>
-              </div>
-
-              <div className="record-details-block" style={{ marginTop: 15 }}>
-                <h4>Chỉ số sinh tồn (Vitals)</h4>
-                <div className="vitals-bubble-grid">
-                  <div className="vital-bubble">
-                    <span className="vital-label">Huyết áp</span>
-                    <span className="vital-val">{selectedRecord.bloodPressure || '--'} <small>mmHg</small></span>
-                  </div>
-                  <div className="vital-bubble">
-                    <span className="vital-label">Nhịp tim</span>
-                    <span className="vital-val">{selectedRecord.heartRate || '--'} <small>bpm</small></span>
-                  </div>
-                  <div className="vital-bubble">
-                    <span className="vital-label">Nhiệt độ</span>
-                    <span className="vital-val">{selectedRecord.temperature || '--'} <small>°C</small></span>
-                  </div>
-                  <div className="vital-bubble">
-                    <span className="vital-label">Cân nặng</span>
-                    <span className="vital-val">{selectedRecord.weight || '--'} <small>kg</small></span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="record-details-block" style={{ marginTop: 15 }}>
-                <h4>Kết quả lâm sàng & Hướng điều trị</h4>
-                <div className="clinical-text-box">
-                  <p><strong>Chẩn đoán bệnh lý:</strong></p>
-                  <p className="diagnosis-highlight">{selectedRecord.diagnosis}</p>
-                  {selectedRecord.clinicalNotes && (
-                    <>
-                      <p style={{ marginTop: 10 }}><strong>Ghi chú / Lời khuyên của bác sĩ:</strong></p>
-                      <p className="notes-box">{selectedRecord.clinicalNotes}</p>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              <div className="record-details-block" style={{ marginTop: 15 }}>
-                <h4>Đơn thuốc chỉ định</h4>
-                {!selectedRecord.prescriptions || selectedRecord.prescriptions.length === 0 ? (
-                  <p className="text-muted">Bác sĩ không chỉ định dùng thuốc cho bệnh án này.</p>
-                ) : (
-                  <table className="receipt-table">
-                    <thead>
-                      <tr>
-                        <th>Tên thuốc</th>
-                        <th>Liều dùng</th>
-                        <th>Tần suất</th>
-                        <th>Số ngày</th>
-                        <th className="text-right">Số lượng</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {selectedRecord.prescriptions.map((p, i) => (
-                        <tr key={i}>
-                          <td>
-                            <strong>{p.medicineId?.name}</strong><br />
-                            <small className="text-muted">{p.medicineId?.dosageForm} | {p.specialInstructions}</small>
-                          </td>
-                          <td>{p.dosage}</td>
-                          <td>{p.frequency}</td>
-                          <td>{p.durationDays} ngày</td>
-                          <td className="text-right font-bold">{p.quantity}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-              </div>
-            </div>
-            <div className="modal-footer">
-              <button className="btn btn-primary" onClick={() => setSelectedRecord(null)}>Đóng</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Mock Payment Gateway Modal */}
-      {paymentInvoice && (
-        <div className="modal-backdrop">
-          <div className="modal-content payment-gateway-modal">
-            <div className="modal-header">
-              <h3>Cổng thanh toán viện phí trực tuyến</h3>
-              <button className="close-btn" onClick={() => setPaymentInvoice(null)}>&times;</button>
-            </div>
-            <div className="modal-body text-center">
-              <p>Bạn đang tiến hành thanh toán cho hóa đơn:</p>
-              <h4 className="invoice-type-label">
-                {paymentInvoice.invoiceType === 'Consultation' ? 'Phí khám bệnh lâm sàng' : 'Tiền thuốc theo đơn'}
-              </h4>
-              <p className="payment-amount">{formatVND(paymentInvoice.totalAmount)}</p>
-
-              {paymentProcessing ? (
-                <div className="payment-spinner-container">
-                  <div className="spinner"></div>
-                  <p className="spinner-text">Đang kết nối ngân hàng để thực hiện giao dịch...</p>
-                  <p className="small text-muted">Vui lòng không tắt trình duyệt hoặc nhấn nút quay lại.</p>
-                </div>
-              ) : (
-                <>
-                  <div className="payment-methods-grid">
-                    <label className={`method-card ${paymentMethod === 'bank' ? 'selected' : ''}`}>
-                      <input
-                        type="radio"
-                        name="payMethod"
-                        value="bank"
-                        checked={paymentMethod === 'bank'}
-                        onChange={() => setPaymentMethod('bank')}
-                      />
-                      <span className="method-icon">🏦</span>
-                      <span className="method-name">Chuyển khoản QR</span>
-                    </label>
-
-                    <label className={`method-card ${paymentMethod === 'momo' ? 'selected' : ''}`}>
-                      <input
-                        type="radio"
-                        name="payMethod"
-                        value="momo"
-                        checked={paymentMethod === 'momo'}
-                        onChange={() => setPaymentMethod('momo')}
-                      />
-                      <span className="method-icon">💖</span>
-                      <span className="method-name">Ví MoMo</span>
-                    </label>
-
-                    <label className={`method-card ${paymentMethod === 'card' ? 'selected' : ''}`}>
-                      <input
-                        type="radio"
-                        name="payMethod"
-                        value="card"
-                        checked={paymentMethod === 'card'}
-                        onChange={() => setPaymentMethod('card')}
-                      />
-                      <span className="method-icon">💳</span>
-                      <span className="method-name">Visa / Mastercard</span>
-                    </label>
-                  </div>
-
-                  <div className="payment-details-panel">
-                    {paymentMethod === 'bank' && (
-                      <div className="bank-qr-mock">
-                        <div className="mock-qr-code">
-                          {/* Visual QR Simulator */}
-                          <div className="qr-box">
-                            <div className="qr-square qr-tl"></div>
-                            <div className="qr-square qr-tr"></div>
-                            <div className="qr-square qr-bl"></div>
-                            <div className="qr-center-logo">EHR</div>
-                          </div>
-                        </div>
-                        <p><strong>Ngân hàng Vietinbank</strong></p>
-                        <p>Số tài khoản: <strong>102839210928</strong></p>
-                        <p>Chủ tài khoản: <strong>PHONG KHAM HOP SON TAI</strong></p>
-                        <p className="small text-muted">Quét mã QR trên để tự động nhập số tiền và nội dung.</p>
-                      </div>
-                    )}
-
-                    {paymentMethod === 'momo' && (
-                      <div className="momo-mock">
-                        <p>Hệ thống sẽ chuyển tiếp đến ứng dụng MoMo để hoàn tất.</p>
-                        <p className="small text-muted">Số ví phòng khám: 0901234567</p>
-                      </div>
-                    )}
-
-                    {paymentMethod === 'card' && (
-                      <div className="card-mock-form">
-                        <input type="text" placeholder="Số thẻ (16 chữ số)" className="login-input" style={{ marginBottom: 8 }} />
-                        <div style={{ display: 'flex', gap: 8 }}>
-                          <input type="text" placeholder="MM/YY" className="login-input" />
-                          <input type="text" placeholder="CVC" className="login-input" />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-            <div className="modal-footer">
-              <button className="btn btn-ghost" onClick={() => setPaymentInvoice(null)} disabled={paymentProcessing}>Hủy</button>
-              <button className="btn btn-primary" onClick={executePayment} disabled={paymentProcessing}>
-                {paymentProcessing ? 'Đang giao dịch...' : 'Xác nhận thanh toán'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <Footer />
     </div>
   );
 }
+

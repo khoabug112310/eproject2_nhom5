@@ -3,29 +3,26 @@ const { success: ok, fail } = require('../../utils/response');
 const { GENDER } = require('../../constants/enums');
 
 // Quick booking flow for unauthenticated users:
-// - create or reuse a User by phone (username=phone)
-// - create a Patient placeholder if missing (fill required fields with placeholders)
-// - create an Appointment with status PENDING for CSKH to confirm
-// - also save a QuickBooking record for audit
 const createBooking = async (req, res) => {
   try {
-    const { name, phone, department, doctor, time } = req.body;
+    const { name, phone, department: reqDept, doctor: reqDoc, bookingDate: reqDate, time } = req.body;    
+    
     if (!name || !phone) return fail(res, 'Name and phone are required', 400);
 
-    // Find or create patient role
+    // Find or create the patient role
     const patientRole = await Role.findOne({ roleName: 'patient' });
     if (!patientRole) return fail(res, 'Patient role not configured', 500);
 
-    // Find existing user by username or phone
+    // Find an existing user or create a new one
     let user = await User.findOne({ $or: [{ username: phone }, { phone }] });
     let createdUser = false;
     if (!user) {
       const tempPwd = Math.random().toString(36) + Date.now();
-      user = await User.create({ username: phone, passwordHash: tempPwd, roleId: patientRole._id, phone, isActive: true });
+      user = await User.create({ username: phone, passwordHash: tempPwd, roleId: patientRole._id, phone, isActive: true, isRegistered: false });
       createdUser = true;
     }
 
-    // Find or create Patient record (Patient model has many required fields)
+    // Find or create the patient record
     let patient = await Patient.findOne({ userId: user._id });
     if (!patient) {
       const dob = new Date('1900-01-01');
@@ -40,48 +37,75 @@ const createBooking = async (req, res) => {
       });
     }
 
-    // Resolve departmentId if department provided (could be id or name)
+    // Resolve departmentId and name for QuickBooking
     let departmentId = null;
-    if (department) {
-      // try by id
-      if (/^[0-9a-fA-F]{24}$/.test(String(department))) {
-        departmentId = department;
+    let departmentNameForQuick = '';
+    if (reqDept) {
+      if (/^[0-9a-fA-F]{24}$/.test(String(reqDept))) {
+        departmentId = reqDept;
+        const dep = await Department.findById(reqDept);
+        if (dep) departmentNameForQuick = dep.departmentName || dep.name || '';
       } else {
-        const dep = await Department.findOne({ departmentName: department });
-        if (dep) departmentId = dep._id;
+        const dep = await Department.findOne({ departmentName: reqDept });
+        if (dep) {
+          departmentId = dep._id;
+          departmentNameForQuick = dep.departmentName || dep.name || '';
+        }
       }
     }
 
-    // Resolve doctorId if doctor provided (could be id or fullName)
+    // Resolve doctorId and name for QuickBooking
     let doctorId = null;
-    if (doctor) {
-      if (/^[0-9a-fA-F]{24}$/.test(String(doctor))) {
-        doctorId = doctor;
+    let doctorNameForQuick = '';
+    if (reqDoc) {
+      if (/^[0-9a-fA-F]{24}$/.test(String(reqDoc))) {
+        doctorId = reqDoc;
+        const doc = await Doctor.findById(reqDoc);
+        if (doc) doctorNameForQuick = doc.fullName || '';
       } else {
-        const doc = await Doctor.findOne({ fullName: doctor });
-        if (doc) doctorId = doc._id;
+        const doc = await Doctor.findOne({ fullName: reqDoc });
+        if (doc) {
+          doctorId = doc._id;
+          doctorNameForQuick = doc.fullName || '';
+        }
       }
     }
 
-    // Normalize requestedDate to today if not provided
-    const requestedDate = new Date();
-    requestedDate.setHours(0, 0, 0, 0);
+    // Handle the date for Appointment (keep a Date object for system-standard storage)
+    const appointmentDate = reqDate ? new Date(reqDate) : new Date();
+    appointmentDate.setHours(0, 0, 0, 0);
 
-    // Create appointment with PENDING status for CSKH to confirm
+    // Normalize the time slot (shared by both tables)
+    const finalTime = time || '08:00 - 09:00'; 
+
+    // 1. Create the official system appointment
     const appt = await Appointment.create({
       patientId: patient._id,
-      requestedDate,
-      requestedTime: time || '09:00',
-      symptoms: '',
+      requestedDate: appointmentDate,
+      requestedTime: finalTime, 
+      symptoms: req.body.symptoms || '', 
       departmentId: departmentId || undefined,
       doctorId: doctorId || undefined,
       status: 'Pending',
     });
 
-    // Keep a QuickBooking audit record
-    const booking = await QuickBooking.create({ name, phone, department, doctor, time });
+    // Trim the string so bookingDate is always YYYY-MM-DD (e.g. "2026-06-04")
+    // Whether the frontend sends a full ISO string or a short one, the system extracts the date part.
+    const stringDate = reqDate 
+      ? String(reqDate).split('T')[0] 
+      : new Date().toISOString().split('T')[0];
 
-    return ok(res, { appointment: appt, quickBooking: booking, createdUser }, 'Yêu cầu đặt lịch đã gửi cho nhân viên CSKH', 201);
+    // 2. Create the QuickBooking record (store the raw date string only)
+    const booking = await QuickBooking.create({ 
+      name, 
+      phone, 
+      department: departmentNameForQuick || reqDept, 
+      doctor: doctorNameForQuick || reqDoc, 
+      bookingDate: stringDate, // Stores a short plain date string "2026-06-04" in the DB
+      time: finalTime          
+    });
+
+    return ok(res, { appointment: appt, quickBooking: booking, createdUser }, 'Your booking request has been sent to the customer care team', 201);
   } catch (error) {
     console.error('createBooking error', error);
     return fail(res, 'Server error when creating booking', 500, error.message);

@@ -1,5 +1,5 @@
 // Module Auth - Controller
-// Xử lý: Login, Register, Refresh Token, Logout
+// Handles: Login, Register, Refresh Token, Logout
 
 const jwt = require('jsonwebtoken');
 const config = require('../../config/env');
@@ -15,6 +15,11 @@ const login = async (req, res) => {
     if (!user) return fail(res, 'Invalid credentials', 401);
     const valid = await user.comparePassword(password);
     if (!valid) return fail(res, 'Invalid credentials', 401);
+    
+    // Check if account is active
+    if (user.isActive === false) {
+      return fail(res, 'Your account has been locked. Please contact the administrator.', 403);
+    }
     // Fetch role name for payload & frontend convenience
     const role = await Role.findById(user.roleId);
     const roleName = role ? role.roleName : null;
@@ -52,9 +57,22 @@ const register = async (req, res) => {
 
     let user = await User.findOne({ $or: [{ username: phone }, { phone }] });
     if (user) {
-      // Account exists: if password provided, update password (activate)
-      if (!password) return fail(res, 'Account exists. Please provide password to activate.', 409);
+      if (user.isRegistered) {
+        return fail(res, 'This phone number is already registered. Please log in.', 422);
+      }
+
+      // Account exists but not registered: if password provided, update password (activate)
+      if (!password) {
+        const patient = await Patient.findOne({ userId: user._id });
+        const patientName = patient ? patient.fullName : '';
+        return res.status(409).json({
+          success: false,
+          message: 'Account exists. Please provide password to activate.',
+          data: { fullName: patientName }
+        });
+      }
       user.passwordHash = password;
+      user.isRegistered = true;
       await user.save();
 
       // Update/create patient record if info provided
@@ -71,22 +89,22 @@ const register = async (req, res) => {
         // create patient with placeholders where necessary
         const dob = dateOfBirth ? new Date(dateOfBirth) : new Date('1900-01-01');
         const idCard = identityCard || `REG-${Date.now()}-${phone}`;
-        await Patient.create({ userId: user._id, fullName: fullName || 'Khách hàng', dateOfBirth: dob, gender: gender || 'Khác', identityCard: idCard, phoneNumber: phone });
+        await Patient.create({ userId: user._id, fullName: fullName || 'Guest', dateOfBirth: dob, gender: gender || 'Khác', identityCard: idCard, phoneNumber: phone });
       }
 
-      return ok(res, { userId: user._id }, 'Tài khoản đã được kích hoạt');
+      return ok(res, { userId: user._id }, 'Account activated successfully');
     }
 
     // Create new user
     if (!password) return fail(res, 'Password required for new registration', 400);
-    const newUser = await User.create({ username: phone, passwordHash: password, roleId: patientRole._id, phone, isActive: true });
+    const newUser = await User.create({ username: phone, passwordHash: password, roleId: patientRole._id, phone, isActive: true, isRegistered: true });
 
     // Create patient record (fill placeholders if not provided)
     const dob = dateOfBirth ? new Date(dateOfBirth) : new Date('1900-01-01');
     const idCard = identityCard || `REG-${Date.now()}-${phone}`;
-    await Patient.create({ userId: newUser._id, fullName: fullName || 'Khách hàng', dateOfBirth: dob, gender: gender || 'Khác', identityCard: idCard, phoneNumber: phone, address: address || '' });
+    await Patient.create({ userId: newUser._id, fullName: fullName || 'Guest', dateOfBirth: dob, gender: gender || 'Khác', identityCard: idCard, phoneNumber: phone, address: address || '' });
 
-    return ok(res, { userId: newUser._id }, 'Đăng ký thành công');
+    return ok(res, { userId: newUser._id }, 'Registration successful');
   } catch (err) {
     console.error('register error', err);
     return fail(res, 'Server error', 500, err.message);
@@ -133,4 +151,41 @@ const logout = (req, res) => {
   res.status(501).json({ message: 'Not implemented' });
 };
 
-module.exports = { login, register, me, refreshToken, logout };
+const impersonate = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    // Safety check: only admins can impersonate (this is also guarded in routes)
+    if (req.user.role !== 'admin') {
+      return fail(res, 'Access denied. Only an administrator can impersonate users.', 403);
+    }
+    
+    const user = await User.findById(userId);
+    if (!user) return fail(res, 'User account not found', 404);
+    
+    const role = await Role.findById(user.roleId);
+    const roleName = role ? role.roleName : null;
+    
+    const payload = { id: user._id, roleId: user.roleId, role: roleName };
+    const token = jwt.sign(payload, config.JWT_SECRET, { expiresIn: '7d' });
+    
+    let displayName = user.username;
+    if (roleName === 'doctor') {
+      const doctor = await Doctor.findOne({ userId: user._id });
+      if (doctor && doctor.fullName) displayName = doctor.fullName;
+    } else if (roleName === 'staff' || roleName === 'accountant') {
+      const staff = await Staff.findOne({ userId: user._id });
+      if (staff && staff.fullName) displayName = staff.fullName;
+    } else if (roleName === 'patient') {
+      const patient = await Patient.findOne({ userId: user._id });
+      if (patient && patient.fullName) displayName = patient.fullName;
+    }
+    
+    return ok(res, { token, role: roleName, username: user.username, displayName }, 'Impersonation successful');
+  } catch (err) {
+    console.error('impersonate error', err);
+    return fail(res, 'Server error', 500, err.message);
+  }
+};
+
+module.exports = { login, register, me, refreshToken, logout, impersonate };

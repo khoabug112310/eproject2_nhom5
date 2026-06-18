@@ -1,4 +1,4 @@
-// Layout Admin (Quản lý toàn bộ hệ thống)
+// Admin layout (manages the whole system)
 import React from 'react';
 
 export default function AdminLayout({ children }) {
