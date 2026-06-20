@@ -2,655 +2,636 @@ import React, { useState, useEffect } from 'react';
 import { profilesAPI, schedulingAPI, clinicalAPI, billingAPI } from '../../services/api';
 import RoleTopNav from '../../components/RoleTopNav';
 import Footer from '../../components/Footer';
-import PatientSidebar from './components/PatientSidebar';
 import BookingForm from './components/BookingForm';
 import Swal from 'sweetalert2';
 
+// ── helpers ──────────────────────────────────────────────────────────────────
+
+function maskString(value, a = 3, b = 3) {
+  if (!value) return '—';
+  const s = String(value);
+  if (s.length <= a + b) return s.replace(/.(?=.{2})/g, '*');
+  return `${s.slice(0, a)}${'*'.repeat(Math.max(3, s.length - a - b))}${s.slice(-b)}`;
+}
+
+function formatCurrency(amount) {
+  try {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency', currency: 'VND',
+      minimumFractionDigits: 0, maximumFractionDigits: 0,
+    }).format(Number(amount) || 0);
+  } catch {
+    return amount || 0;
+  }
+}
+
+function StatusPill({ status }) {
+  const cls = { Pending: 'status-pending', Confirmed: 'status-confirmed', Completed: 'status-completed', Canceled: 'status-canceled' };
+  return <span className={`status-pill ${cls[status] || ''}`}>{status || '—'}</span>;
+}
+
+const TABS = [
+  { id: 'overview',      label: 'Overview',         icon: '▤' },
+  { id: 'book',          label: 'Book Appointment',  icon: '+' },
+  { id: 'appointments',  label: 'My Appointments',   icon: '◷' },
+  { id: 'records',       label: 'Medical Records',   icon: '≡' },
+  { id: 'invoices',      label: 'Invoices',          icon: '$' },
+  { id: 'profile',       label: 'My Profile',        icon: '◉' },
+];
+
+// ── component ─────────────────────────────────────────────────────────────────
+
 export default function PatientDashboard() {
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [patient, setPatient] = useState(null);
-  const [appointments, setAppointments] = useState([]);
-  const [invoices, setInvoices] = useState([]);
-  const [records, setRecords] = useState([]);
-  const [expandedRecords, setExpandedRecords] = useState([]);
-  const [expandedInvoices, setExpandedInvoices] = useState([]);
-  const [showBilling, setShowBilling] = useState(false);
-  const [showAppointmentsSection, setShowAppointmentsSection] = useState(false);
-  const [showPaymentsSection, setShowPaymentsSection] = useState(false);
-  const [showBookingSection, setShowBookingSection] = useState(false);
-  const [showRecordsSection, setShowRecordsSection] = useState(false);
+  const [activeTab, setActiveTab]           = useState('overview');
+  const [loading, setLoading]               = useState(true);
+  const [error, setError]                   = useState('');
+  const [patient, setPatient]               = useState(null);
+  const [appointments, setAppointments]     = useState([]);
+  const [invoices, setInvoices]             = useState([]);
+  const [records, setRecords]               = useState([]);
+  const [expandedRecords, setExpandedRecords]   = useState([]);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
-  const [showAppointmentModal, setShowAppointmentModal] = useState(false);
+
   const [profileForm, setProfileForm] = useState({
-    fullName: '',
-    dateOfBirth: '',
-    gender: 'Khác',
-    phoneNumber: '',
-    address: '',
-    identityCard: '',
-    insuranceCode: ''
+    fullName: '', dateOfBirth: '', gender: 'Khác',
+    phoneNumber: '', address: '', identityCard: '', insuranceCode: '',
   });
-  const [isEditingProfile, setIsEditingProfile] = useState(false);
-  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileSaving, setProfileSaving]   = useState(false);
   const [profileMessage, setProfileMessage] = useState('');
+
   const [paymentProcessing, setPaymentProcessing] = useState(false);
-  const [paymentMessage, setPaymentMessage] = useState('');
+  const [paymentMessage, setPaymentMessage]       = useState('');
+
+  // ── data loading ────────────────────────────────────────────────────────────
 
   useEffect(() => {
     let mounted = true;
     const load = async () => {
       try {
         setLoading(true);
-        const patientRes = await profilesAPI.getMyPatientProfile();
-        const currentPatient = patientRes.data?.data || null;
-        if (mounted) setPatient(currentPatient);
-        if (mounted && currentPatient) {
+        const patRes = await profilesAPI.getMyPatientProfile();
+        const p = patRes.data?.data || null;
+        if (!mounted) return;
+        setPatient(p);
+        if (p) {
           setProfileForm({
-            fullName: currentPatient.fullName || '',
-            dateOfBirth: currentPatient.dateOfBirth ? new Date(currentPatient.dateOfBirth).toISOString().slice(0, 10) : '',
-            gender: currentPatient.gender || 'Khác',
-            phoneNumber: currentPatient.phoneNumber || '',
-            address: currentPatient.address || '',
-            identityCard: currentPatient.identityCard || '',
-            insuranceCode: currentPatient.insuranceCode || ''
+            fullName:      p.fullName || '',
+            dateOfBirth:   p.dateOfBirth ? new Date(p.dateOfBirth).toISOString().slice(0, 10) : '',
+            gender:        p.gender || 'Khác',
+            phoneNumber:   p.phoneNumber || '',
+            address:       p.address || '',
+            identityCard:  p.identityCard || '',
+            insuranceCode: p.insuranceCode || '',
           });
         }
 
-        const apptsRes = await schedulingAPI.getAppointments();
-        if (mounted) setAppointments(apptsRes.data?.data || []);
+        const [apptsRes, invRes] = await Promise.all([
+          schedulingAPI.getAppointments(),
+          billingAPI.getInvoices(),
+        ]);
+        if (!mounted) return;
+        setAppointments(apptsRes.data?.data || []);
+        setInvoices(invRes.data?.data || []);
 
-        const invRes = await billingAPI.getInvoices();
-        if (mounted) setInvoices(invRes.data?.data || []);
-
-        if (currentPatient) {
-          const recRes = await clinicalAPI.getMedicalRecords({ patientId: currentPatient._id });
+        if (p) {
+          const recRes = await clinicalAPI.getMedicalRecords({ patientId: p._id });
           if (mounted) setRecords(recRes.data?.data || []);
         }
       } catch (err) {
         console.error(err);
-        if (mounted) setError('Failed to load data.');
+        if (mounted) setError('Failed to load your dashboard data. Please refresh the page.');
       } finally {
         if (mounted) setLoading(false);
       }
     };
     load();
-    return () => {
-      mounted = false;
-    };
+    return () => { mounted = false; };
   }, []);
 
-  useEffect(() => {
-    // helper to open a specific panel and close others; scroll it into view
-    const openPanel = (panelId) => {
-      const isOpen = (
-        (panelId === 'book' && showBookingSection) ||
-        (panelId === 'appointments' && showAppointmentsSection) ||
-        (panelId === 'payments' && showPaymentsSection) ||
-        (panelId === 'records' && showRecordsSection)
-      );
-
-      // toggle: if already open, close all; otherwise open the requested and close others
-      if (isOpen) {
-        setShowBookingSection(false);
-        setShowAppointmentsSection(false);
-        setShowPaymentsSection(false);
-        setShowRecordsSection(false);
-        return;
-      }
-
-      setShowBookingSection(panelId === 'book');
-      setShowAppointmentsSection(panelId === 'appointments');
-      setShowPaymentsSection(panelId === 'payments');
-      setShowRecordsSection(panelId === 'records');
-
-      // scroll to the panel after a tick so DOM updates
-      setTimeout(() => {
-        const el = document.getElementById(panelId);
-        if (el) {
-          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        } else {
-          // fallback: scroll main column to top
-          const main = document.querySelector('.patient-dashboard__main');
-          main?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-      }, 80);
-    };
-
-    const onToggleAppointments = () => openPanel('appointments');
-    const onTogglePayments = () => openPanel('payments');
-    const onToggleBooking = () => openPanel('book');
-    const onToggleRecords = () => openPanel('records');
-
-    window.addEventListener('toggleAppointments', onToggleAppointments);
-    window.addEventListener('togglePayments', onTogglePayments);
-    window.addEventListener('toggleBooking', onToggleBooking);
-    window.addEventListener('toggleRecords', onToggleRecords);
-
-    return () => {
-      window.removeEventListener('toggleAppointments', onToggleAppointments);
-      window.removeEventListener('togglePayments', onTogglePayments);
-      window.removeEventListener('toggleBooking', onToggleBooking);
-      window.removeEventListener('toggleRecords', onToggleRecords);
-    };
-  }, []);
+  // ── refresh helpers ──────────────────────────────────────────────────────────
 
   const refreshAppointments = async () => {
-    try {
-      const apptsRes = await schedulingAPI.getAppointments();
-      setAppointments(apptsRes.data?.data || []);
-    } catch (err) {
-      console.error(err);
-    }
+    try { const r = await schedulingAPI.getAppointments(); setAppointments(r.data?.data || []); } catch {}
   };
-
   const refreshInvoices = async () => {
-    try {
-      const invRes = await billingAPI.getInvoices();
-      setInvoices(invRes.data?.data || []);
-    } catch (err) {
-      console.error(err);
-    }
+    try { const r = await billingAPI.getInvoices(); setInvoices(r.data?.data || []); } catch {}
   };
 
-  const handlePayAllUnpaid = async () => {
-    const unpaidInvoices = invoices.filter((inv) => inv.status !== 'Paid');
-    if (unpaidInvoices.length === 0) {
-      setPaymentMessage('No unpaid invoices.');
-      return;
-    }
-
-    const result = await Swal.fire({
-      title: 'Confirm payment',
-      text: 'Do you want to pay all unpaid invoices?',
-      icon: 'question',
-      showCancelButton: true,
-      confirmButtonColor: '#10b981',
-      cancelButtonColor: '#64748b',
-      confirmButtonText: 'Pay',
-      cancelButtonText: 'Cancel'
-    });
-    if (!result.isConfirmed) return;
-
-    setPaymentProcessing(true);
-    setPaymentMessage('');
-    try {
-      await Promise.all(unpaidInvoices.map((inv) => billingAPI.payInvoice(inv._id)));
-      await refreshInvoices();
-      setPaymentMessage('Successfully paid all unpaid invoices.');
-    } catch (err) {
-      console.error(err);
-      setPaymentMessage('Payment failed. Please try again later.');
-    } finally {
-      setPaymentProcessing(false);
-    }
-  };
-
-  const handlePayInvoice = async (invoice) => {
-    if (invoice.status === 'Paid') {
-      setPaymentMessage('This invoice has already been paid.');
-      return;
-    }
-    const result = await Swal.fire({
-      title: 'Confirm payment',
-      text: `Are you sure you want to pay the ${translateInvoiceType(invoice.invoiceType)} of ${formatCurrency(invoice.totalAmount || 0)}?`,
-      icon: 'question',
-      showCancelButton: true,
-      confirmButtonColor: '#10b981',
-      cancelButtonColor: '#64748b',
-      confirmButtonText: 'Pay',
-      cancelButtonText: 'Cancel'
-    });
-    if (!result.isConfirmed) return;
-
-    setPaymentProcessing(true);
-    setPaymentMessage('');
-    try {
-      await billingAPI.payInvoice(invoice._id);
-      await refreshInvoices();
-      setPaymentMessage(`Successfully paid invoice of ${formatCurrency(invoice.totalAmount || 0)}.`);
-    } catch (err) {
-      console.error(err);
-      setPaymentMessage('Could not pay the invoice. Please try again later.');
-    } finally {
-      setPaymentProcessing(false);
-    }
-  };
-
-  const formatCurrency = (amount) => {
-    try {
-      return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'VND', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Number(amount) || 0);
-    } catch (e) {
-      return amount || 0;
-    }
-  };
-
-  const translateInvoiceType = (type) => {
-    if (!type) return 'Invoice';
-    if (type === 'Consultation') return 'Consultation Invoice';
-    if (type === 'Pharmacy') return 'Pharmacy Invoice';
-    return type;
-  };
-
-  const translateInvoiceStatus = (status) => {
-    if (!status) return '';
-    if (status === 'Unpaid') return 'Unpaid';
-    if (status === 'Paid') return 'Paid';
-    if (status === 'Refunded') return 'Refunded';
-    return status;
-  };
+  // ── handlers ────────────────────────────────────────────────────────────────
 
   const handleCancel = async (id) => {
     const result = await Swal.fire({
-      title: 'Confirm cancellation',
-      text: 'Are you sure you want to cancel this appointment?',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#ef4444',
-      cancelButtonColor: '#64748b',
-      confirmButtonText: 'Cancel appointment',
-      cancelButtonText: 'Close'
+      title: 'Cancel appointment?',
+      text: 'This action cannot be undone.',
+      icon: 'warning', showCancelButton: true,
+      confirmButtonColor: '#dc2626', cancelButtonColor: '#64748b',
+      confirmButtonText: 'Yes, cancel it', cancelButtonText: 'Keep',
     });
     if (!result.isConfirmed) return;
     try {
       await schedulingAPI.updateAppointment(id, { status: 'Canceled' });
-      setAppointments((prev) => prev.filter((a) => a._id !== id));
-    } catch (err) {
-      console.error(err);
-      setError('Could not cancel the appointment.');
+      setAppointments(prev => prev.filter(a => a._id !== id));
+    } catch {
+      setError('Could not cancel the appointment. Please try again.');
     }
   };
 
-  const handleToggleRecord = (id) => {
-    setExpandedRecords((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
-    );
-  };
-
-  const handleToggleInvoice = (id) => {
-    setExpandedInvoices((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
-    );
-  };
-
-  const handleEditPatient = () => {
-    if (!patient) return;
-    setProfileForm({
-      fullName: patient.fullName || '',
-      dateOfBirth: patient.dateOfBirth ? new Date(patient.dateOfBirth).toISOString().slice(0, 10) : '',
-      gender: patient.gender || 'Khác',
-      phoneNumber: patient.phoneNumber || '',
-      address: patient.address || '',
-      identityCard: patient.identityCard || '',
-      insuranceCode: patient.insuranceCode || ''
+  const handlePayInvoice = async (invoice) => {
+    if (invoice.status === 'Paid') return;
+    const result = await Swal.fire({
+      title: 'Confirm payment',
+      text: `Pay ${invoice.invoiceType} invoice — ${formatCurrency(invoice.totalAmount || 0)}?`,
+      icon: 'question', showCancelButton: true,
+      confirmButtonColor: '#0d9488', cancelButtonColor: '#64748b',
+      confirmButtonText: 'Pay now', cancelButtonText: 'Cancel',
     });
-    setProfileMessage('');
-    setIsEditingProfile(true);
+    if (!result.isConfirmed) return;
+    setPaymentProcessing(true); setPaymentMessage('');
+    try {
+      await billingAPI.payInvoice(invoice._id);
+      await refreshInvoices();
+      setPaymentMessage('Payment successful.');
+    } catch {
+      setPaymentMessage('Payment failed. Please try again.');
+    } finally { setPaymentProcessing(false); }
   };
 
-  const handleProfileChange = (field, value) => {
-    setProfileForm((prev) => ({ ...prev, [field]: value }));
+  const handlePayAll = async () => {
+    const unpaid = invoices.filter(i => i.status !== 'Paid');
+    if (!unpaid.length) return;
+    const result = await Swal.fire({
+      title: `Pay all ${unpaid.length} unpaid invoice${unpaid.length > 1 ? 's' : ''}?`,
+      text: `Total: ${formatCurrency(unpaid.reduce((s, i) => s + (i.totalAmount || 0), 0))}`,
+      icon: 'question', showCancelButton: true,
+      confirmButtonColor: '#0d9488', cancelButtonColor: '#64748b',
+      confirmButtonText: 'Pay all', cancelButtonText: 'Cancel',
+    });
+    if (!result.isConfirmed) return;
+    setPaymentProcessing(true); setPaymentMessage('');
+    try {
+      await Promise.all(unpaid.map(i => billingAPI.payInvoice(i._id)));
+      await refreshInvoices();
+      setPaymentMessage('All invoices paid successfully.');
+    } catch {
+      setPaymentMessage('Some payments failed. Please try again.');
+    } finally { setPaymentProcessing(false); }
   };
 
   const handleSaveProfile = async () => {
-    setProfileSaving(true);
-    setProfileMessage('');
+    setProfileSaving(true); setProfileMessage('');
     try {
-      const response = patient?._id
+      const res = patient?._id
         ? await profilesAPI.updateMyPatientProfile(profileForm)
         : await profilesAPI.createMyPatientProfile(profileForm);
-      const savedPatient = response.data?.data;
-      setPatient(savedPatient);
+      const saved = res.data?.data;
+      setPatient(saved);
       setProfileForm({
-        fullName: savedPatient?.fullName || '',
-        dateOfBirth: savedPatient?.dateOfBirth ? new Date(savedPatient.dateOfBirth).toISOString().slice(0, 10) : '',
-        gender: savedPatient?.gender || 'Khác',
-        phoneNumber: savedPatient?.phoneNumber || '',
-        address: savedPatient?.address || '',
-        identityCard: savedPatient?.identityCard || '',
-        insuranceCode: savedPatient?.insuranceCode || ''
+        fullName:      saved?.fullName || '',
+        dateOfBirth:   saved?.dateOfBirth ? new Date(saved.dateOfBirth).toISOString().slice(0, 10) : '',
+        gender:        saved?.gender || 'Khác',
+        phoneNumber:   saved?.phoneNumber || '',
+        address:       saved?.address || '',
+        identityCard:  saved?.identityCard || '',
+        insuranceCode: saved?.insuranceCode || '',
       });
       setProfileMessage('Profile updated successfully.');
-      setIsEditingProfile(false);
-    } catch (err) {
-      console.error(err);
-      setProfileMessage('Could not update your profile. Please try again later.');
-    } finally {
-      setProfileSaving(false);
-    }
+    } catch {
+      setProfileMessage('Could not save profile. Please try again.');
+    } finally { setProfileSaving(false); }
   };
 
-  const handleShowAppointmentDetails = (appointment) => {
-    setSelectedAppointment(appointment);
-    setShowAppointmentModal(true);
-  };
+  // ── derived stats ────────────────────────────────────────────────────────────
 
-  const handleCloseAppointmentModal = () => {
-    setSelectedAppointment(null);
-    setShowAppointmentModal(false);
-  };
+  const upcoming  = appointments.filter(a => a.status === 'Pending' || a.status === 'Confirmed');
+  const unpaidCount = invoices.filter(i => i.status !== 'Paid').length;
+  const totalOwed   = invoices.filter(i => i.status !== 'Paid').reduce((s, i) => s + (i.totalAmount || 0), 0);
+
+  // ── loading state ────────────────────────────────────────────────────────────
 
   if (loading) {
     return (
-      <div>
+      <div className="role-dashboard-shell">
         <RoleTopNav role="patient" />
-        <main>
-          <div className="dashboard-loading">
-            <div className="spinner"></div>
-            <p>Loading data...</p>
-          </div>
-        </main>
+        <div className="dashboard-loading">
+          <div className="spinner" />
+          <p>Loading your dashboard…</p>
+        </div>
       </div>
     );
   }
 
+  // ── render ───────────────────────────────────────────────────────────────────
+
   return (
-    <div>
+    <div className="role-dashboard-shell">
       <RoleTopNav role="patient" />
-      <main className="patient-dashboard">
-        {error && <div className="alert alert--error">{error}</div>}
 
-        <div className="patient-dashboard__hero card">
-          <div>
-            <h3>Hello, {patient?.fullName || 'guest'}</h3>
-            <p>View your appointments, payments, and medical records at a glance.</p>
-          </div>
+      {error && (
+        <div style={{ maxWidth: 1440, margin: '16px auto', padding: '0 24px' }}>
+          <div className="alert alert-danger">{error}</div>
         </div>
+      )}
 
-        <div className="patient-dashboard__grid">
-          <div className="patient-dashboard__main">
-            <div className={`patient-dashboard__panels ${
-              (showBookingSection || showAppointmentsSection || showPaymentsSection || showRecordsSection) ? 'is-full' : ''
-            }`}>
-              {showAppointmentsSection && (
-                <section id="appointments" className="card patient-card">
-                  <div className="card-title-bar">
-                    <h4>Upcoming appointments</h4>
-                  </div>
-                  {appointments.length === 0 ? (
-                    <div className="patient-empty">You have no appointments yet.</div>
-                  ) : (
-                    <ul className="appointment-list">
-                      {appointments.slice(0, 5).map((a) => (
-                        <li key={a._id} className="appointment-item">
-                          <div>
-                            <strong>{new Date(a.requestedDate).toLocaleDateString('en-US')}</strong>
-                            <div>{a.requestedTime} · {a.departmentId?.departmentName || 'General'}</div>
-                          </div>
-                          <div className="appointment-item__actions">
-                            <button
-                              className="btn btn-secondary btn-xs"
-                              type="button"
-                              onClick={() => handleShowAppointmentDetails(a)}
-                            >
-                              Details
-                            </button>
-                            {a.status === 'Pending' && (
-                              <button
-                                className="btn btn-ghost btn-xs"
-                                type="button"
-                                onClick={() => handleCancel(a._id)}
-                              >
-                                Cancel
-                              </button>
-                            )}
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </section>
-              )}
+      <div className="dashboard-layout">
 
-              {showPaymentsSection && (
-                <section id="payments" className="card patient-card">
-                  <div className="card-title-bar">
-                    <h4>Payment overview</h4>
-                  </div>
-                  <div className="patient-summary">
-                    <p>Total invoices: <strong>{invoices.length}</strong></p>
-                    <p>Unpaid: <strong>{invoices.filter((i) => i.status !== 'Paid').length}</strong></p>
-                    <p>Total amount: <strong>{formatCurrency(invoices.reduce((s, it) => s + (it.totalAmount || 0), 0))}</strong></p>
-                    <div className="patient-summary__amounts">
-                      <p>Consultation: <strong>{formatCurrency(
-                        invoices.filter(i => i.invoiceType === 'Consultation').reduce((s, it) => s + (it.totalAmount || 0), 0)
-                      )}</strong></p>
-                      <p>Pharmacy: <strong>{formatCurrency(
-                        invoices.filter(i => i.invoiceType === 'Pharmacy').reduce((s, it) => s + (it.totalAmount || 0), 0)
-                      )}</strong></p>
-                    </div>
-                    {paymentMessage && (
-                      <div className={`booking-banner ${paymentMessage.toLowerCase().includes('success') ? 'success' : 'error'}`}>
-                        {paymentMessage}
-                      </div>
-                    )}
-                    <div className="patient-summary__actions">
-                      <button
-                        type="button"
-                        className="btn btn-primary"
-                        onClick={handlePayAllUnpaid}
-                        disabled={paymentProcessing}
-                      >
-                        {paymentProcessing ? 'Processing...' : 'Pay all'}
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn-ghost"
-                        onClick={() => setShowBilling(true)}
-                      >
-                        Pay individually
-                      </button>
-                    </div>
-                  </div>
-                </section>
-              )}
+        {/* ── Sidebar ──────────────────────────────────────────────────────── */}
+        <aside className="dashboard-sidebar">
+
+          {/* Patient quick-info */}
+          <div className="patient-quick-info">
+            <div className="p-avatar">
+              {(patient?.fullName?.charAt(0) || 'U').toUpperCase()}
             </div>
-
-            {showBookingSection && (
-              <section id="book" className="patient-booking card quick-booking">
-                <BookingForm onBooked={refreshAppointments} />
-              </section>
-            )}
-
-            {showRecordsSection && (
-              <section id="records" className="card patient-card">
-                <div className="card-title-bar">
-                  <h4>Recent medical records</h4>
-                </div>
-                {records.length === 0 ? (
-                  <div className="patient-empty">After your visit, your medical records will appear here.</div>
-                ) : (
-                  <div className="record-list">
-                    {records.slice(0, 3).map((r) => {
-                      const isExpanded = expandedRecords.includes(r._id);
-                      return (
-                        <article key={r._id} className="record-item record-item--vitals">
-                          <div className="record-item__header">
-                            <div>
-                              <strong>{new Date(r.createdAt).toLocaleDateString('en-US')}</strong>
-                              <p>{r.appointmentId?.departmentId?.departmentName || 'General department'}</p>
-                              <span>Dr. <strong>{r.doctorId?.fullName || 'Not assigned'}</strong></span>
-                            </div>
-                            <button
-                              type="button"
-                              className="btn btn-ghost btn-sm"
-                              onClick={() => handleToggleRecord(r._id)}
-                            >
-                              {isExpanded ? 'Hide details' : 'View details'}
-                            </button>
-                          </div>
-
-                          <div className={`record-item__details ${isExpanded ? 'is-expanded' : ''}`}>
-                            <div className="record-item__vitals">
-                              <div><strong>Height:</strong> {r.height ? `${r.height} cm` : '---'}</div>
-                              <div><strong>Weight:</strong> {r.weight ? `${r.weight} kg` : '---'}</div>
-                              <div><strong>Blood pressure:</strong> {r.bloodPressure || '---'}</div>
-                              <div><strong>Heart rate:</strong> {r.heartRate ? `${r.heartRate} bpm` : '---'}</div>
-                              <div><strong>Temperature:</strong> {r.temperature ? `${r.temperature} °C` : '---'}</div>
-                            </div>
-                            <div className="record-item__summary">
-                              <p><strong>Diagnosis:</strong> {r.diagnosis || '---'}</p>
-                              {r.clinicalNotes && <p><strong>Notes:</strong> {r.clinicalNotes}</p>}
-                            </div>
-                          </div>
-                        </article>
-                      );
-                    })}
-                  </div>
-                )}
-              </section>
-            )}
+            <h4>{patient?.fullName || 'Guest'}</h4>
+            <p className="p-card-number">
+              {patient?.phoneNumber ? maskString(patient.phoneNumber, 3, 3) : 'No phone on file'}
+            </p>
           </div>
 
-          {showAppointmentModal && selectedAppointment && (
-            <div
-              className="modal-overlay"
-              role="dialog"
-              aria-modal="true"
-              onClick={(e) => { if (e.target === e.currentTarget) handleCloseAppointmentModal(); }}
-            >
-              <div className="modal card appointment-modal">
-                <div className="card-title-bar modal-header">
-                  <div>
-                    <h4>Appointment details</h4>
-                    <p className="muted">{selectedAppointment.departmentId?.departmentName || 'General department'}</p>
-                  </div>
-                  <button type="button" className="btn btn-ghost" onClick={handleCloseAppointmentModal}>Close</button>
+          {/* Navigation tabs */}
+          <nav className="sidebar-nav">
+            {TABS.map(t => (
+              <button
+                key={t.id}
+                className={activeTab === t.id ? 'active' : ''}
+                onClick={() => setActiveTab(t.id)}
+              >
+                <span style={{ fontFamily: 'monospace', marginRight: 2 }}>{t.icon}</span>
+                {' '}{t.label}
+                {t.id === 'appointments' && upcoming.length > 0 && (
+                  <span className="badge badge-info" style={{ marginLeft: 'auto', fontSize: 11 }}>{upcoming.length}</span>
+                )}
+                {t.id === 'invoices' && unpaidCount > 0 && (
+                  <span className="badge badge-warning" style={{ marginLeft: 'auto', fontSize: 11 }}>{unpaidCount}</span>
+                )}
+              </button>
+            ))}
+          </nav>
+
+          {/* Support block */}
+          <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--color-border)' }}>
+            <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--color-text-muted)', marginBottom: 8 }}>
+              Customer Care
+            </p>
+            <p style={{ fontSize: 13, margin: '0 0 4px' }}>Hotline: <strong>1900 6868</strong></p>
+            <p style={{ fontSize: 13, margin: 0, color: 'var(--color-text-muted)' }}>support@hopsontai.vn</p>
+          </div>
+        </aside>
+
+        {/* ── Main content ─────────────────────────────────────────────────── */}
+        <div className="dashboard-main-content animate-fade-in">
+
+          {/* ── Overview tab ── */}
+          {activeTab === 'overview' && (
+            <>
+              <div className="dashboard-card">
+                <h2>Hello, {patient?.fullName || 'Guest'}</h2>
+                <p className="subtitle">
+                  Here's a summary of your health activity at Hopsontai Clinic.
+                </p>
+              </div>
+
+              <div className="stats-cards-grid">
+                <div className="stat-card">
+                  <div className="stat-icon" style={{ fontSize: 20 }}>◷</div>
+                  <h3>{upcoming.length}</h3>
+                  <p>Upcoming appointments</p>
                 </div>
-
-                <div className="modal-body">
-                  <div className="appointment-detail-grid">
-                    <div>
-                      <p><strong>Date:</strong> {new Date(selectedAppointment.requestedDate).toLocaleDateString('en-US')}</p>
-                      <p><strong>Time:</strong> {selectedAppointment.requestedTime || 'Not set'}</p>
-                      <p><strong>Status:</strong> {selectedAppointment.status || 'Not updated'}</p>
-                      <p><strong>Room:</strong> {selectedAppointment.scheduleId?.room || 'To be updated'}</p>
-                    </div>
-                    <div>
-                      <p><strong>Doctor:</strong> Dr. {selectedAppointment.doctorId?.fullName || 'Not assigned'}</p>
-                      <p><strong>Specialty:</strong> {selectedAppointment.departmentId?.departmentName || 'General'}</p>
-                      <p><strong>Service:</strong> {selectedAppointment.scheduleId?.serviceName || 'Clinical examination'}</p>
-                      <p><strong>Department:</strong> {selectedAppointment.departmentId?.departmentName || 'Unknown'}</p>
-                    </div>
-                  </div>
-
-                  <div className="appointment-detail-extra">
-                    <p><strong>Symptoms / Description:</strong></p>
-                    <p>{selectedAppointment.symptoms || 'No description'}</p>
-                  </div>
-
-                  {selectedAppointment.scheduleId?.startTime || selectedAppointment.scheduleId?.endTime ? (
-                    <div className="appointment-detail-time">
-                      <p><strong>Working hours:</strong></p>
-                      <p>{selectedAppointment.scheduleId?.startTime || '---'} - {selectedAppointment.scheduleId?.endTime || '---'}</p>
-                    </div>
-                  ) : null}
+                <div className="stat-card">
+                  <div className="stat-icon" style={{ fontSize: 20 }}>≡</div>
+                  <h3>{records.length}</h3>
+                  <p>Medical records</p>
+                </div>
+                <div className="stat-card">
+                  <div className="stat-icon" style={{ fontSize: 20 }}>$</div>
+                  <h3>{unpaidCount}</h3>
+                  <p>Unpaid invoices</p>
+                </div>
+                <div className="stat-card">
+                  <div className="stat-icon" style={{ fontSize: 20 }}>✓</div>
+                  <h3>{appointments.filter(a => a.status === 'Completed').length}</h3>
+                  <p>Completed visits</p>
                 </div>
               </div>
+
+              {unpaidCount > 0 && (
+                <div className="dashboard-card" style={{ background: 'var(--color-warning-light)', borderColor: '#fde68a' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+                    <div>
+                      <strong style={{ color: 'var(--color-warning)' }}>Outstanding balance</strong>
+                      <p style={{ margin: '2px 0 0', fontSize: 13, color: 'var(--color-text-body)' }}>
+                        You have {unpaidCount} unpaid invoice{unpaidCount > 1 ? 's' : ''} totalling <strong>{formatCurrency(totalOwed)}</strong>.
+                      </p>
+                    </div>
+                    <button className="btn btn-primary btn-sm" onClick={() => setActiveTab('invoices')}>
+                      View &amp; Pay
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="dashboard-card">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                  <h3 style={{ margin: 0, fontSize: 16 }}>Recent Appointments</h3>
+                  <button className="btn btn-ghost btn-sm" onClick={() => setActiveTab('appointments')}>View all</button>
+                </div>
+                {appointments.length === 0 ? (
+                  <div className="empty-state">
+                    No appointments yet.{' '}
+                    <button className="btn btn-primary btn-sm" style={{ marginLeft: 8 }} onClick={() => setActiveTab('book')}>
+                      Book now
+                    </button>
+                  </div>
+                ) : (
+                  <div className="table-responsive">
+                    <table className="custom-table">
+                      <thead>
+                        <tr><th>Date</th><th>Time</th><th>Department</th><th>Doctor</th><th>Status</th></tr>
+                      </thead>
+                      <tbody>
+                        {appointments.slice(0, 5).map(a => (
+                          <tr key={a._id} style={{ cursor: 'pointer' }} onClick={() => setSelectedAppointment(a)}>
+                            <td>{new Date(a.requestedDate).toLocaleDateString('en-US')}</td>
+                            <td className="monospace">{a.requestedTime || '—'}</td>
+                            <td>{a.departmentId?.departmentName || 'General'}</td>
+                            <td>{a.doctorId?.fullName ? `Dr. ${a.doctorId.fullName}` : '—'}</td>
+                            <td><StatusPill status={a.status} /></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              <div className="dashboard-card">
+                <h3 style={{ margin: '0 0 14px', fontSize: 16 }}>Quick Actions</h3>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                  <button className="btn btn-primary" onClick={() => setActiveTab('book')}>Book Appointment</button>
+                  <button className="btn btn-ghost" onClick={() => setActiveTab('records')}>Medical Records</button>
+                  <button className="btn btn-ghost" onClick={() => setActiveTab('invoices')}>Invoices</button>
+                  <button className="btn btn-ghost" onClick={() => setActiveTab('profile')}>Edit Profile</button>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* ── Book Appointment tab ── */}
+          {activeTab === 'book' && (
+            <div className="dashboard-card">
+              <BookingForm
+                onBooked={() => {
+                  refreshAppointments();
+                  setActiveTab('appointments');
+                }}
+              />
             </div>
           )}
 
-          {showBilling && (
-              <div
-                className="modal-overlay"
-                role="dialog"
-                aria-modal="true"
-                onClick={(e) => { if (e.target === e.currentTarget) setShowBilling(false); }}
-              >
-                <div className="modal card">
-                  <div className="card-title-bar modal-header">
-                    <h4>Invoice details</h4>
-                    <button type="button" className="btn btn-ghost" onClick={() => setShowBilling(false)}>Close</button>
-                  </div>
+          {/* ── My Appointments tab ── */}
+          {activeTab === 'appointments' && (
+            <div className="dashboard-card">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                <div>
+                  <h2 style={{ margin: 0, fontSize: 19 }}>My Appointments</h2>
+                  <p className="subtitle">{appointments.length} appointment{appointments.length !== 1 ? 's' : ''} on record</p>
+                </div>
+                <button className="btn btn-primary btn-sm" onClick={() => setActiveTab('book')}>+ New booking</button>
+              </div>
 
-                  <div className="modal-body">
-                    {invoices.length === 0 ? (
-                      <div className="patient-empty">You have no invoices yet.</div>
-                    ) : (
-                      <div className="invoice-list">
-                        {invoices.map((inv) => {
-                          const isExpanded = expandedInvoices.includes(inv._id);
-                            return (
-                            <article key={inv._id} className="invoice-item">
-                              <div className="invoice-item__header">
-                                <div>
-                                  <strong>{translateInvoiceType(inv.invoiceType)}</strong>
-                                  <div className="muted">{new Date(inv.issuedAt || inv.createdAt).toLocaleString('en-US')}</div>
-                                </div>
-                                <div>
-                                  <div className="muted">Status: {translateInvoiceStatus(inv.status)}</div>
-                                  <div style={{ textAlign: 'right' }}><strong>{formatCurrency(inv.totalAmount || 0)}</strong></div>
-                                  <div className="invoice-item__actions">
-                                    {inv.status !== 'Paid' && (
-                                      <button
-                                        type="button"
-                                        className="btn btn-primary btn-xs"
-                                        disabled={paymentProcessing}
-                                        onClick={() => handlePayInvoice(inv)}
-                                      >
-                                        Pay
-                                      </button>
-                                    )}
-                                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => handleToggleInvoice(inv._id)}>
-                                      {isExpanded ? 'Hide' : 'View details'}
-                                    </button>
-                                  </div>
-                                </div>
+              {appointments.length === 0 ? (
+                <div className="empty-state">You have no appointments yet.</div>
+              ) : (
+                <div className="table-responsive">
+                  <table className="custom-table">
+                    <thead>
+                      <tr>
+                        <th>Date</th><th>Time</th><th>Department</th>
+                        <th>Doctor</th><th>Status</th><th></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {appointments.map(a => (
+                        <tr key={a._id}>
+                          <td>{new Date(a.requestedDate).toLocaleDateString('en-US')}</td>
+                          <td className="monospace">{a.requestedTime || '—'}</td>
+                          <td>{a.departmentId?.departmentName || 'General'}</td>
+                          <td>{a.doctorId?.fullName ? `Dr. ${a.doctorId.fullName}` : '—'}</td>
+                          <td><StatusPill status={a.status} /></td>
+                          <td>
+                            <div className="btn-cell">
+                              <button
+                                className="btn btn-ghost btn-xs"
+                                onClick={() => setSelectedAppointment(a)}
+                              >
+                                Details
+                              </button>
+                              {a.status === 'Pending' && (
+                                <button
+                                  className="btn btn-xs"
+                                  style={{ background: 'var(--color-danger-light)', color: 'var(--color-danger)', border: '1px solid #fecaca' }}
+                                  onClick={() => handleCancel(a._id)}
+                                >
+                                  Cancel
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Medical Records tab ── */}
+          {activeTab === 'records' && (
+            <div className="dashboard-card">
+              <h2 style={{ margin: '0 0 20px', fontSize: 19 }}>Medical Records</h2>
+
+              {records.length === 0 ? (
+                <div className="empty-state">
+                  No medical records yet. Records will appear here after your first visit.
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {records.map(r => {
+                    const expanded = expandedRecords.includes(r._id);
+                    return (
+                      <div
+                        key={r._id}
+                        style={{
+                          border: '1px solid var(--color-border)', borderRadius: 12,
+                          overflow: 'hidden', background: 'var(--color-surface)',
+                        }}
+                      >
+                        {/* Record header row */}
+                        <div
+                          style={{
+                            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                            padding: '14px 18px', cursor: 'pointer',
+                          }}
+                          onClick={() =>
+                            setExpandedRecords(prev =>
+                              expanded ? prev.filter(x => x !== r._id) : [...prev, r._id]
+                            )
+                          }
+                        >
+                          <div>
+                            <strong style={{ fontSize: 14 }}>
+                              {new Date(r.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                            </strong>
+                            <p style={{ margin: '2px 0 0', fontSize: 13, color: 'var(--color-text-muted)' }}>
+                              {r.appointmentId?.departmentId?.departmentName || 'General'}
+                              {r.doctorId?.fullName ? ` · Dr. ${r.doctorId.fullName}` : ''}
+                            </p>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            {r.diagnosis && (
+                              <span className="badge badge-info" style={{ fontSize: 11 }}>
+                                {r.diagnosis.length > 30 ? r.diagnosis.slice(0, 30) + '…' : r.diagnosis}
+                              </span>
+                            )}
+                            <button className="btn btn-ghost btn-sm" onClick={e => { e.stopPropagation(); setExpandedRecords(prev => expanded ? prev.filter(x => x !== r._id) : [...prev, r._id]); }}>
+                              {expanded ? 'Hide' : 'View details'}
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Expanded vitals + summary */}
+                        {expanded && (
+                          <div style={{ borderTop: '1px solid var(--color-border)', padding: '16px 18px', background: '#f8fafc' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 20 }}>
+                              <div>
+                                <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--color-text-muted)', margin: '0 0 8px' }}>
+                                  Vitals
+                                </p>
+                                {[
+                                  ['Height', r.height ? `${r.height} cm` : '—'],
+                                  ['Weight', r.weight ? `${r.weight} kg` : '—'],
+                                  ['Blood pressure', r.bloodPressure || '—'],
+                                  ['Heart rate', r.heartRate ? `${r.heartRate} bpm` : '—'],
+                                  ['Temperature', r.temperature ? `${r.temperature} °C` : '—'],
+                                ].map(([label, value]) => (
+                                  <p key={label} style={{ fontSize: 13, margin: '4px 0' }}>
+                                    {label}: <strong>{value}</strong>
+                                  </p>
+                                ))}
                               </div>
-
-                              <div className={`invoice-item__details ${isExpanded ? 'is-expanded' : ''}`}>
-                                {inv.invoiceType === 'Pharmacy' && inv.details && inv.details.length > 0 ? (
-                                  <div className="invoice-lines">
-                                    {inv.details.map((d) => (
-                                      <div key={d._id} className="invoice-line">
-                                        <div>{d.medicineId?.name || 'Medicine'}</div>
-                                        <div className="muted">x{d.quantity}</div>
-                                        <div>{formatCurrency((d.unitPrice || 0) * (d.quantity || 1))}</div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                ) : (
-                                  <div className="invoice-meta muted">{inv.appointmentId ? `Department: ${inv.appointmentId.departmentId?.departmentName || ''}` : ''}</div>
+                              <div>
+                                <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--color-text-muted)', margin: '0 0 8px' }}>
+                                  Clinical Summary
+                                </p>
+                                <p style={{ fontSize: 13, margin: '0 0 6px' }}>
+                                  Diagnosis: <strong>{r.diagnosis || '—'}</strong>
+                                </p>
+                                {r.clinicalNotes && (
+                                  <p style={{ fontSize: 13, margin: 0, color: 'var(--color-text-body)' }}>
+                                    Notes: {r.clinicalNotes}
+                                  </p>
                                 )}
                               </div>
-                            </article>
-                          );
-                        })}
+                            </div>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
+                    );
+                  })}
                 </div>
-              </div>
-            )}
-
-          <aside className="patient-dashboard__aside">
-            <PatientSidebar patient={patient} invoices={invoices} onEditPatient={handleEditPatient} />
-          </aside>
-        </div>
-      </main>
-      {isEditingProfile && (
-        <div
-          className="modal-overlay"
-          role="dialog"
-          aria-modal="true"
-          onClick={(e) => { if (e.target === e.currentTarget) setIsEditingProfile(false); }}
-        >
-          <div className="modal card">
-            <div className="card-title-bar modal-header">
-              <div>
-                <h4>Update personal information</h4>
-                <p className="muted">You can edit your patient profile information.</p>
-              </div>
-              <button type="button" className="btn btn-ghost" onClick={() => setIsEditingProfile(false)}>Close</button>
+              )}
             </div>
-            <div className="modal-body">
-              <div className="form-grid">
+          )}
+
+          {/* ── Invoices tab ── */}
+          {activeTab === 'invoices' && (
+            <div className="dashboard-card">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
+                <div>
+                  <h2 style={{ margin: 0, fontSize: 19 }}>Invoices</h2>
+                  <p className="subtitle">
+                    {invoices.length} invoice{invoices.length !== 1 ? 's' : ''}
+                    {unpaidCount > 0 ? ` · ${unpaidCount} unpaid` : ' · All paid'}
+                  </p>
+                </div>
+                {unpaidCount > 0 && (
+                  <button
+                    className="btn btn-primary btn-sm"
+                    onClick={handlePayAll}
+                    disabled={paymentProcessing}
+                  >
+                    {paymentProcessing ? 'Processing…' : `Pay all ${unpaidCount} unpaid`}
+                  </button>
+                )}
+              </div>
+
+              {paymentMessage && (
+                <div
+                  className={`alert ${paymentMessage.toLowerCase().includes('fail') ? 'alert-danger' : 'alert-success'}`}
+                  style={{ marginBottom: 16 }}
+                >
+                  {paymentMessage}
+                </div>
+              )}
+
+              {invoices.length === 0 ? (
+                <div className="empty-state">No invoices yet.</div>
+              ) : (
+                <div className="table-responsive">
+                  <table className="custom-table">
+                    <thead>
+                      <tr><th>Date</th><th>Type</th><th>Amount</th><th>Status</th><th></th></tr>
+                    </thead>
+                    <tbody>
+                      {invoices.map(inv => (
+                        <tr key={inv._id}>
+                          <td className="text-muted">
+                            {new Date(inv.issuedAt || inv.createdAt).toLocaleDateString('en-US')}
+                          </td>
+                          <td>{inv.invoiceType}</td>
+                          <td className="font-bold">{formatCurrency(inv.totalAmount || 0)}</td>
+                          <td>
+                            <span className={`badge ${inv.status === 'Paid' ? 'badge-success' : inv.status === 'Refunded' ? 'badge-info' : 'badge-warning'}`}>
+                              {inv.status}
+                            </span>
+                          </td>
+                          <td>
+                            {inv.status !== 'Paid' && (
+                              <button
+                                className="btn btn-primary btn-xs"
+                                onClick={() => handlePayInvoice(inv)}
+                                disabled={paymentProcessing}
+                              >
+                                Pay
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Profile tab ── */}
+          {activeTab === 'profile' && (
+            <div className="dashboard-card">
+              <div style={{ marginBottom: 22 }}>
+                <h2 style={{ margin: 0, fontSize: 19 }}>My Profile</h2>
+                <p className="subtitle">Keep your personal information up to date.</p>
+              </div>
+
+              <div className="grid-form">
                 <div className="form-group">
                   <label>Full name</label>
                   <input
                     type="text"
                     value={profileForm.fullName}
-                    onChange={(e) => handleProfileChange('fullName', e.target.value)}
+                    onChange={e => setProfileForm(p => ({ ...p, fullName: e.target.value }))}
+                    placeholder="Your full name"
                   />
                 </div>
                 <div className="form-group">
@@ -658,14 +639,14 @@ export default function PatientDashboard() {
                   <input
                     type="date"
                     value={profileForm.dateOfBirth}
-                    onChange={(e) => handleProfileChange('dateOfBirth', e.target.value)}
+                    onChange={e => setProfileForm(p => ({ ...p, dateOfBirth: e.target.value }))}
                   />
                 </div>
                 <div className="form-group">
                   <label>Gender</label>
                   <select
                     value={profileForm.gender}
-                    onChange={(e) => handleProfileChange('gender', e.target.value)}
+                    onChange={e => setProfileForm(p => ({ ...p, gender: e.target.value }))}
                   >
                     <option value="Khác">Other</option>
                     <option value="Nam">Male</option>
@@ -677,47 +658,113 @@ export default function PatientDashboard() {
                   <input
                     type="text"
                     value={profileForm.phoneNumber}
-                    onChange={(e) => handleProfileChange('phoneNumber', e.target.value)}
+                    onChange={e => setProfileForm(p => ({ ...p, phoneNumber: e.target.value }))}
+                    placeholder="e.g. 0901 234 567"
                   />
                 </div>
                 <div className="form-group">
-                  <label>ID card</label>
+                  <label>ID card number</label>
                   <input
                     type="text"
                     value={profileForm.identityCard}
-                    onChange={(e) => handleProfileChange('identityCard', e.target.value)}
+                    onChange={e => setProfileForm(p => ({ ...p, identityCard: e.target.value }))}
+                    placeholder="National ID / CCCD"
                   />
                 </div>
                 <div className="form-group">
-                  <label>Health insurance no.</label>
+                  <label>Health insurance number</label>
                   <input
                     type="text"
                     value={profileForm.insuranceCode}
-                    onChange={(e) => handleProfileChange('insuranceCode', e.target.value)}
+                    onChange={e => setProfileForm(p => ({ ...p, insuranceCode: e.target.value }))}
+                    placeholder="e.g. DN4500…"
                   />
                 </div>
-                <div className="form-group form-group-full">
+                <div className="form-group full-width">
                   <label>Address</label>
                   <textarea
-                    rows="3"
+                    rows={3}
                     value={profileForm.address}
-                    onChange={(e) => handleProfileChange('address', e.target.value)}
+                    onChange={e => setProfileForm(p => ({ ...p, address: e.target.value }))}
+                    placeholder="Street, district, city"
                   />
                 </div>
               </div>
-              {profileMessage && <div className={`booking-banner ${profileMessage.toLowerCase().includes('success') ? 'success' : 'error'}`}>{profileMessage}</div>}
-              <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1rem' }}>
-                <button type="button" className="btn btn-secondary" onClick={() => setIsEditingProfile(false)}>Cancel</button>
-                <button type="button" className="btn btn-primary" disabled={profileSaving} onClick={handleSaveProfile}>
-                  {profileSaving ? 'Saving...' : 'Save changes'}
+
+              {profileMessage && (
+                <div
+                  className={`alert ${profileMessage.toLowerCase().includes('success') ? 'alert-success' : 'alert-danger'}`}
+                  style={{ marginBottom: 16 }}
+                >
+                  {profileMessage}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button className="btn btn-primary" onClick={handleSaveProfile} disabled={profileSaving}>
+                  {profileSaving ? 'Saving…' : 'Save changes'}
                 </button>
               </div>
+            </div>
+          )}
+
+        </div>
+      </div>
+
+      {/* ── Appointment detail modal ── */}
+      {selectedAppointment && (
+        <div
+          className="modal-backdrop"
+          onClick={e => { if (e.target === e.currentTarget) setSelectedAppointment(null); }}
+        >
+          <div className="modal-content">
+            <div className="modal-header">
+              <div>
+                <h3>Appointment Details</h3>
+                <p style={{ margin: 0, fontSize: 13, color: 'var(--color-text-muted)' }}>
+                  {selectedAppointment.departmentId?.departmentName || 'General Department'}
+                </p>
+              </div>
+              <button className="close-btn" onClick={() => setSelectedAppointment(null)}>×</button>
+            </div>
+
+            <div className="modal-body">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 20px', marginBottom: 16 }}>
+                <p style={{ margin: 0 }}><strong>Date:</strong> {new Date(selectedAppointment.requestedDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                <p style={{ margin: 0 }}><strong>Time:</strong> {selectedAppointment.requestedTime || '—'}</p>
+                <p style={{ margin: 0 }}><strong>Status:</strong> <StatusPill status={selectedAppointment.status} /></p>
+                <p style={{ margin: 0 }}><strong>Room:</strong> {selectedAppointment.scheduleId?.room || 'To be confirmed'}</p>
+                <p style={{ margin: 0 }}><strong>Doctor:</strong> {selectedAppointment.doctorId?.fullName ? `Dr. ${selectedAppointment.doctorId.fullName}` : 'Not yet assigned'}</p>
+                <p style={{ margin: 0 }}><strong>Specialty:</strong> {selectedAppointment.departmentId?.departmentName || 'General'}</p>
+              </div>
+
+              {selectedAppointment.symptoms && (
+                <div style={{ padding: '12px 14px', background: 'var(--color-bg)', borderRadius: 10 }}>
+                  <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--color-text-muted)', margin: '0 0 6px' }}>
+                    Symptoms / Description
+                  </p>
+                  <p style={{ fontSize: 14, margin: 0 }}>{selectedAppointment.symptoms}</p>
+                </div>
+              )}
+            </div>
+
+            <div className="modal-footer">
+              {selectedAppointment.status === 'Pending' && (
+                <button
+                  className="btn btn-xs"
+                  style={{ background: 'var(--color-danger-light)', color: 'var(--color-danger)', border: '1px solid #fecaca' }}
+                  onClick={() => { handleCancel(selectedAppointment._id); setSelectedAppointment(null); }}
+                >
+                  Cancel appointment
+                </button>
+              )}
+              <button className="btn btn-ghost" onClick={() => setSelectedAppointment(null)}>Close</button>
             </div>
           </div>
         </div>
       )}
+
       <Footer />
     </div>
   );
 }
-

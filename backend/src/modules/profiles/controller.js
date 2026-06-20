@@ -907,5 +907,91 @@ const updateTimelineStepAdmin = async (req, res) => {
   }
 };
 
-module.exports = { getAllUsers, getUserById, updateUser, createDoctor, getPatients, getAdminStats, queryClinicAI, editUserAdmin, deleteUserAdmin, deleteAppointmentAdmin, updateTimelineStepAdmin };
+// ── Patient self-service (GET / POST / PUT /profiles/patient/me) ──────────────
+
+const getMyPatientProfile = async (req, res) => {
+  try {
+    const { success: ok } = require('../../utils/response');
+    const patient = await Patient.findOne({ userId: req.user.id }).lean();
+    return ok(res, patient || null, patient ? 'Profile loaded' : 'No profile yet');
+  } catch (err) {
+    console.error('getMyPatientProfile error', err);
+    const { fail } = require('../../utils/response');
+    return fail(res, 'Error loading patient profile', 500, err.message);
+  }
+};
+
+const createMyPatientProfile = async (req, res) => {
+  try {
+    const { success: ok } = require('../../utils/response');
+    const { fail } = require('../../utils/response');
+    const existing = await Patient.findOne({ userId: req.user.id });
+    if (existing) return fail(res, 'Profile already exists — use PUT to update', 409);
+
+    const { fullName, dateOfBirth, gender, phoneNumber, address, identityCard, insuranceCode } = req.body;
+    if (!fullName || !dateOfBirth || !gender || !phoneNumber || !identityCard) {
+      return res.status(400).json({ success: false, message: 'fullName, dateOfBirth, gender, phoneNumber, and identityCard are required' });
+    }
+
+    const patient = await Patient.create({
+      userId: req.user.id,
+      fullName,
+      dateOfBirth: new Date(dateOfBirth),
+      gender,
+      phoneNumber,
+      identityCard,
+      address: address || '',
+      insuranceCode: insuranceCode || undefined,
+    });
+    return ok(res, patient, 'Profile created successfully', 201);
+  } catch (err) {
+    console.error('createMyPatientProfile error', err);
+    const { fail } = require('../../utils/response');
+    return fail(res, 'Error creating patient profile', 500, err.message);
+  }
+};
+
+const updateMyPatientProfile = async (req, res) => {
+  try {
+    const { success: ok } = require('../../utils/response');
+    const { fail } = require('../../utils/response');
+    let patient = await Patient.findOne({ userId: req.user.id });
+
+    const { fullName, dateOfBirth, gender, phoneNumber, address, identityCard, insuranceCode } = req.body;
+
+    if (!patient) {
+      if (!fullName || !dateOfBirth || !gender || !phoneNumber || !identityCard) {
+        return res.status(400).json({ success: false, message: 'fullName, dateOfBirth, gender, phoneNumber, and identityCard are required' });
+      }
+      patient = await Patient.create({
+        userId: req.user.id,
+        fullName,
+        dateOfBirth: new Date(dateOfBirth),
+        gender,
+        phoneNumber,
+        identityCard,
+        address: address || '',
+        insuranceCode: insuranceCode || undefined,
+      });
+      return ok(res, patient, 'Profile created successfully', 201);
+    }
+
+    if (fullName !== undefined)       patient.fullName      = fullName;
+    if (dateOfBirth !== undefined)    patient.dateOfBirth   = new Date(dateOfBirth);
+    if (gender !== undefined)         patient.gender        = gender;
+    if (phoneNumber !== undefined)    patient.phoneNumber   = phoneNumber;
+    if (address !== undefined)        patient.address       = address;
+    if (identityCard !== undefined)   patient.identityCard  = identityCard;
+    if (insuranceCode !== undefined)  patient.insuranceCode = insuranceCode || undefined;
+
+    await patient.save();
+    return ok(res, patient, 'Profile updated successfully');
+  } catch (err) {
+    console.error('updateMyPatientProfile error', err);
+    const { fail } = require('../../utils/response');
+    return fail(res, 'Error updating patient profile', 500, err.message);
+  }
+};
+
+module.exports = { getAllUsers, getUserById, updateUser, createDoctor, getPatients, getAdminStats, queryClinicAI, editUserAdmin, deleteUserAdmin, deleteAppointmentAdmin, updateTimelineStepAdmin, getMyPatientProfile, createMyPatientProfile, updateMyPatientProfile };
 

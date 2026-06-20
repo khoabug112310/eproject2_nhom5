@@ -3,21 +3,29 @@ const express = require('express');
 const { authenticateToken } = require('../../middlewares/auth');
 const { authorizeRole } = require('../../middlewares/rbac');
 const { USER_ROLE } = require('../../constants/enums');
-const { 
-  getAllUsers, 
-  getUserById, 
-  updateUser, 
-  createDoctor, 
-  getPatients, 
-  getAdminStats, 
-  queryClinicAI, 
-  editUserAdmin, 
-  deleteUserAdmin, 
-  deleteAppointmentAdmin, 
-  updateTimelineStepAdmin 
+const {
+  getAllUsers,
+  getUserById,
+  updateUser,
+  createDoctor,
+  getPatients,
+  getAdminStats,
+  queryClinicAI,
+  editUserAdmin,
+  deleteUserAdmin,
+  deleteAppointmentAdmin,
+  updateTimelineStepAdmin,
+  getMyPatientProfile,
+  createMyPatientProfile,
+  updateMyPatientProfile,
 } = require('./controller');
 
 const router = express.Router();
+
+// Patient self-service profile
+router.get('/patient/me',  authenticateToken, getMyPatientProfile);
+router.post('/patient/me', authenticateToken, createMyPatientProfile);
+router.put('/patient/me',  authenticateToken, updateMyPatientProfile);
 
 // Admin only
 router.get('/users', authenticateToken, authorizeRole(USER_ROLE.ADMIN), getAllUsers);
