@@ -1,0 +1,362 @@
+/* =========================================================================
+   HOPSONTAI CLINIC — UNIFIED DESIGN SYSTEM (theme.css)
+   Loaded after index.css to establish a cohesive, professional medical UI.
+   ========================================================================= */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap');
+
+:root {
+  /* ---- Brand palette: premium teal/cyan medical ---- */
+  --color-primary: #0d9488;
+  --color-primary-dark: #0f766e;
+  --color-primary-light: #f0fdfa;
+  --color-primary-soft: #ccfbf1;
+
+  --color-secondary: #0891b2;
+  --color-secondary-dark: #0e7490;
+  --color-secondary-light: #ecfeff;
+
+  --color-accent: #f59e0b;
+  --color-accent-light: #fffbeb;
+
+  /* ---- Semantic ---- */
+  --color-success: #16a34a;
+  --color-success-light: #f0fdf4;
+  --color-warning: #d97706;
+  --color-warning-light: #fffbeb;
+  --color-danger: #dc2626;
+  --color-danger-light: #fef2f2;
+  --color-info: #0ea5e9;
+  --color-info-light: #f0f9ff;
+
+  /* ---- Neutrals (slate) ---- */
+  --color-text-dark: #0f172a;
+  --color-text-body: #334155;
+  --color-text-muted: #64748b;
+  --color-bg: #f1f5f9;
+  --color-surface: #ffffff;
+  --color-card-bg: #ffffff;
+  --color-border: #e2e8f0;
+  --color-border-strong: #cbd5e1;
+
+  /* ---- Radii ---- */
+  --radius-card: 16px;
+  --radius-btn: 10px;
+  --radius-input: 10px;
+  --radius-pill: 999px;
+
+  /* ---- Shadows (soft, layered) ---- */
+  --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.06), 0 2px 4px rgba(15, 23, 42, 0.04);
+  --shadow-lg: 0 12px 28px rgba(15, 23, 42, 0.10), 0 4px 8px rgba(15, 23, 42, 0.04);
+  --shadow-xl: 0 24px 48px rgba(15, 23, 42, 0.14);
+
+  /* ---- Sidebar width ---- */
+  --app-sidebar-w: 264px;
+}
+
+/* ---- Base typography refinements ---- */
+body {
+  font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background-color: var(--color-bg);
+  background-image:
+    radial-gradient(at 0% 0%, rgba(13, 148, 136, 0.05) 0px, transparent 55%),
+    radial-gradient(at 100% 0%, rgba(8, 145, 178, 0.05) 0px, transparent 55%);
+  color: var(--color-text-body);
+}
+
+h1, h2, h3, h4, h5, h6 { color: var(--color-text-dark); letter-spacing: -0.01em; }
+
+::selection { background: var(--color-primary-soft); color: var(--color-primary-dark); }
+
+/* Refined scrollbars */
+* { scrollbar-width: thin; scrollbar-color: var(--color-border-strong) transparent; }
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-thumb { background: var(--color-border-strong); border-radius: 999px; border: 2px solid transparent; background-clip: content-box; }
+*::-webkit-scrollbar-thumb:hover { background: var(--color-text-muted); background-clip: content-box; }
+
+/* =========================================================================
+   BUTTONS
+   ========================================================================= */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  font-family: inherit; font-weight: 600; font-size: 14px; line-height: 1;
+  padding: 10px 18px; border-radius: var(--radius-btn);
+  border: 1px solid transparent; cursor: pointer;
+  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap; text-decoration: none; min-height: 40px;
+}
+.btn:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
+  color: #fff; box-shadow: 0 2px 8px rgba(13, 148, 136, 0.25);
+}
+.btn-primary:hover:not(:disabled) { box-shadow: 0 6px 16px rgba(13, 148, 136, 0.35); transform: translateY(-1px); }
+
+.btn-ghost {
+  background: var(--color-surface); color: var(--color-text-body);
+  border-color: var(--color-border-strong);
+}
+.btn-ghost:hover:not(:disabled) { border-color: var(--color-primary); color: var(--color-primary-dark); background: var(--color-primary-light); }
+
+.btn-success { background: var(--color-success); color: #fff; }
+.btn-success:hover:not(:disabled) { filter: brightness(0.95); transform: translateY(-1px); }
+.btn-danger { background: var(--color-danger); color: #fff; }
+.btn-danger:hover:not(:disabled) { filter: brightness(0.95); transform: translateY(-1px); }
+.btn-warning { background: var(--color-warning); color: #fff; }
+.btn-info { background: var(--color-info); color: #fff; }
+.btn-quick { background: linear-gradient(135deg, var(--color-accent) 0%, #f97316 100%); color: #fff; box-shadow: 0 2px 8px rgba(245, 158, 11, 0.25); }
+.btn-quick:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(245, 158, 11, 0.35); }
+
+.btn-xs { padding: 5px 10px; min-height: 30px; font-size: 12px; border-radius: 8px; }
+.btn-sm { padding: 7px 14px; min-height: 34px; font-size: 13px; }
+.btn-lg { padding: 14px 28px; min-height: 50px; font-size: 16px; }
+
+/* =========================================================================
+   CARDS / SURFACES
+   ========================================================================= */
+.card, .dashboard-card, .admin-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-sm);
+}
+.dashboard-card, .admin-card { padding: 24px; }
+
+/* =========================================================================
+   FORM CONTROLS
+   ========================================================================= */
+input, select, textarea {
+  font-family: inherit; font-size: 14px; color: var(--color-text-dark);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-input);
+  padding: 10px 12px; width: 100%;
+  transition: border-color 0.18s, box-shadow 0.18s;
+}
+input:focus, select:focus, textarea:focus {
+  outline: none; border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.12);
+}
+input::placeholder, textarea::placeholder { color: #94a3b8; }
+label { font-size: 13px; font-weight: 600; color: var(--color-text-body); display: block; margin-bottom: 6px; }
+.form-group { margin-bottom: 16px; }
+.grid-form { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px 16px; }
+.grid-form .full-width { grid-column: 1 / -1; }
+@media (max-width: 640px) { .grid-form { grid-template-columns: 1fr; } }
+
+/* =========================================================================
+   TABLES
+   ========================================================================= */
+.table-responsive { overflow-x: auto; border-radius: 12px; border: 1px solid var(--color-border); }
+.custom-table { width: 100%; border-collapse: collapse; font-size: 13.5px; background: var(--color-surface); }
+.custom-table thead th {
+  background: #f8fafc; color: var(--color-text-muted);
+  font-weight: 700; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.04em;
+  padding: 12px 14px; text-align: left; border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+.custom-table tbody td { padding: 12px 14px; border-bottom: 1px solid var(--color-border); color: var(--color-text-body); vertical-align: middle; }
+.custom-table tbody tr:last-child td { border-bottom: none; }
+.custom-table tbody tr { transition: background 0.12s; }
+.custom-table tbody tr:hover { background: #f8fafc; }
+.btn-cell { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.monospace { font-family: 'SF Mono', 'Roboto Mono', ui-monospace, monospace; font-size: 12.5px; }
+.text-muted { color: var(--color-text-muted); }
+.font-bold { font-weight: 700; }
+.text-primary { color: var(--color-primary-dark); }
+.text-success { color: var(--color-success); }
+.text-right { text-align: right; }
+
+/* =========================================================================
+   BADGES
+   ========================================================================= */
+.badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 10px; border-radius: var(--radius-pill);
+  font-size: 11.5px; font-weight: 700; line-height: 1.4; color: #fff; white-space: nowrap;
+}
+.badge-primary { background: var(--color-primary); }
+.badge-success { background: var(--color-success); }
+.badge-warning { background: var(--color-warning); }
+.badge-danger  { background: var(--color-danger); }
+.badge-info    { background: var(--color-info); }
+.badge-purple  { background: #7c3aed; }
+
+/* Soft pill variants for patient status */
+.status-pill { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: var(--radius-pill); font-size: 12px; font-weight: 700; background: #f1f5f9; color: var(--color-text-body); }
+.status-pill::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.status-pill.status-pending   { background: var(--color-warning-light); color: var(--color-warning); }
+.status-pill.status-confirmed { background: var(--color-info-light); color: var(--color-info); }
+.status-pill.status-completed { background: var(--color-success-light); color: var(--color-success); }
+.status-pill.status-canceled  { background: var(--color-danger-light); color: var(--color-danger); }
+
+/* =========================================================================
+   ALERTS
+   ========================================================================= */
+.alert { padding: 12px 16px; border-radius: 12px; font-size: 14px; font-weight: 500; margin-bottom: 16px; border: 1px solid transparent; }
+.alert-success { background: var(--color-success-light); color: #166534; border-color: #bbf7d0; }
+.alert-danger  { background: var(--color-danger-light); color: #991b1b; border-color: #fecaca; }
+
+/* =========================================================================
+   MODALS
+   ========================================================================= */
+.modal-backdrop, .modal-overlay {
+  position: fixed; inset: 0; background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1000; padding: 20px; animation: modalFade 0.2s ease;
+}
+@keyframes modalFade { from { opacity: 0; } to { opacity: 1; } }
+.modal-content {
+  background: var(--color-surface); border-radius: 18px;
+  width: 100%; max-width: 560px; max-height: 92vh; overflow-y: auto;
+  box-shadow: var(--shadow-xl); animation: modalSlide 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+@keyframes modalSlide { from { opacity: 0; transform: translateY(16px) scale(0.98); } to { opacity: 1; transform: none; } }
+.modal-header { display: flex; align-items: center; justify-content: space-between; padding: 18px 22px; border-bottom: 1px solid var(--color-border); }
+.modal-header h3 { font-size: 17px; margin: 0; }
+.modal-body { padding: 22px; }
+.modal-footer { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 22px; border-top: 1px solid var(--color-border); background: #f8fafc; border-radius: 0 0 18px 18px; }
+.close-btn { background: none; border: none; font-size: 26px; line-height: 1; color: var(--color-text-muted); cursor: pointer; padding: 0 4px; border-radius: 8px; transition: all 0.15s; }
+.close-btn:hover { color: var(--color-danger); }
+
+/* =========================================================================
+   APP SHELL — unified dashboard layout (sidebar + workspace)
+   Used by Patient / Doctor / Staff / Accountant role dashboards.
+   ========================================================================= */
+.role-dashboard-shell { min-height: 100vh; background: var(--color-bg); }
+
+.dashboard-layout {
+  display: grid; grid-template-columns: var(--app-sidebar-w) 1fr;
+  gap: 24px; max-width: 1440px; margin: 0 auto; padding: 24px;
+  align-items: start;
+}
+.dashboard-sidebar {
+  background: var(--color-surface); border: 1px solid var(--color-border);
+  border-radius: var(--radius-card); padding: 20px; position: sticky; top: 88px;
+  box-shadow: var(--shadow-sm);
+}
+.patient-quick-info { text-align: center; padding-bottom: 18px; margin-bottom: 14px; border-bottom: 1px solid var(--color-border); }
+.patient-quick-info .p-avatar {
+  width: 56px; height: 56px; margin: 0 auto 10px; border-radius: 16px;
+  display: flex; align-items: center; justify-content: center; font-size: 26px;
+  background: linear-gradient(135deg, var(--color-primary-light), var(--color-secondary-light));
+  color: var(--color-primary-dark);
+}
+.patient-quick-info h4 { font-size: 15px; margin: 0 0 2px; }
+.patient-quick-info .p-card-number { font-size: 12px; color: var(--color-text-muted); margin: 0; }
+
+.sidebar-nav { display: flex; flex-direction: column; gap: 4px; }
+.sidebar-nav button {
+  width: 100%; text-align: left; background: none; border: none;
+  padding: 11px 14px; border-radius: 10px; font-size: 13.5px; font-weight: 600;
+  color: var(--color-text-body); cursor: pointer; transition: all 0.15s; min-height: auto;
+}
+.sidebar-nav button:hover { background: var(--color-primary-light); color: var(--color-primary-dark); }
+.sidebar-nav button.active { background: linear-gradient(135deg, var(--color-primary), var(--color-secondary)); color: #fff; box-shadow: 0 2px 8px rgba(13, 148, 136, 0.25); }
+
+.dashboard-main-content { min-width: 0; display: flex; flex-direction: column; gap: 20px; }
+.dashboard-card h2 { font-size: 19px; margin: 0 0 4px; }
+.dashboard-card .subtitle, p.subtitle { font-size: 13.5px; color: var(--color-text-muted); margin: 0 0 18px; }
+
+@media (max-width: 900px) {
+  .dashboard-layout { grid-template-columns: 1fr; }
+  .dashboard-sidebar { position: static; }
+}
+
+/* Stat cards grid */
+.stats-cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 16px; }
+.stat-card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 14px; padding: 18px; box-shadow: var(--shadow-xs); }
+.stat-card .stat-icon { font-size: 22px; margin-bottom: 8px; }
+.stat-card h3 { font-size: 22px; margin: 0 0 2px; color: var(--color-primary-dark); }
+.stat-card p { font-size: 12.5px; color: var(--color-text-muted); margin: 0; }
+
+/* Empty + loading states */
+.empty-state { padding: 36px 20px; text-align: center; color: var(--color-text-muted); font-size: 14px; }
+.dashboard-loading { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 60vh; gap: 16px; color: var(--color-text-muted); }
+.spinner { width: 42px; height: 42px; border: 3px solid var(--color-border); border-top-color: var(--color-primary); border-radius: 50%; animation: spin 0.7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* =========================================================================
+   ROLE TOPNAV (doctor / staff / accountant / admin sticky bar)
+   ========================================================================= */
+.role-topnav {
+  display: flex; align-items: center; justify-content: space-between; gap: 20px;
+  background: var(--color-surface); border-bottom: 1px solid var(--color-border);
+  padding: 12px 28px; position: sticky; top: 0; z-index: 50; box-shadow: var(--shadow-xs);
+}
+.role-topnav__brand .role-topnav__title { font-size: 15px; font-weight: 800; color: var(--color-text-dark); }
+.role-topnav__brand .role-topnav__subtitle { font-size: 12px; color: var(--color-primary); font-weight: 600; }
+.role-topnav__nav { display: flex; gap: 6px; margin-left: auto; }
+.role-topnav__nav a { font-size: 13.5px; font-weight: 600; color: var(--color-text-body); text-decoration: none; padding: 8px 14px; border-radius: 8px; transition: all 0.15s; }
+.role-topnav__nav a:hover { background: var(--color-primary-light); color: var(--color-primary-dark); }
+.role-topnav__user { display: flex; align-items: center; gap: 10px; }
+.role-topnav__avatar { width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, var(--color-primary), var(--color-secondary)); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; }
+.role-topnav__name { font-size: 13.5px; font-weight: 700; color: var(--color-text-dark); }
+.role-topnav__role { font-size: 11px; font-weight: 600; color: var(--color-text-muted); background: #f1f5f9; padding: 3px 10px; border-radius: var(--radius-pill); }
+.role-topnav__logout { background: none; border: 1px solid var(--color-border-strong); border-radius: var(--radius-pill); padding: 7px 14px; font-size: 12.5px; font-weight: 600; color: var(--color-text-body); cursor: pointer; transition: all 0.15s; }
+.role-topnav__logout:hover { border-color: var(--color-danger); color: var(--color-danger); background: var(--color-danger-light); }
+
+@media (max-width: 720px) {
+  .role-topnav { flex-wrap: wrap; padding: 12px 16px; }
+  .role-topnav__nav { order: 3; width: 100%; }
+}
+
+/* Animation util */
+.animate-fade-in { animation: fadeInUp 0.35s ease both; }
+@keyframes fadeInUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+/* =========================================================================
+   HOMEPAGE SECTIONS (features, steps)
+   ========================================================================= */
+.home-section-head { text-align: center; max-width: 640px; margin: 0 auto 32px; }
+.home-eyebrow {
+  display: inline-block; font-size: 11px; font-weight: 800; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--color-secondary-dark);
+  background: var(--color-secondary-light); padding: 5px 14px; border-radius: var(--radius-pill);
+}
+.home-section-head h2 { font-size: 30px; font-weight: 800; margin: 14px 0 8px; letter-spacing: -0.02em; }
+.home-section-head p { font-size: 15px; color: var(--color-text-muted); margin: 0; line-height: 1.6; }
+
+.home-features { margin-bottom: 30px; }
+.home-feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+.home-feature-card {
+  background: var(--color-surface); border: 1px solid var(--color-border);
+  border-radius: var(--radius-card); padding: 24px; box-shadow: var(--shadow-xs);
+  transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+}
+.home-feature-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-md); border-color: var(--color-primary-soft); }
+.home-feature-icon {
+  width: 52px; height: 52px; border-radius: 14px; display: flex; align-items: center; justify-content: center;
+  font-size: 24px; margin-bottom: 14px;
+  background: linear-gradient(135deg, var(--color-primary-light), var(--color-secondary-light));
+}
+.home-feature-card h3 { font-size: 16px; margin: 0 0 6px; }
+.home-feature-card p { font-size: 13.5px; color: var(--color-text-muted); margin: 0; line-height: 1.6; }
+
+.home-steps { margin-bottom: 30px; }
+.home-step-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
+.home-step-card {
+  position: relative; background: var(--color-surface); border: 1px solid var(--color-border);
+  border-radius: var(--radius-card); padding: 26px 22px 22px; box-shadow: var(--shadow-xs); overflow: hidden;
+}
+.home-step-num {
+  font-size: 34px; font-weight: 800; line-height: 1;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+.home-step-card h3 { font-size: 16px; margin: 12px 0 6px; }
+.home-step-card p { font-size: 13px; color: var(--color-text-muted); margin: 0; line-height: 1.6; }
+
+@media (max-width: 900px) {
+  .home-feature-grid { grid-template-columns: repeat(2, 1fr); }
+  .home-step-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 560px) {
+  .home-feature-grid, .home-step-grid { grid-template-columns: 1fr; }
+  .home-section-head h2 { font-size: 24px; }
+}
