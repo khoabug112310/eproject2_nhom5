@@ -98,7 +98,12 @@ export default function QuickBooking({
     while (current <= end) {
       const h = String(Math.floor(current / 60)).padStart(2, '0');
       const m = String(current % 60).padStart(2, '0');
-      slots.push(`${h}:${m}`);
+      const slot = `${h}:${m}`;
+      
+      // Exclude lunch break 12:00 - 13:00
+      if (!(slot >= '12:00' && slot < '13:00')) {
+        slots.push(slot);
+      }
       current += 30;
     }
     return slots;
