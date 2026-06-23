@@ -163,7 +163,7 @@ export default function LoginModal({ show, onClose }) {
       
       // Go to login view immediately & show success alert
       setShowForgot(false);
-      setSuccess('Đổi mật khẩu thành công! Vui lòng đăng nhập với mật khẩu mới.');
+      setSuccess('Password changed successfully! Please log in with your new password.');
       setError('');
     } catch (err) {
       setForgotError(err?.response?.data?.message || 'Failed to reset password. Please check your OTP code.');
@@ -180,7 +180,7 @@ export default function LoginModal({ show, onClose }) {
     const phoneRegex = /(84|0[3|5|7|8|9])+([0-9]{8})\b/;
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!phoneRegex.test(phone) && !emailRegex.test(phone)) {
-      setError('Số điện thoại hoặc Email không đúng định dạng. Vui lòng nhập lại.');
+      setError('Invalid phone number or email format. Please try again.');
       return;
     }
 

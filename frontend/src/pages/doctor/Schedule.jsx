@@ -465,7 +465,7 @@ export default function DoctorSchedule() {
   const handleOpenPrescription = async (apptId) => {
     const record = getRecordForAppointment(apptId);
     if (!record) {
-      Swal.fire('Lỗi', 'Bệnh nhân chưa được khám (chưa có hồ sơ). Vui lòng khám trước!', 'error');
+      Swal.fire('Error', 'Patient has not been examined yet (no medical record). Please complete the examination first!', 'error');
       return;
     }
     setActiveRecordForPrescription(record);
@@ -499,37 +499,37 @@ export default function DoctorSchedule() {
       setPrescriptionItems(res.data.data || []);
       setSelectedMed(null);
       setMedSearch('');
-      Swal.fire({ title: 'Thành công', text: 'Đã thêm thuốc vào đơn', icon: 'success', timer: 1500, showConfirmButton: false });
+      Swal.fire({ title: 'Success', text: 'Medicine added to prescription', icon: 'success', timer: 1500, showConfirmButton: false });
     } catch(err) {
       console.error(err);
-      Swal.fire('Lỗi', 'Không thể thêm thuốc', 'error');
+      Swal.fire('Error', 'Could not add medicine', 'error');
     }
   };
 
   const handleRemovePrescription = async (prescId) => {
     try {
       const result = await Swal.fire({
-        title: 'Xóa thuốc này?',
-        text: 'Bạn có chắc chắn muốn xóa thuốc này khỏi đơn?',
+        title: 'Remove this medicine?',
+        text: 'Are you sure you want to remove this medicine from the prescription?',
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#d33',
         cancelButtonColor: '#3085d6',
-        confirmButtonText: 'Xóa',
-        cancelButtonText: 'Hủy'
+        confirmButtonText: 'Remove',
+        cancelButtonText: 'Cancel'
       });
 
       if (result.isConfirmed) {
         await clinicalAPI.deletePrescription(prescId);
         const res = await clinicalAPI.getPrescriptions(activeRecordForPrescription._id);
         setPrescriptionItems(res.data.data || []);
-        Swal.fire({ title: 'Đã xóa', icon: 'success', timer: 1000, showConfirmButton: false });
+        Swal.fire({ title: 'Removed', icon: 'success', timer: 1000, showConfirmButton: false });
       }
     } catch(err) {
       console.error(err);
       const details = err?.response?.data?.details;
-      const baseMsg = err?.response?.data?.message || 'Không thể xóa thuốc';
-      Swal.fire('Lỗi', details ? `${baseMsg} (${details})` : baseMsg, 'error');
+      const baseMsg = err?.response?.data?.message || 'Could not remove medicine';
+      Swal.fire('Error', details ? `${baseMsg} (${details})` : baseMsg, 'error');
     }
   };
 
@@ -1447,17 +1447,17 @@ export default function DoctorSchedule() {
         <div className="modal-backdrop" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1050 }}>
           <div className="modal-content" style={{ width: '900px', maxWidth: '95vw', background: '#fff', borderRadius: '12px', padding: '0', display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
             <div className="modal-header" style={{ padding: '20px', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 style={{ margin: 0, fontSize: '22px' }}>Đơn thuốc - {activeRecordForPrescription.patientId?.fullName}</h3>
+              <h3 style={{ margin: 0, fontSize: '22px' }}>Prescription — {activeRecordForPrescription.patientId?.fullName}</h3>
               <button onClick={() => setActiveRecordForPrescription(null)} style={{ background: 'none', border: 'none', fontSize: '28px', cursor: 'pointer', color: '#888' }}>&times;</button>
             </div>
             
             <div className="modal-body" style={{ display: 'flex', padding: '20px', gap: '30px', overflowY: 'auto' }}>
               {/* Left Side: Search and Add Medicine */}
               <div style={{ flex: '1 1 50%' }}>
-                <h4 style={{ marginTop: 0, marginBottom: '15px' }}>🔍 Chọn thuốc</h4>
-                <input 
-                  type="text" 
-                  placeholder="Nhập tên thuốc để tìm..." 
+                <h4 style={{ marginTop: 0, marginBottom: '15px' }}>🔍 Select Medicine</h4>
+                <input
+                  type="text"
+                  placeholder="Search medicine by name..."
                   value={medSearch} 
                   onChange={e => setMedSearch(e.target.value)} 
                   style={{ width: '100%', padding: '12px', borderRadius: '6px', border: '1px solid #ccc', marginBottom: '15px', fontSize: '15px' }} 
@@ -1465,7 +1465,7 @@ export default function DoctorSchedule() {
                 
                 <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: '6px', marginBottom: '20px' }}>
                   {filteredMeds.length === 0 ? (
-                    <div style={{ padding: '15px', textAlign: 'center', color: '#888' }}>Không tìm thấy thuốc</div>
+                    <div style={{ padding: '15px', textAlign: 'center', color: '#888' }}>No medicines found</div>
                   ) : (
                     filteredMeds.map(m => (
                       <div 
@@ -1474,7 +1474,7 @@ export default function DoctorSchedule() {
                         onClick={() => setSelectedMed(m)}
                       >
                         <strong style={{ display: 'block', fontSize: '15px', color: '#0f172a' }}>{m.medicineName || m.name}</strong>
-                        <small style={{ color: '#64748b' }}>Đóng gói: {m.unit || m.dosageForm} | Tồn kho: {m.stockQuantity}</small>
+                        <small style={{ color: '#64748b' }}>Package: {m.unit || m.dosageForm} | Stock: {m.stockQuantity}</small>
                       </div>
                     ))
                   )}
@@ -1482,53 +1482,53 @@ export default function DoctorSchedule() {
 
                 {selectedMed ? (
                   <form onSubmit={handleAddPrescription} style={{ background: '#f8fafc', padding: '20px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                    <h5 style={{ margin: '0 0 15px 0', fontSize: '16px', color: '#0f172a' }}>Kê đơn: {selectedMed.medicineName || selectedMed.name}</h5>
+                    <h5 style={{ margin: '0 0 15px 0', fontSize: '16px', color: '#0f172a' }}>Prescribe: {selectedMed.medicineName || selectedMed.name}</h5>
                     
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px' }}>
                       <div>
-                        <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px', fontWeight: 'bold' }}>Số lượng</label>
+                        <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px', fontWeight: 'bold' }}>Quantity</label>
                         <input type="number" value={medForm.quantity} onChange={e => setMedForm({...medForm, quantity: e.target.value})} min="1" required style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }} />
                       </div>
                       <div>
-                        <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px', fontWeight: 'bold' }}>Số ngày uống</label>
+                        <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px', fontWeight: 'bold' }}>Duration (days)</label>
                         <input type="number" value={medForm.durationDays} onChange={e => setMedForm({...medForm, durationDays: e.target.value})} min="1" required style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }} />
                       </div>
                     </div>
                     
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px' }}>
                       <div>
-                        <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px', fontWeight: 'bold' }}>Liều dùng (mỗi lần)</label>
+                        <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px', fontWeight: 'bold' }}>Dosage (per dose)</label>
                         <input type="text" value={medForm.dosage} onChange={e => setMedForm({...medForm, dosage: e.target.value})} required style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }} />
                       </div>
                       <div>
-                        <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px', fontWeight: 'bold' }}>Tần suất</label>
+                        <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px', fontWeight: 'bold' }}>Frequency</label>
                         <input type="text" value={medForm.frequency} onChange={e => setMedForm({...medForm, frequency: e.target.value})} required style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }} />
                       </div>
                     </div>
 
                     <div style={{ marginBottom: '20px' }}>
-                      <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px', fontWeight: 'bold' }}>Ghi chú (Ví dụ: sau ăn)</label>
+                      <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px', fontWeight: 'bold' }}>Special Instructions (e.g. after meals)</label>
                       <input type="text" value={medForm.specialInstructions} onChange={e => setMedForm({...medForm, specialInstructions: e.target.value})} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }} />
                     </div>
 
                     <button type="submit" style={{ width: '100%', padding: '12px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '16px', fontWeight: 'bold', cursor: 'pointer' }}>
-                      ➕ Thêm vào đơn thuốc
+                      ➕ Add to Prescription
                     </button>
                   </form>
                 ) : (
                   <div style={{ padding: '30px', textAlign: 'center', background: '#f8fafc', borderRadius: '8px', border: '1px dashed #cbd5e1', color: '#64748b' }}>
-                    Hãy chọn một loại thuốc ở danh sách trên để kê đơn.
+                    Select a medicine from the list above to prescribe.
                   </div>
                 )}
               </div>
 
               {/* Right Side: Current Prescriptions */}
               <div style={{ flex: '1 1 50%', borderLeft: '1px solid #eee', paddingLeft: '30px' }}>
-                <h4 style={{ marginTop: 0, marginBottom: '20px', color: '#10b981' }}>📋 Đơn thuốc hiện tại</h4>
+                <h4 style={{ marginTop: 0, marginBottom: '20px', color: '#10b981' }}>📋 Current Prescription</h4>
                 
                 {prescriptionItems.length === 0 ? (
                   <div style={{ textAlign: 'center', padding: '40px 20px', color: '#94a3b8', fontStyle: 'italic' }}>
-                    Chưa có thuốc nào được kê cho bệnh nhân này.
+                    No medicines have been prescribed for this patient yet.
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
@@ -1537,7 +1537,7 @@ export default function DoctorSchedule() {
                         <button 
                           onClick={() => handleRemovePrescription(p._id)}
                           style={{ position: 'absolute', top: '10px', right: '10px', background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '18px', fontWeight: 'bold', padding: '0 5px' }}
-                          title="Xóa thuốc này"
+                          title="Remove this medicine"
                         >
                           ✕
                         </button>
@@ -1546,9 +1546,9 @@ export default function DoctorSchedule() {
                           <span style={{ fontWeight: 'bold', color: '#3b82f6', fontSize: '16px' }}>x{p.quantity}</span>
                         </div>
                         <div style={{ fontSize: '14px', color: '#475569', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                          <span><span style={{ color: '#94a3b8' }}>Liều/Tần suất:</span> {p.dosage} - {p.frequency}</span>
-                          <span><span style={{ color: '#94a3b8' }}>Thời gian uống:</span> {p.durationDays} ngày</span>
-                          {p.specialInstructions && <span><span style={{ color: '#94a3b8' }}>Lưu ý:</span> {p.specialInstructions}</span>}
+                          <span><span style={{ color: '#94a3b8' }}>Dosage/Frequency:</span> {p.dosage} - {p.frequency}</span>
+                          <span><span style={{ color: '#94a3b8' }}>Duration:</span> {p.durationDays} day(s)</span>
+                          {p.specialInstructions && <span><span style={{ color: '#94a3b8' }}>Notes:</span> {p.specialInstructions}</span>}
                         </div>
                       </div>
                     ))}

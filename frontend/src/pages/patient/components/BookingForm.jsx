@@ -302,7 +302,7 @@ export default function BookingForm({ onBooked }) {
                     <option key={slot} value={slot}>{slot}</option>
                   ))
                 ) : (
-                  <option value="">-- Không có lịch trực --</option>
+                  <option value="">-- No available shifts --</option>
                 )
               ) : (
                 TIME_SLOTS.map((slot) => (
@@ -317,7 +317,7 @@ export default function BookingForm({ onBooked }) {
         {fetchingSchedule && (
           <div style={{ fontSize: '13px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '8px', margin: '8px 0' }}>
             <span className="btn-spinner" style={{ width: '12px', height: '12px', borderWidth: '2px', borderTopColor: 'var(--color-primary)' }}></span>
-            Đang kiểm tra lịch làm việc của bác sĩ...
+            Checking doctor's schedule...
           </div>
         )}
         {doctorSchedules.length > 0 && (
@@ -335,8 +335,8 @@ export default function BookingForm({ onBooked }) {
           }}>
             <span>📅</span>
             <span>
-              <strong>Lịch trực bác sĩ:</strong>{' '}
-              {doctorSchedules.map((s, idx) => `Ca ${idx + 1} (${s.startTime} - ${s.endTime})`).join(', ')}
+              <strong>Doctor's shifts:</strong>{' '}
+              {doctorSchedules.map((s, idx) => `Shift ${idx + 1} (${s.startTime} - ${s.endTime})`).join(', ')}
             </span>
           </div>
         )}
