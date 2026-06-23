@@ -367,34 +367,6 @@ export default function DoctorDetail() {
             </div>
           </div>
 
-          {/* Booking & Clinic Schedule note */}
-          <div style={{
-            background: '#f8fafc',
-            border: '1px solid var(--color-border, #e2e8f0)',
-            borderRadius: '20px',
-            padding: '30px',
-            boxShadow: 'none'
-          }}>
-            <h3 style={{
-              fontSize: '15px',
-              fontWeight: '800',
-              color: '#0f172a',
-              marginBottom: '10px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px'
-            }}>
-              <span style={{ fontSize: '18px' }}>🏥</span> Consultation Hours & Information
-            </h3>
-            <p style={{ fontSize: '13.5px', color: '#64748b', lineHeight: '1.6', margin: 0 }}>
-              The doctor is regularly scheduled for consultations at Hopsontai General Clinic.
-              <br />
-              <strong>Hours:</strong> Monday – Sunday: 7:00 AM – 8:00 PM.
-              <br />
-              Please select **Book Appointment** to see open dates, select examination time slots, and submit your medical inquiry securely.
-            </p>
-          </div>
-
         </div>
 
       </div>
