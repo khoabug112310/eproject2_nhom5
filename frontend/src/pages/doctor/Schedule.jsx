@@ -667,10 +667,10 @@ export default function DoctorSchedule() {
 
           {/* Tab: Appointments Queue */}
           {activeTab === 'appointments' && !activeAppt && (
-            <div className="dashboard-card">
+              <div className="dashboard-card">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                 <div>
-                  <h2>{isDefaultView ? 'Patients to examine today' : `Exam History`}</h2>
+                  <h2>{isDefaultView ? 'Patients to examine' : `Exam History`}</h2>
                 </div>
                  <div style={{ display: 'flex', gap: '20px', alignItems: 'center', flexWrap: 'wrap' }}>
                   <div style={{ display: 'flex', alignItems: 'center' }}>
@@ -704,17 +704,17 @@ export default function DoctorSchedule() {
                 </div>
               </div>
 
-              <div className="table-responsive" style={{ minHeight: '250px', maxHeight: '600px', overflowY: 'auto', overflowX: 'auto', width: '100%' }}>
+              <div className="table-responsive" style={{ minHeight: '250px', maxHeight: '600px', overflowY: 'auto', width: '100%' }}>
                 <table className="custom-table" style={{ fontSize: '18px', width: '100%' }}>
                   <thead>
                     <tr>
-                      <th style={{ fontSize: '16px', padding: '18px 24px' }}>Patient</th>
-                      {!isDefaultView && <th style={{ fontSize: '16px', padding: '18px 24px' }}>Date</th>}
-                      <th style={{ fontSize: '16px', padding: '18px 24px' }}>Time</th>
-                      <th style={{ fontSize: '16px', padding: '18px 24px' }}>Phone</th>
-                      <th style={{ fontSize: '16px', padding: '18px 24px' }}>Status</th>
-                      <th style={{ fontSize: '16px', padding: '18px 24px', textAlign: 'center' }}>Prescribe</th>
-                      <th style={{ fontSize: '16px', padding: '18px 24px' }}>Actions</th>
+                      <th style={{ fontSize: '16px', padding: '14px 10px' }}>Patient</th>
+                      {!isDefaultView && <th style={{ fontSize: '16px', padding: '14px 10px' }}>Date</th>}
+                      <th style={{ fontSize: '16px', padding: '14px 10px' }}>Time</th>
+                      <th style={{ fontSize: '16px', padding: '14px 10px' }}>Phone</th>
+                      <th style={{ fontSize: '16px', padding: '14px 10px' }}>Status</th>
+                      <th style={{ fontSize: '16px', padding: '14px 10px', textAlign: 'center' }}>Prescribe</th>
+                      <th style={{ fontSize: '16px', padding: '14px 10px' }}>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -727,64 +727,64 @@ export default function DoctorSchedule() {
                     ) : (
                       filteredAppointments.map((appt) => (
                           <tr key={appt._id}>
-                            <td style={{ padding: '24px' }}>
+                            <td style={{ padding: '16px 10px' }}>
                               <strong style={{ fontSize: '20px' }}>{appt.patientId?.fullName}</strong><br />
                               <small className="text-muted" style={{ fontSize: '15px', marginTop: '6px' }}>DOB: {appt.patientId?.dateOfBirth ? new Date(appt.patientId.dateOfBirth).toLocaleDateString('en-GB') : ''} | Gender: {appt.patientId?.gender}</small>
                             </td>
-                            {!isDefaultView && <td style={{ padding: '24px', fontSize: '18px' }}>{new Date(appt.requestedDate).toLocaleDateString('en-GB')}</td>}
-                            <td style={{ padding: '24px', fontSize: '18px' }}>{appt.requestedTime}</td>
-                            <td style={{ padding: '24px', fontSize: '18px' }}>{appt.patientId?.phoneNumber}</td>
-                            <td style={{ padding: '24px' }}>
-                              <span className={`badge ${appt.status === 'Completed' ? 'badge-success' : 'badge-primary'}`}>
+                            {!isDefaultView && <td style={{ padding: '16px 10px', fontSize: '18px' }}>{new Date(appt.requestedDate).toLocaleDateString('en-GB')}</td>}
+                            <td style={{ padding: '16px 10px', fontSize: '18px' }}>{appt.requestedTime}</td>
+                            <td style={{ padding: '16px 10px', fontSize: '18px' }}>{appt.patientId?.phoneNumber}</td>
+                            <td style={{ padding: '16px 10px' }}>
+                              <span className={`badge ${appt.status === 'Completed' ? 'badge-success' : 'badge-primary'}`} style={{ fontSize: '14px', padding: '6px 12px' }}>
                                 {appt.status === 'Completed' ? 'Examined' : 'Waiting'}
                               </span>
                             </td>
-                            <td style={{ padding: '24px', textAlign: 'center' }}>
+                            <td style={{ padding: '16px 10px', textAlign: 'center' }}>
                               {getRecordForAppointment(appt._id) ? (
                                 <button
                                   className="btn btn-outline"
-                                  style={{ padding: '8px 16px', fontSize: '14px', borderRadius: '8px', border: '1px solid #3b82f6', color: '#3b82f6', background: 'transparent', cursor: 'pointer' }}
+                                  style={{ padding: '8px 16px', fontSize: '14px', borderRadius: '8px', border: '1px solid #3b82f6', color: '#3b82f6', background: 'transparent', cursor: 'pointer', whiteSpace: 'nowrap' }}
                                   onClick={() => handleOpenPrescription(appt._id)}
                                 >
                                   💊 Prescriptions
                                 </button>
                               ) : (
-                                <span className="text-muted" style={{ fontSize: '13px' }}>Not examined yet</span>
+                                <span className="text-muted" style={{ fontSize: '15px', whiteSpace: 'nowrap' }}>Not examined yet</span>
                               )}
                             </td>
-                            <td style={{ padding: '24px' }}>
+                            <td style={{ padding: '16px 10px' }}>
                               {appt.status === 'Confirmed' && !getRecordForAppointment(appt._id) ? (
                                 <button
                                   className="btn btn-primary"
-                                  style={{ padding: '12px 20px', fontSize: '15px', fontWeight: 'bold' }}
+                                  style={{ padding: '10px 16px', fontSize: '15px', fontWeight: 'bold', whiteSpace: 'nowrap' }}
                                   onClick={() => handleSelectAppointment(appt)}
                                 >
-                                  🩺 Start examination
+                                  🩺 Start exam
                                 </button>
                               ) : appt.status === 'Confirmed' && getRecordForAppointment(appt._id) ? (
                                 <button
                                   className="btn btn-ghost"
-                                  style={{ padding: '12px 20px', fontSize: '15px', fontWeight: 'bold' }}
+                                  style={{ padding: '10px 16px', fontSize: '15px', fontWeight: 'bold', whiteSpace: 'nowrap' }}
                                   onClick={() => handleSelectAppointment(appt)}
                                 >
-                                  ✏️ Update record
+                                  ✏️ Update
                                 </button>
                               ) : (
                                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: '8px' }}>
-                                  <span className="text-muted" style={{ fontSize: '14px', fontWeight: '500', color: '#64748b', textAlign: 'center' }}>Record saved</span>
+                                  <span className="text-muted" style={{ fontSize: '14px', fontWeight: '500', color: '#64748b', textAlign: 'center', whiteSpace: 'nowrap' }}>Record saved</span>
                                   <button
                                     className="btn"
-                                    style={{ padding: '6px 12px', fontSize: '14px', fontWeight: 'bold', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer' }}
+                                    style={{ padding: '8px 14px', fontSize: '14px', fontWeight: 'bold', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', whiteSpace: 'nowrap' }}
                                     onClick={() => handleSelectAppointment(appt)}
                                   >
-                                    👁️ View Record
+                                    👁️ View
                                   </button>
                                   <button
                                     className="btn"
-                                    style={{ padding: '6px 12px', fontSize: '14px', fontWeight: 'bold', background: '#10b981', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', marginTop: '4px' }}
+                                    style={{ padding: '8px 14px', fontSize: '14px', fontWeight: 'bold', background: '#10b981', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', whiteSpace: 'nowrap' }}
                                     onClick={() => handlePrintBill(appt)}
                                   >
-                                    🖨️ Print Bill
+                                    🖨️ Print
                                   </button>
                                 </div>
                               )}
