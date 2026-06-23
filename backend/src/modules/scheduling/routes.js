@@ -16,13 +16,13 @@ router.post('/departments', authenticateToken, authorizeRole(USER_ROLE.ADMIN), c
 router.put('/departments/:id', authenticateToken, authorizeRole(USER_ROLE.ADMIN), updateDepartment);
 router.delete('/departments/:id', authenticateToken, authorizeRole(USER_ROLE.ADMIN), deleteDepartment);
 
-// Admin - Doctor Schedule CRUD
-router.get('/doctor-schedules', authenticateToken, authorizeRole(USER_ROLE.ADMIN), getAllSchedules);
+// Admin & Staff - View Doctor Schedules
+router.get('/doctor-schedules', authenticateToken, authorizeRole(USER_ROLE.ADMIN, USER_ROLE.STAFF), getAllSchedules);
 router.post('/doctor-schedules', authenticateToken, authorizeRole(USER_ROLE.ADMIN), createDoctorSchedule);
 router.delete('/doctor-schedules/:id', authenticateToken, authorizeRole(USER_ROLE.ADMIN), deleteDoctorSchedule);
 
-// Patient
-router.post('/appointments', authenticateToken, authorizeRole(USER_ROLE.PATIENT), bookAppointment);
+// Patient, Staff, and Admin can book appointments (Staff/Admin booking on behalf of patients)
+router.post('/appointments', authenticateToken, authorizeRole(USER_ROLE.PATIENT, USER_ROLE.STAFF, USER_ROLE.ADMIN), bookAppointment);
 
 // Doctor & Staff
 router.get('/appointments', authenticateToken, getAppointments);

@@ -42,7 +42,10 @@ const getInvoices = async (req, res) => {
           const { success: ok } = require('../../utils/response');
           return ok(res, [], 'Invoice list loaded successfully');
         }
-        q.patientId = patient._id;
+        // Fetch invoices for primary patient and all dependents (sub-accounts)
+        const dependents = await Patient.find({ parentId: patient._id });
+        const patientIds = [patient._id, ...dependents.map(d => d._id)];
+        q.patientId = { $in: patientIds };
       }
     }
 

@@ -3,7 +3,7 @@ const express = require('express');
 const { authenticateToken, optionalAuthenticate } = require('../../middlewares/auth');
 const { authorizeRole } = require('../../middlewares/rbac');
 const { USER_ROLE } = require('../../constants/enums');
-const { getPosts, createPost, updatePost, deletePost, getContactInquiries, createContactInquiry, uploadImage } = require('./controller');
+const { getPosts, createPost, updatePost, deletePost, getContactInquiries, createContactInquiry, uploadImage, resolveContactInquiry } = require('./controller');
 
 const router = express.Router();
 
@@ -17,5 +17,6 @@ router.put('/posts/:id', authenticateToken, authorizeRole(USER_ROLE.ADMIN), upda
 router.delete('/posts/:id', authenticateToken, authorizeRole(USER_ROLE.ADMIN), deletePost);
 router.post('/upload', authenticateToken, authorizeRole(USER_ROLE.ADMIN), uploadImage);
 router.get('/contact-inquiries', authenticateToken, authorizeRole(USER_ROLE.ADMIN, USER_ROLE.STAFF), getContactInquiries);
+router.put('/contact-inquiries/:id/resolve', authenticateToken, authorizeRole(USER_ROLE.ADMIN, USER_ROLE.STAFF), resolveContactInquiry);
 
 module.exports = router;

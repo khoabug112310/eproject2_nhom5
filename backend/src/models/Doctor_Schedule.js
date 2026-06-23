@@ -30,6 +30,10 @@ const doctorScheduleSchema = new mongoose.Schema({
     type: Number,
     default: 0,
   },
+  actualAttended: {
+    type: Number,
+    default: 0,
+  },
   status: {
     type: String,
     enum: Object.values(SCHEDULE_STATUS),

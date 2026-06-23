@@ -734,6 +734,8 @@ export default function DoctorSchedule() {
                           <td>{s.maxPatients} patients</td>
                           <td>
                             <strong>{s.currentBooked}</strong> / {s.maxPatients}
+                            <br />
+                            <small className="text-muted">Attended: {s.actualAttended || 0}</small>
                             <div className="progress-bar-container">
                               <div
                                 className="progress-bar-fill"

@@ -3,6 +3,7 @@
 
 const Post = require('../../models/Post');
 const Contact_Inquiry = require('../../models/Contact_Inquiry');
+const Staff = require('../../models/Staff');
 const { POST_STATUS } = require('../../constants/enums');
 
 // Simple Vietnamese slugify helper
@@ -189,4 +190,30 @@ const uploadImage = async (req, res) => {
   }
 };
 
-module.exports = { getPosts, createPost, updatePost, deletePost, getContactInquiries, createContactInquiry, uploadImage };
+const resolveContactInquiry = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const inquiry = await Contact_Inquiry.findById(id);
+    if (!inquiry) {
+      return res.status(404).json({ success: false, message: 'Inquiry not found' });
+    }
+
+    const staff = await Staff.findOne({ userId: req.user.id });
+    inquiry.isResolved = true;
+    if (staff) {
+      inquiry.handledBy = staff._id;
+    }
+    await inquiry.save();
+
+    const populatedInquiry = await Contact_Inquiry.findById(id).populate('handledBy');
+
+    const { success: ok } = require('../../utils/response');
+    return ok(res, populatedInquiry, 'Inquiry marked as resolved');
+  } catch (err) {
+    console.error('resolveContactInquiry error', err);
+    const { fail } = require('../../utils/response');
+    return fail(res, 'Error resolving inquiry', 500, err.message);
+  }
+};
+
+module.exports = { getPosts, createPost, updatePost, deletePost, getContactInquiries, createContactInquiry, uploadImage, resolveContactInquiry };

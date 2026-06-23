@@ -6,8 +6,13 @@ const patientSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true,
     unique: true,
+    sparse: true,
+  },
+  parentId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Patient',
+    default: null,
   },
   fullName: {
     type: String,
@@ -23,16 +28,26 @@ const patientSchema = new mongoose.Schema({
     enum: Object.values(GENDER),
     required: true,
   },
+  category: {
+    type: String,
+    enum: ['Child', 'Adult'],
+    default: 'Adult',
+  },
   identityCard: {
     type: String,
     unique: true,
-    required: true,
+    sparse: true,
     note: 'Số CCCD/CMND - Rất quan trọng ở VN',
   },
   phoneNumber: {
     type: String,
     unique: true,
-    required: true,
+    sparse: true,
+  },
+  email: {
+    type: String,
+    unique: true,
+    sparse: true,
   },
   address: String,
   insuranceCode: {

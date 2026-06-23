@@ -62,6 +62,16 @@ const getSchedules = async (req, res) => {
   }
 };
 
+const isPublicHoliday = (date) => {
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+  if (month === 1 && day === 1) return true;
+  if (month === 4 && day === 30) return true;
+  if (month === 5 && day === 1) return true;
+  if (month === 9 && (day === 2 || day === 3)) return true;
+  return false;
+};
+
 const bookAppointment = async (req, res) => {
   try {
     const { requestedDate, requestedTime, departmentId, doctorId, symptoms } = req.body;
@@ -70,15 +80,38 @@ const bookAppointment = async (req, res) => {
       return res.status(400).json({ success: false, message: 'requestedDate, requestedTime, and departmentId are required' });
     }
 
-    // Determine patientId from authenticated user (User ID mapped to Patient ID)
+    // Check if the date has passed
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const dateOnly = new Date(requestedDate);
+    dateOnly.setHours(0, 0, 0, 0);
+
+    if (dateOnly < today) {
+      return res.status(400).json({ success: false, message: 'Cannot book appointments for past dates.' });
+    }
+
+    // Check if the date is a holiday
+    if (isPublicHoliday(dateOnly)) {
+      return res.status(400).json({ success: false, message: 'Appointments cannot be booked on public holidays.' });
+    }
+
+    // Determine patientId from authenticated user or body
     let patientId = req.body.patientId;
-    if (req.user && (req.user.id || req.user._id)) {
+    if (req.user && req.user.role === 'patient') {
       const uId = req.user.id || req.user._id;
-      const patient = await Patient.findOne({ userId: uId });
-      if (!patient) {
+      const primaryPatient = await Patient.findOne({ userId: uId });
+      if (!primaryPatient) {
         return res.status(404).json({ success: false, message: 'Patient record not found.' });
       }
-      patientId = patient._id;
+      if (patientId) {
+        // If booking for a sub-account, ensure it is linked to the primary patient
+        const targetPatient = await Patient.findById(patientId);
+        if (!targetPatient || (String(targetPatient.userId) !== String(uId) && String(targetPatient.parentId) !== String(primaryPatient._id))) {
+          return res.status(403).json({ success: false, message: 'Unauthorized patient selection.' });
+        }
+      } else {
+        patientId = primaryPatient._id;
+      }
     }
     if (!patientId) return res.status(400).json({ success: false, message: 'Patient identity required' });
 
@@ -95,9 +128,36 @@ const bookAppointment = async (req, res) => {
       });
     }
 
-    // Normalize date (strip time) for day-based matching
-    const dateOnly = new Date(requestedDate);
-    dateOnly.setHours(0, 0, 0, 0);
+    // Anti-spam limits:
+    // 1. Max 3 appointments for the same treatment date (requestedDate = dateOnly)
+    const countSameDayDiag = await Appointment.countDocuments({
+      patientId,
+      requestedDate: dateOnly,
+      status: { $ne: APPOINTMENT_STATUS.CANCELED }
+    });
+    if (countSameDayDiag >= 3) {
+      return res.status(400).json({
+        success: false,
+        message: 'You cannot book more than 3 appointments for the same treatment date.'
+      });
+    }
+
+    // 2. Max 5 appointments registered on the same booking/creation day
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const endOfToday = new Date();
+    endOfToday.setHours(23, 59, 59, 999);
+
+    const countBookingsToday = await Appointment.countDocuments({
+      patientId,
+      createdAt: { $gte: startOfToday, $lte: endOfToday }
+    });
+    if (countBookingsToday >= 5) {
+      return res.status(400).json({
+        success: false,
+        message: 'You cannot book more than 5 appointments within the same day.'
+      });
+    }
 
     // Basic conflict check: doctor already has appointment at same date+time
     if (doctorId) {
@@ -105,7 +165,7 @@ const bookAppointment = async (req, res) => {
         doctorId,
         requestedDate: dateOnly,
         requestedTime,
-        status: { $ne: APPOINTMENT_STATUS.CANCELLED },
+        status: { $ne: APPOINTMENT_STATUS.CANCELED },
       });
 
       if (exists) {
@@ -142,7 +202,10 @@ const getAppointments = async (req, res) => {
           const { success: ok } = require('../../utils/response');
           return ok(res, [], 'Appointment list loaded');
         }
-        q.patientId = patient._id;
+        // Fetch appointments for primary patient and all dependents (sub-accounts)
+        const dependents = await Patient.find({ parentId: patient._id });
+        const patientIds = [patient._id, ...dependents.map(d => d._id)];
+        q.patientId = { $in: patientIds };
       } else if (req.user.role === 'doctor') {
         const doc = await Doctor.findOne({ userId: req.user.id });
         if (!doc) {
@@ -154,7 +217,11 @@ const getAppointments = async (req, res) => {
     }
 
     const items = await Appointment.find(q)
-      .populate('patientId doctorId departmentId scheduleId confirmedBy')
+      .populate({
+        path: 'patientId',
+        populate: { path: 'parentId' }
+      })
+      .populate('doctorId departmentId scheduleId confirmedBy')
       .sort({ requestedDate: -1, requestedTime: -1 })
       .lean();
 
@@ -189,8 +256,8 @@ const getAppointments = async (req, res) => {
 const updateAppointmentStatus = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status } = req.body;
-    if (!status) return res.status(400).json({ success: false, message: 'status is required' });
+    const { status, attendance } = req.body;
+    if (!status && !attendance) return res.status(400).json({ success: false, message: 'status or attendance is required' });
 
     const appt = await Appointment.findById(id);
     if (!appt) return res.status(404).json({ success: false, message: 'Appointment not found' });
@@ -278,20 +345,50 @@ const updateAppointmentStatus = async (req, res) => {
       }
     }
 
-    // If cancelling after confirmed, decrement currentBooked
+    // If cancelling after confirmed, decrement currentBooked and actualAttended
     if (oldStatus === APPOINTMENT_STATUS.CONFIRMED && status === APPOINTMENT_STATUS.CANCELED) {
       let schedule = null;
       if (appt.scheduleId) schedule = await Doctor_Schedule.findById(appt.scheduleId);
       if (!schedule) {
         schedule = await Doctor_Schedule.findOne({ doctorId: appt.doctorId, workDate: appt.requestedDate });
       }
-      if (schedule && typeof schedule.currentBooked === 'number' && schedule.currentBooked > 0) {
-        schedule.currentBooked = Math.max(0, schedule.currentBooked - 1);
+      if (schedule) {
+        if (typeof schedule.currentBooked === 'number' && schedule.currentBooked > 0) {
+          schedule.currentBooked = Math.max(0, schedule.currentBooked - 1);
+        }
+        if (appt.attendance === 'Present' && typeof schedule.actualAttended === 'number' && schedule.actualAttended > 0) {
+          schedule.actualAttended = Math.max(0, schedule.actualAttended - 1);
+        }
         await schedule.save();
       }
+      appt.attendance = 'Absent';
     }
 
-    appt.status = status;
+    // Process attendance changes directly if provided
+    const oldAttendance = appt.attendance || 'Unknown';
+    if (attendance !== undefined && attendance !== oldAttendance) {
+      let schedule = null;
+      if (appt.scheduleId) schedule = await Doctor_Schedule.findById(appt.scheduleId);
+      if (!schedule && appt.doctorId && appt.requestedDate) {
+        schedule = await Doctor_Schedule.findOne({ doctorId: appt.doctorId, workDate: appt.requestedDate });
+      }
+
+      if (schedule) {
+        if (typeof schedule.actualAttended !== 'number') {
+          schedule.actualAttended = 0;
+        }
+
+        if (attendance === 'Present' && oldAttendance !== 'Present') {
+          schedule.actualAttended += 1;
+        } else if (attendance !== 'Present' && oldAttendance === 'Present') {
+          schedule.actualAttended = Math.max(0, schedule.actualAttended - 1);
+        }
+        await schedule.save();
+      }
+      appt.attendance = attendance;
+    }
+
+    if (status) appt.status = status;
     if (req.user && (req.user.id || req.user._id)) appt.confirmedBy = req.user.id || req.user._id;
     await appt.save();
 

@@ -18,6 +18,11 @@ const {
   getMyPatientProfile,
   createMyPatientProfile,
   updateMyPatientProfile,
+  getSubAccounts,
+  createSubAccount,
+  updateSubAccount,
+  deleteSubAccount,
+  createPatientByStaff,
 } = require('./controller');
 
 const router = express.Router();
@@ -26,6 +31,12 @@ const router = express.Router();
 router.get('/patient/me',  authenticateToken, getMyPatientProfile);
 router.post('/patient/me', authenticateToken, createMyPatientProfile);
 router.put('/patient/me',  authenticateToken, updateMyPatientProfile);
+
+// Patient sub-accounts (dependents)
+router.get('/patient/subaccounts', authenticateToken, getSubAccounts);
+router.post('/patient/subaccounts', authenticateToken, createSubAccount);
+router.put('/patient/subaccounts/:id', authenticateToken, updateSubAccount);
+router.delete('/patient/subaccounts/:id', authenticateToken, deleteSubAccount);
 
 // Admin only
 router.get('/users', authenticateToken, authorizeRole(USER_ROLE.ADMIN), getAllUsers);
@@ -43,6 +54,7 @@ router.put('/admin/timeline/step', authenticateToken, authorizeRole(USER_ROLE.AD
 // Public / Protected
 router.get('/doctors/:id', getUserById);
 router.get('/patients', authenticateToken, getPatients);
+router.post('/patients', authenticateToken, authorizeRole(USER_ROLE.STAFF, USER_ROLE.ADMIN), createPatientByStaff);
 
 // Authenticated
 router.put('/profile/:id', authenticateToken, updateUser);

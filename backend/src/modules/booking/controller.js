@@ -75,6 +75,29 @@ const createBooking = async (req, res) => {
     const appointmentDate = reqDate ? new Date(reqDate) : new Date();
     appointmentDate.setHours(0, 0, 0, 0);
 
+    // Anti-spam limits checks:
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const endOfToday = new Date();
+    endOfToday.setHours(23, 59, 59, 999);
+
+    const countBookingsToday = await Appointment.countDocuments({
+      patientId: patient._id,
+      createdAt: { $gte: startOfToday, $lte: endOfToday }
+    });
+    if (countBookingsToday >= 5) {
+      return fail(res, 'You cannot book more than 5 appointments within the same day.', 400);
+    }
+
+    const countSameDayDiag = await Appointment.countDocuments({
+      patientId: patient._id,
+      requestedDate: appointmentDate,
+      status: { $ne: 'Canceled' }
+    });
+    if (countSameDayDiag >= 3) {
+      return fail(res, 'You cannot book more than 3 appointments for the same treatment date.', 400);
+    }
+
     // Normalize the time slot (shared by both tables)
     const finalTime = time || '08:00 - 09:00'; 
 

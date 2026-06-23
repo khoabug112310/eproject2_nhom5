@@ -10,16 +10,16 @@ const roleLabels = {
 
 const navByRole = {
   patient: [
-    { label: 'Dashboard', href: '/patient/dashboard' },
-    { label: 'Home', href: '/' },
+    // { label: 'Dashboard', href: '/patient/dashboard' },
+    // { label: 'Home', href: '/' },
   ],
   doctor: [
     { label: 'Dashboard', href: '/doctor/schedule' },
     { label: 'Home', href: '/' },
   ],
   staff: [
-    { label: 'Dashboard', href: '/staff/dashboard' },
-    { label: 'Home', href: '/' },
+    // { label: 'Dashboard', href: '/staff/dashboard' },
+    // { label: 'Home', href: '/' },
   ],
   accountant: [
     { label: 'Dashboard', href: '/accountant/dashboard' },

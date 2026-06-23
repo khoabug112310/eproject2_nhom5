@@ -5,11 +5,20 @@ const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/eproje
 
 async function connectDatabase() {
   try {
-    await mongoose.connect(MONGODB_URI, {
+    const conn = await mongoose.connect(MONGODB_URI, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
     });
     console.log('✓ MongoDB connected successfully');
+    
+    // Drop old indexes on patients to apply schema constraints (unique sparse)
+    try {
+      await conn.connection.db.collection('patients').dropIndexes();
+      console.log('✓ Dropped old indexes on patients collection to apply schema changes');
+    } catch (e) {
+      console.log('Note: could not drop indexes on patients collection (might not exist yet):', e.message);
+    }
+    
     return mongoose.connection;
   } catch (error) {
     console.error('✗ MongoDB connection failed:', error.message);

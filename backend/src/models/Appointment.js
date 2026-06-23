@@ -38,6 +38,11 @@ const appointmentSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
   },
+  attendance: {
+    type: String,
+    enum: ['Present', 'Absent', 'Unknown'],
+    default: 'Unknown',
+  },
   createdAt: {
     type: Date,
     default: Date.now,

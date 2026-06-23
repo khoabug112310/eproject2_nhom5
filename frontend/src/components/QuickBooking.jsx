@@ -30,6 +30,29 @@ export default function QuickBooking({
 
   const minBookingDate = getMinBookingDate();
 
+  const isPublicHoliday = (dateStr) => {
+    if (!dateStr) return false;
+    const d = new Date(dateStr);
+    const month = d.getMonth() + 1;
+    const day = d.getDate();
+    if (month === 1 && day === 1) return true;
+    if (month === 4 && day === 30) return true;
+    if (month === 5 && day === 1) return true;
+    if (month === 9 && (day === 2 || day === 3)) return true;
+    return false;
+  };
+
+  const handleDateChange = (e) => {
+    const val = e.target.value;
+    setError(null);
+    if (isPublicHoliday(val)) {
+      setError('Hopsontai Clinic is closed on public holidays. Please choose another date.');
+      setDate('');
+      return;
+    }
+    setDate(val);
+  };
+
   const [department, setDepartment] = useState(initialDepartmentId);
   const [doctor, setDoctor] = useState(initialDoctorId);
   const [date, setDate] = useState(() => getMinBookingDate());
@@ -141,6 +164,22 @@ export default function QuickBooking({
     setError(null);
     setSuccess(null);
     setLoading(true);
+
+    if (isPublicHoliday(date)) {
+      setError('Appointments cannot be booked on public holidays.');
+      setLoading(false);
+      return;
+    }
+
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const selDate = new Date(date);
+    selDate.setHours(0,0,0,0);
+    if (selDate < today) {
+      setError('Cannot book appointments for past dates.');
+      setLoading(false);
+      return;
+    }
 
     // Validate phone format
     const phoneRegex = /^(84|0[3|5|7|8|9])([0-9]{8})$/;
@@ -313,7 +352,7 @@ export default function QuickBooking({
                 type="date" 
                 value={date} 
                 min={minBookingDate}
-                onChange={e => setDate(e.target.value)} 
+                onChange={handleDateChange} 
                 required 
               />
             </div>

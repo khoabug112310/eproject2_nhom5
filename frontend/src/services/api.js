@@ -54,9 +54,14 @@ export const profilesAPI = {
   updateUser: (id, data) =>
     apiClient.put(`/profiles/profile/${id}`, data),
   getPatients: () => apiClient.get('/profiles/patients'),
+  createPatientByStaff: (data) => apiClient.post('/profiles/patients', data),
   getMyPatientProfile: () => apiClient.get('/profiles/patient/me'),
   createMyPatientProfile: (data) => apiClient.post('/profiles/patient/me', data),
   updateMyPatientProfile: (data) => apiClient.put('/profiles/patient/me', data),
+  getSubAccounts: () => apiClient.get('/profiles/patient/subaccounts'),
+  createSubAccount: (data) => apiClient.post('/profiles/patient/subaccounts', data),
+  updateSubAccount: (id, data) => apiClient.put(`/profiles/patient/subaccounts/${id}`, data),
+  deleteSubAccount: (id) => apiClient.delete(`/profiles/patient/subaccounts/${id}`),
   createUser: (data) => apiClient.post('/profiles/users', data),
   getAdminStats: () => apiClient.get('/profiles/admin/stats'),
   queryClinicAI: (query) => apiClient.post('/profiles/admin/ai-query', { query }),
@@ -140,6 +145,10 @@ export const cmsAPI = {
     apiClient.delete(`/cms/posts/${id}`),
   submitContactInquiry: (data) =>
     apiClient.post('/cms/contact-inquiries', data),
+  getContactInquiries: () =>
+    apiClient.get('/cms/contact-inquiries'),
+  resolveContactInquiry: (id) =>
+    apiClient.put(`/cms/contact-inquiries/${id}/resolve`),
   uploadImage: (image) =>
     apiClient.post('/cms/upload', { image }),
 };
