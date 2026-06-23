@@ -450,20 +450,22 @@ export default function AccountantDashboard() {
                               {inv.status === 'Paid' ? 'Paid' : 'Unpaid'}
                             </span>
                           </td>
-                          <td className="btn-cell" style={{ padding: '16px 10px', display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
-                            <button className="btn btn-ghost" style={{ padding: '8px 12px', fontSize: '15px', fontWeight: 'bold' }} onClick={() => setSelectedInvoice(inv)}>
-                              View receipt
-                            </button>
-                            {inv.status === 'Unpaid' && (
-                              <button
-                                className="btn btn-primary"
-                                style={{ padding: '8px 12px', fontSize: '15px', fontWeight: 'bold' }}
-                                onClick={() => handleProcessPayment(inv)}
-                                disabled={submitting}
-                              >
-                                💵 Collect payment
+                          <td style={{ padding: '16px 10px' }}>
+                            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+                              <button className="btn btn-ghost" style={{ padding: '8px 12px', fontSize: '15px', fontWeight: 'bold' }} onClick={() => setSelectedInvoice(inv)}>
+                                View receipt
                               </button>
-                            )}
+                              {inv.status === 'Unpaid' && (
+                                <button
+                                  className="btn btn-primary"
+                                  style={{ padding: '8px 12px', fontSize: '15px', fontWeight: 'bold' }}
+                                  onClick={() => handleProcessPayment(inv)}
+                                  disabled={submitting}
+                                >
+                                  💵 Collect payment
+                                </button>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       ))}

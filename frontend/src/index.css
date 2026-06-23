@@ -2480,7 +2480,7 @@ h1, h2, h3, h4, h5, h6 {
 .dashboard-layout {
   display: flex;
   gap: 24px;
-  max-width: 1280px;
+  max-width: 1440px;
   margin: 0 auto;
   padding: 0 16px 40px;
 }
