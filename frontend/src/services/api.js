@@ -150,6 +150,10 @@ export const cmsAPI = {
     apiClient.post('/cms/contact-inquiries', data),
   uploadImage: (image) =>
     apiClient.post('/cms/upload', { image }),
+  getChatHistory: (params) =>
+    apiClient.get('/cms/chat/history', { params }),
+  getChatSessions: () =>
+    apiClient.get('/cms/chat/sessions'),
 };
 
 // Public Booking API
