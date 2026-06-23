@@ -1287,23 +1287,23 @@ export default function DoctorSchedule() {
                     <table className="custom-table" style={{ fontSize: '18px', width: '100%' }}>
                     <thead>
                       <tr>
-                        <th style={{ fontSize: '16px', padding: '18px 24px' }}>WORK DATE</th>
-                        <th style={{ fontSize: '16px', padding: '18px 24px' }}>START TIME</th>
-                        <th style={{ fontSize: '16px', padding: '18px 24px' }}>END TIME</th>
-                        <th style={{ fontSize: '16px', padding: '18px 24px' }}>PATIENT LIMIT</th>
-                        <th style={{ fontSize: '16px', padding: '18px 24px' }}>BOOKED</th>
-                        <th style={{ fontSize: '16px', padding: '18px 24px' }}>SHIFT STATUS</th>
-                        <th style={{ fontSize: '16px', padding: '18px 24px' }}>ACTIONS</th>
+                        <th style={{ fontSize: '16px', padding: '12px 16px' }}>WORK DATE</th>
+                        <th style={{ fontSize: '16px', padding: '12px 16px' }}>START TIME</th>
+                        <th style={{ fontSize: '16px', padding: '12px 16px' }}>END TIME</th>
+                        <th style={{ fontSize: '16px', padding: '12px 16px' }}>PATIENT LIMIT</th>
+                        <th style={{ fontSize: '16px', padding: '12px 16px' }}>BOOKED</th>
+                        <th style={{ fontSize: '16px', padding: '12px 16px' }}>SHIFT STATUS</th>
+                        <th style={{ fontSize: '16px', padding: '12px 16px' }}>ACTIONS</th>
                       </tr>
                     </thead>
                     <tbody>
                       {filteredSchedules.map((s) => (
                         <tr key={s._id}>
-                          <td style={{ padding: '16px 24px' }} className="font-bold">{new Date(s.workDate).toLocaleDateString('en-US')}</td>
-                          <td style={{ padding: '16px 24px' }}>{s.startTime}</td>
-                          <td style={{ padding: '16px 24px' }}>{s.endTime}</td>
-                          <td style={{ padding: '16px 24px' }}>{s.maxPatients} patients</td>
-                          <td style={{ padding: '16px 24px' }}>
+                          <td style={{ padding: '12px 16px' }} className="font-bold">{new Date(s.workDate).toLocaleDateString('en-US')}</td>
+                          <td style={{ padding: '12px 16px' }}>{s.startTime}</td>
+                          <td style={{ padding: '12px 16px' }}>{s.endTime}</td>
+                          <td style={{ padding: '12px 16px' }}>{s.maxPatients} patients</td>
+                          <td style={{ padding: '12px 16px' }}>
                             <strong>{s.currentBooked}</strong> / {s.maxPatients}
                             <div className="progress-bar-container" style={{ marginTop: '8px', height: '8px' }}>
                               <div
@@ -1312,12 +1312,12 @@ export default function DoctorSchedule() {
                               ></div>
                             </div>
                           </td>
-                          <td style={{ padding: '16px 24px' }}>
+                          <td style={{ padding: '12px 16px' }}>
                             <span className={`badge ${s.status === 'Available' ? 'badge-success' : s.status === 'Blocked' ? 'badge-secondary' : 'badge-danger'}`} style={{ fontSize: '14px', padding: '6px 12px' }}>
                               {s.status === 'Available' ? 'Active' : s.status === 'Blocked' ? `Blocked: ${s.blockReason || 'No reason'}` : 'Paused / Full'}
                             </span>
                           </td>
-                          <td style={{ padding: '16px 24px' }}>
+                          <td style={{ padding: '12px 16px' }}>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-start' }}>
                               {s.currentBooked > 0 ? (
                                 <span style={{ fontSize: '15px', fontWeight: '600', color: '#2563eb' }}>Patients booked</span>
