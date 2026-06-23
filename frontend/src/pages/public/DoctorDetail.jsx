@@ -644,27 +644,6 @@ export default function DoctorDetail() {
               )}
             </div>
 
-            {/* Verification & Review badge */}
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              <span className="rating-badge">
-                ⭐ {averageRating} <span style={{ color: '#a16207', fontWeight: '500', fontSize: '12px' }}>({reviews.length} reviews)</span>
-              </span>
-              <span style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-                background: '#dcfce7',
-                color: '#14532d',
-                fontSize: '12.5px',
-                fontWeight: '700',
-                padding: '6px 14px',
-                borderRadius: '12px',
-                marginBottom: '20px',
-                border: '1px solid #bbf7d0'
-              }}>
-                ✓ Verified
-              </span>
-            </div>
 
             {/* Quick Stats Panel */}
             <div className="sidebar-details">
