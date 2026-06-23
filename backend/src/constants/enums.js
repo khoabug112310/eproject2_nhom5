@@ -24,6 +24,7 @@ const SCHEDULE_STATUS = {
   AVAILABLE: 'Available',
   FULL: 'Full',
   CANCELED: 'Canceled',
+  BLOCKED: 'Blocked',
 };
 
 const APPOINTMENT_STATUS = {

@@ -9,6 +9,7 @@ import {
   ChevronRight, Send, HeartPulse
 } from 'lucide-react';
 import './AdminDashboard.css';
+import DoctorScheduleModal from '../../components/DoctorScheduleModal';
 
 export default function AdminDashboard() {
   const { logout, impersonate: setImpersonateCredentials } = useAuth();
@@ -35,6 +36,10 @@ export default function AdminDashboard() {
   // Timeline Filters State
   const [timelineSearch, setTimelineSearch] = useState('');
   const [timelineFilter, setTimelineFilter] = useState('all');
+
+  // Doctor Schedule Modal State
+  const [showDoctorScheduleModal, setShowDoctorScheduleModal] = useState(false);
+  const [appointmentToAssignDoctor, setAppointmentToAssignDoctor] = useState(null);
 
   // User Management State
   const [userSubTab, setUserSubTab] = useState('list'); // 'list' | 'create'
@@ -439,6 +444,23 @@ Hello Administrator! I am the AI assistant integrated directly to monitor clinic
     } catch (err) {
       setErrorMessage('Could not delete the appointment.');
     } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDoctorAssigned = async (docId) => {
+    try {
+      setSubmitting(true);
+      await schedulingAPI.updateAppointment(appointmentToAssignDoctor._id, { doctorId: docId });
+      setShowDoctorScheduleModal(false);
+      
+      if (appointmentToAssignDoctor.status === 'Pending') {
+        await handleUpdateStep(appointmentToAssignDoctor._id, 2, 'update', 'Confirmed');
+      } else {
+        fetchAdminData();
+      }
+    } catch (err) {
+      setErrorMessage('Could not assign doctor.');
       setSubmitting(false);
     }
   };
@@ -1428,11 +1450,26 @@ Ready to analyze your clinic data. Select a category or type a specific question
                             </span>
                             <div className="admin-timeline-actions">
                               {appt.status === 'Pending' ? (
-                                <button onClick={() => handleUpdateStep(appt._id, 2, 'update', 'Confirmed')} className="action-link-btn green">Approve</button>
+                                <button onClick={() => {
+                                  if (!appt.doctorId) {
+                                    setAppointmentToAssignDoctor(appt);
+                                    setShowDoctorScheduleModal(true);
+                                  } else {
+                                    handleUpdateStep(appt._id, 2, 'update', 'Confirmed');
+                                  }
+                                }} className="action-link-btn green">Approve</button>
                               ) : (
-                                <button onClick={() => handleUpdateStep(appt._id, 2, 'update', 'Pending')} className="action-link-btn orange">Reset</button>
+                                <>
+                                  <button onClick={() => handleUpdateStep(appt._id, 2, 'update', 'Pending')} className="action-link-btn orange">Reset</button>
+                                  {!appt.doctorId && appt.status === 'Confirmed' && (
+                                    <button onClick={() => {
+                                      setAppointmentToAssignDoctor(appt);
+                                      setShowDoctorScheduleModal(true);
+                                    }} className="action-link-btn blue" style={{ marginLeft: '8px' }}>Assign Doctor</button>
+                                  )}
+                                </>
                               )}
-                              <button onClick={() => handleUpdateStep(appt._id, 2, 'update', 'Canceled')} className="action-link-btn red">Cancel</button>
+                              <button onClick={() => handleUpdateStep(appt._id, 2, 'update', 'Canceled')} className="action-link-btn red" style={{ marginLeft: '8px' }}>Cancel</button>
                             </div>
                           </div>
 
@@ -2547,6 +2584,13 @@ Ready to analyze your clinic data. Select a category or type a specific question
           </div>
         </div>
       )}
+        {/* Modals for Create/Edit */}
+      <DoctorScheduleModal
+        isOpen={showDoctorScheduleModal}
+        onClose={() => setShowDoctorScheduleModal(false)}
+        appointmentData={appointmentToAssignDoctor}
+        onConfirm={handleDoctorAssigned}
+      />
     </div>
   );
 }

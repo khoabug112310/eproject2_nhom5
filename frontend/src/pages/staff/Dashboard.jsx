@@ -98,6 +98,19 @@ export default function StaffDashboard() {
       }
       await profilesAPI.updateUser(editingPatient._id, updateData);
 
+      // Check if doctor is assigned
+      const appt = appointments.find(a => a._id === activeApptId);
+      if (!appt?.doctorId) {
+        setEditingPatient(null);
+        setActiveApptId(null);
+        setSubmitting(false);
+        // Refresh data to get updated patient info, then show doctor selection modal
+        await fetchData();
+        setSelectedAppointmentForSchedule(appointments.find(a => a._id === activeApptId) || appt);
+        setShowDoctorScheduleModal(true);
+        return;
+      }
+
       // 2. Confirm the appointment
       await schedulingAPI.updateAppointment(activeApptId, { status: 'Confirmed' });
 

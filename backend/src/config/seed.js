@@ -671,23 +671,39 @@ async function seedDatabase() {
       date.setHours(0, 0, 0, 0);
 
       for (const doc of doctors) {
-        // Morning schedule (08:00 - 12:00)
         schedules.push({
           doctorId: doc._id,
           workDate: date,
           startTime: '08:00',
-          endTime: '12:00',
-          maxPatients: 15,
+          endTime: '10:00',
+          maxPatients: 5,
           currentBooked: 0,
           status: 'Available',
         });
-        // Afternoon schedule (13:30 - 17:30)
+        schedules.push({
+          doctorId: doc._id,
+          workDate: date,
+          startTime: '10:00',
+          endTime: '12:00',
+          maxPatients: 5,
+          currentBooked: 0,
+          status: 'Available',
+        });
         schedules.push({
           doctorId: doc._id,
           workDate: date,
           startTime: '13:30',
+          endTime: '15:30',
+          maxPatients: 5,
+          currentBooked: 0,
+          status: 'Available',
+        });
+        schedules.push({
+          doctorId: doc._id,
+          workDate: date,
+          startTime: '15:30',
           endTime: '17:30',
-          maxPatients: 15,
+          maxPatients: 5,
           currentBooked: 0,
           status: 'Available',
         });

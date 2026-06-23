@@ -3,13 +3,9 @@ import { clinicalAPI, schedulingAPI } from '../../../services/api';
 
 const TIME_SLOTS = [
   '08:00',
-  '09:00',
   '10:00',
-  '11:00',
-  '13:00',
-  '14:00',
-  '15:00',
-  '16:00',
+  '13:30',
+  '15:30',
 ];
 
 export default function BookingForm({ onBooked }) {

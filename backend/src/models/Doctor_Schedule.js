@@ -35,6 +35,9 @@ const doctorScheduleSchema = new mongoose.Schema({
     enum: Object.values(SCHEDULE_STATUS),
     default: SCHEDULE_STATUS.AVAILABLE,
   },
+  blockReason: {
+    type: String,
+  },
   createdAt: {
     type: Date,
     default: Date.now,

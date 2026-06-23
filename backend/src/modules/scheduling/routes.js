@@ -3,7 +3,7 @@ const express = require('express');
 const { authenticateToken } = require('../../middlewares/auth');
 const { authorizeRole } = require('../../middlewares/rbac');
 const { USER_ROLE } = require('../../constants/enums');
-const { getDepartments, createDepartment, updateDepartment, deleteDepartment, getSchedules, getAllSchedules, createDoctorSchedule, deleteDoctorSchedule, bookAppointment, getAppointments, updateAppointmentStatus } = require('./controller');
+const { getDepartments, createDepartment, updateDepartment, deleteDepartment, getSchedules, getAllSchedules, createDoctorSchedule, deleteDoctorSchedule, bookAppointment, getAppointments, updateAppointmentStatus, blockDoctorSchedule, unblockDoctorSchedule } = require('./controller');
 
 const router = express.Router();
 
@@ -16,10 +16,12 @@ router.post('/departments', authenticateToken, authorizeRole(USER_ROLE.ADMIN), c
 router.put('/departments/:id', authenticateToken, authorizeRole(USER_ROLE.ADMIN), updateDepartment);
 router.delete('/departments/:id', authenticateToken, authorizeRole(USER_ROLE.ADMIN), deleteDepartment);
 
-// Admin - Doctor Schedule CRUD
-router.get('/doctor-schedules', authenticateToken, authorizeRole(USER_ROLE.ADMIN), getAllSchedules);
-router.post('/doctor-schedules', authenticateToken, authorizeRole(USER_ROLE.ADMIN), createDoctorSchedule);
-router.delete('/doctor-schedules/:id', authenticateToken, authorizeRole(USER_ROLE.ADMIN), deleteDoctorSchedule);
+// Admin & Doctor - Doctor Schedule CRUD
+router.get('/doctor-schedules', authenticateToken, authorizeRole(USER_ROLE.ADMIN, USER_ROLE.DOCTOR), getAllSchedules);
+router.post('/doctor-schedules', authenticateToken, authorizeRole(USER_ROLE.ADMIN, USER_ROLE.DOCTOR), createDoctorSchedule);
+router.delete('/doctor-schedules/:id', authenticateToken, authorizeRole(USER_ROLE.ADMIN, USER_ROLE.DOCTOR), deleteDoctorSchedule);
+router.put('/doctor-schedules/:id/block', authenticateToken, authorizeRole(USER_ROLE.ADMIN, USER_ROLE.DOCTOR), blockDoctorSchedule);
+router.put('/doctor-schedules/:id/unblock', authenticateToken, authorizeRole(USER_ROLE.ADMIN, USER_ROLE.DOCTOR), unblockDoctorSchedule);
 
 // Patient
 router.post('/appointments', authenticateToken, authorizeRole(USER_ROLE.PATIENT), bookAppointment);
