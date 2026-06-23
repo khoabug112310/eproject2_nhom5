@@ -14,7 +14,6 @@ const navByRole = {
     { label: 'Home', href: '/' },
   ],
   doctor: [
-    { label: 'Dashboard', href: '/doctor/schedule' },
     { label: 'Home', href: '/' },
   ],
   staff: [
@@ -22,7 +21,6 @@ const navByRole = {
     { label: 'Home', href: '/' },
   ],
   accountant: [
-    { label: 'Dashboard', href: '/accountant/dashboard' },
     { label: 'Home', href: '/' },
   ],
   admin: [
