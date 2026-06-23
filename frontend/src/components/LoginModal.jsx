@@ -264,10 +264,10 @@ export default function LoginModal({ show, onClose }) {
  
         <div style={{ textAlign: 'center', marginBottom: '28px' }}>
           <h3 style={{ fontSize: '24px', fontWeight: '800', color: '#0f172a', margin: '0 0 6px 0', letterSpacing: '-0.5px' }}>
-            {showForgot ? 'Đặt lại mật khẩu' : 'Đăng nhập'}
+            {showForgot ? 'Reset Password' : 'Log In'}
           </h3>
           <p style={{ fontSize: '13px', color: '#64748b', margin: 0, lineHeight: '1.5' }}>
-            {showForgot ? 'Nhập thông tin của bạn để khôi phục tài khoản' : 'Nhập số điện thoại hoặc email để truy cập hệ thống phòng khám'}
+            {showForgot ? 'Enter your details to recover your account' : 'Enter your phone number or email to access the online clinic system'}
           </p>
         </div>
  
@@ -299,7 +299,7 @@ export default function LoginModal({ show, onClose }) {
                 <div style={{ width: '30px', height: '30px', borderRadius: '50%', backgroundColor: forgotStep >= 1 ? 'var(--color-primary, #3b82f6)' : '#ffffff', border: `2px solid ${forgotStep >= 1 ? 'var(--color-primary, #3b82f6)' : '#94a3b8'}`, color: forgotStep >= 1 ? '#ffffff' : '#94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: '700', transition: 'all 0.3s ease', boxShadow: forgotStep === 1 ? '0 0 0 4px rgba(59, 130, 246, 0.15)' : 'none' }}>
                   {forgotStep > 1 ? '✓' : '1'}
                 </div>
-                <span style={{ fontSize: '10.5px', fontWeight: '600', color: forgotStep >= 1 ? '#0f172a' : '#94a3b8', marginTop: '6px', transition: 'all 0.3s ease' }}>SĐT/Email</span>
+                <span style={{ fontSize: '10.5px', fontWeight: '600', color: forgotStep >= 1 ? '#0f172a' : '#94a3b8', marginTop: '6px', transition: 'all 0.3s ease' }}>Phone/Email</span>
               </div>
 
               {/* Step 2 dot */}
@@ -307,7 +307,7 @@ export default function LoginModal({ show, onClose }) {
                 <div style={{ width: '30px', height: '30px', borderRadius: '50%', backgroundColor: forgotStep >= 2 ? 'var(--color-primary, #3b82f6)' : '#ffffff', border: `2px solid ${forgotStep >= 2 ? 'var(--color-primary, #3b82f6)' : '#e2e8f0'}`, color: forgotStep >= 2 ? '#ffffff' : '#94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: '700', transition: 'all 0.3s ease', boxShadow: forgotStep === 2 ? '0 0 0 4px rgba(59, 130, 246, 0.15)' : 'none' }}>
                   {forgotStep > 2 ? '✓' : '2'}
                 </div>
-                <span style={{ fontSize: '10.5px', fontWeight: '600', color: forgotStep >= 2 ? '#0f172a' : '#94a3b8', marginTop: '6px', transition: 'all 0.3s ease' }}>Nhập OTP</span>
+                <span style={{ fontSize: '10.5px', fontWeight: '600', color: forgotStep >= 2 ? '#0f172a' : '#94a3b8', marginTop: '6px', transition: 'all 0.3s ease' }}>Verify OTP</span>
               </div>
 
               {/* Step 3 dot */}
@@ -315,7 +315,7 @@ export default function LoginModal({ show, onClose }) {
                 <div style={{ width: '30px', height: '30px', borderRadius: '50%', backgroundColor: forgotStep >= 3 ? 'var(--color-primary, #3b82f6)' : '#ffffff', border: `2px solid ${forgotStep >= 3 ? 'var(--color-primary, #3b82f6)' : '#e2e8f0'}`, color: forgotStep >= 3 ? '#ffffff' : '#94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: '700', transition: 'all 0.3s ease', boxShadow: forgotStep === 3 ? '0 0 0 4px rgba(59, 130, 246, 0.15)' : 'none' }}>
                   3
                 </div>
-                <span style={{ fontSize: '10.5px', fontWeight: '600', color: forgotStep >= 3 ? '#0f172a' : '#94a3b8', marginTop: '6px', transition: 'all 0.3s ease' }}>Đặt lại</span>
+                <span style={{ fontSize: '10.5px', fontWeight: '600', color: forgotStep >= 3 ? '#0f172a' : '#94a3b8', marginTop: '6px', transition: 'all 0.3s ease' }}>Reset</span>
               </div>
             </div>
 
@@ -331,8 +331,8 @@ export default function LoginModal({ show, onClose }) {
             {forgotStep === 1 && (
               <>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label htmlFor="forgot-phone" style={{ fontSize: '13.5px', fontWeight: '700', color: '#334155' }}>Số điện thoại hoặc Email <span style={{ color: '#ef4444' }}>*</span></label>
-                  <input id="forgot-phone" type="text" ref={forgotPhoneRef} placeholder="Nhập số điện thoại hoặc email đã đăng ký" value={forgotPhone} onChange={(e) => setForgotPhone(e.target.value)} required style={{ width: '100%', padding: '12px 14px', border: '1.5px solid #e2e8f0', borderRadius: '10px', fontSize: '14px', color: '#0f172a', backgroundColor: '#ffffff', transition: 'all 0.2s', outline: 'none', boxSizing: 'border-box' }} />
+                  <label htmlFor="forgot-phone" style={{ fontSize: '13.5px', fontWeight: '700', color: '#334155' }}>Phone number or Email <span style={{ color: '#ef4444' }}>*</span></label>
+                  <input id="forgot-phone" type="text" ref={forgotPhoneRef} placeholder="Enter your registered phone number or email" value={forgotPhone} onChange={(e) => setForgotPhone(e.target.value)} required style={{ width: '100%', padding: '12px 14px', border: '1.5px solid #e2e8f0', borderRadius: '10px', fontSize: '14px', color: '#0f172a', backgroundColor: '#ffffff', transition: 'all 0.2s', outline: 'none', boxSizing: 'border-box' }} />
                 </div>
                 {forgotError && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#b91c1c', backgroundColor: '#fef2f2', border: '1px solid #fee2e2', padding: '10px 14px', borderRadius: '10px', fontSize: '13px', fontWeight: '500' }}>
@@ -359,7 +359,7 @@ export default function LoginModal({ show, onClose }) {
                     transition: 'all 0.2s'
                   }}
                 >
-                  {isSendingOtp ? 'Đang gửi mã...' : 'Gửi mã xác thực'}
+                  {isSendingOtp ? 'Sending code...' : 'Send Code'}
                 </button>
               </>
             )}
@@ -367,7 +367,7 @@ export default function LoginModal({ show, onClose }) {
             {forgotStep === 2 && (
               <>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <label htmlFor="otp-box-0" style={{ fontSize: '13.5px', fontWeight: '700', color: '#334155' }}>Mã xác thực OTP <span style={{ color: '#ef4444' }}>*</span></label>
+                  <label htmlFor="otp-box-0" style={{ fontSize: '13.5px', fontWeight: '700', color: '#334155' }}>OTP Verification Code <span style={{ color: '#ef4444' }}>*</span></label>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', marginTop: '4px' }}>
                     {otpArray.map((digit, index) => (
                       <input
@@ -402,7 +402,7 @@ export default function LoginModal({ show, onClose }) {
                 </div>
                 <div style={{ textAlign: 'center', margin: '4px 0', fontSize: '13px' }}>
                   {countdown > 0 ? (
-                    <span style={{ color: '#64748b' }}>Gửi lại mã sau {countdown} giây</span>
+                    <span style={{ color: '#64748b' }}>Resend code in {countdown} seconds</span>
                   ) : (
                     <button
                       type="button"
@@ -417,7 +417,7 @@ export default function LoginModal({ show, onClose }) {
                         padding: '4px'
                       }}
                     >
-                      Gửi lại mã OTP
+                      Resend OTP code
                     </button>
                   )}
                 </div>
@@ -430,8 +430,8 @@ export default function LoginModal({ show, onClose }) {
                   </div>
                 )}
                 <div style={{ display: 'flex', gap: '10px' }}>
-                  <button type="button" onClick={() => { setForgotStep(1); setForgotError(''); setForgotSuccess(''); setOtpArray(['', '', '', '', '', '']); setOtpCode(''); }} style={{ flex: 1, height: '44px', backgroundColor: '#f1f5f9', color: '#334155', border: 'none', fontWeight: '700', fontSize: '14px', borderRadius: '10px', cursor: 'pointer' }}>Quay lại</button>
-                  <button type="button" onClick={handleVerifyOtp} style={{ flex: 1, height: '44px', background: 'linear-gradient(135deg, var(--color-primary, #3b82f6) 0%, var(--color-primary-dark, #1d4ed8) 100%)', color: 'white', border: 'none', fontWeight: '700', fontSize: '14px', borderRadius: '10px', cursor: 'pointer' }}>Tiếp tục</button>
+                  <button type="button" onClick={() => { setForgotStep(1); setForgotError(''); setForgotSuccess(''); setOtpArray(['', '', '', '', '', '']); setOtpCode(''); }} style={{ flex: 1, height: '44px', backgroundColor: '#f1f5f9', color: '#334155', border: 'none', fontWeight: '700', fontSize: '14px', borderRadius: '10px', cursor: 'pointer' }}>Back</button>
+                  <button type="button" onClick={handleVerifyOtp} style={{ flex: 1, height: '44px', background: 'linear-gradient(135deg, var(--color-primary, #3b82f6) 0%, var(--color-primary-dark, #1d4ed8) 100%)', color: 'white', border: 'none', fontWeight: '700', fontSize: '14px', borderRadius: '10px', cursor: 'pointer' }}>Continue</button>
                 </div>
               </>
             )}
@@ -439,12 +439,12 @@ export default function LoginModal({ show, onClose }) {
             {forgotStep === 3 && (
               <>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label htmlFor="new-password" style={{ fontSize: '13.5px', fontWeight: '700', color: '#334155' }}>Mật khẩu mới <span style={{ color: '#ef4444' }}>*</span></label>
-                  <input id="new-password" type="password" placeholder="Nhập mật khẩu mới" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required style={{ width: '100%', padding: '12px 14px', border: '1.5px solid #e2e8f0', borderRadius: '10px', fontSize: '14px', color: '#0f172a', backgroundColor: '#ffffff', transition: 'all 0.2s', outline: 'none', boxSizing: 'border-box' }} />
+                  <label htmlFor="new-password" style={{ fontSize: '13.5px', fontWeight: '700', color: '#334155' }}>New password <span style={{ color: '#ef4444' }}>*</span></label>
+                  <input id="new-password" type="password" placeholder="Enter new password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required style={{ width: '100%', padding: '12px 14px', border: '1.5px solid #e2e8f0', borderRadius: '10px', fontSize: '14px', color: '#0f172a', backgroundColor: '#ffffff', transition: 'all 0.2s', outline: 'none', boxSizing: 'border-box' }} />
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label htmlFor="confirm-password" style={{ fontSize: '13.5px', fontWeight: '700', color: '#334155' }}>Xác nhận mật khẩu mới <span style={{ color: '#ef4444' }}>*</span></label>
-                  <input id="confirm-password" type="password" placeholder="Nhập lại mật khẩu mới" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required style={{ width: '100%', padding: '12px 14px', border: '1.5px solid #e2e8f0', borderRadius: '10px', fontSize: '14px', color: '#0f172a', backgroundColor: '#ffffff', transition: 'all 0.2s', outline: 'none', boxSizing: 'border-box' }} />
+                  <label htmlFor="confirm-password" style={{ fontSize: '13.5px', fontWeight: '700', color: '#334155' }}>Confirm new password <span style={{ color: '#ef4444' }}>*</span></label>
+                  <input id="confirm-password" type="password" placeholder="Re-enter new password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required style={{ width: '100%', padding: '12px 14px', border: '1.5px solid #e2e8f0', borderRadius: '10px', fontSize: '14px', color: '#0f172a', backgroundColor: '#ffffff', transition: 'all 0.2s', outline: 'none', boxSizing: 'border-box' }} />
                 </div>
                 {forgotError && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#b91c1c', backgroundColor: '#fef2f2', border: '1px solid #fee2e2', padding: '10px 14px', borderRadius: '10px', fontSize: '13px', fontWeight: '500' }}>
@@ -471,7 +471,7 @@ export default function LoginModal({ show, onClose }) {
                       cursor: isResetting ? 'not-allowed' : 'pointer' 
                     }}
                   >
-                    Quay lại
+                    Back
                   </button>
                   <button 
                     type="button" 
@@ -490,7 +490,7 @@ export default function LoginModal({ show, onClose }) {
                       transition: 'all 0.2s'
                     }}
                   >
-                    {isResetting ? 'Đang xử lý...' : 'Xác nhận'}
+                    {isResetting ? 'Processing...' : 'Confirm'}
                   </button>
                 </div>
               </>
@@ -519,22 +519,22 @@ export default function LoginModal({ show, onClose }) {
                 fontSize: '13px' 
               }}
             >
-              Quay lại Đăng nhập
+              Back to Login
             </button>
           </div>
         ) : (
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label htmlFor="login-phone" style={{ fontSize: '13.5px', fontWeight: '700', color: '#334155' }}>Số điện thoại hoặc Email <span style={{ color: '#ef4444' }}>*</span></label>
-              <input id="login-phone" type="text" ref={phoneInputRef} placeholder="Nhập số điện thoại hoặc email" value={phone} onChange={(e) => setPhone(e.target.value)} required style={{ width: '100%', padding: '12px 14px', border: '1.5px solid #e2e8f0', borderRadius: '10px', fontSize: '14px', color: '#0f172a', backgroundColor: '#ffffff', transition: 'all 0.2s', outline: 'none', boxSizing: 'border-box' }} />
+              <label htmlFor="login-phone" style={{ fontSize: '13.5px', fontWeight: '700', color: '#334155' }}>Phone number or Email <span style={{ color: '#ef4444' }}>*</span></label>
+              <input id="login-phone" type="text" ref={phoneInputRef} placeholder="Enter phone number or email" value={phone} onChange={(e) => setPhone(e.target.value)} required style={{ width: '100%', padding: '12px 14px', border: '1.5px solid #e2e8f0', borderRadius: '10px', fontSize: '14px', color: '#0f172a', backgroundColor: '#ffffff', transition: 'all 0.2s', outline: 'none', boxSizing: 'border-box' }} />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label htmlFor="login-password" style={{ fontSize: '13.5px', fontWeight: '700', color: '#334155' }}>Mật khẩu <span style={{ color: '#ef4444' }}>*</span></label>
-              <input id="login-password" type="password" ref={passwordInputRef} placeholder="Nhập mật khẩu truy cập" value={password} onChange={(e) => setPassword(e.target.value)} required style={{ width: '100%', padding: '12px 14px', border: '1.5px solid #e2e8f0', borderRadius: '10px', fontSize: '14px', color: '#0f172a', backgroundColor: '#ffffff', transition: 'all 0.2s', outline: 'none', boxSizing: 'border-box' }} />
+              <label htmlFor="login-password" style={{ fontSize: '13.5px', fontWeight: '700', color: '#334155' }}>Password <span style={{ color: '#ef4444' }}>*</span></label>
+              <input id="login-password" type="password" ref={passwordInputRef} placeholder="Enter your password" value={password} onChange={(e) => setPassword(e.target.value)} required style={{ width: '100%', padding: '12px 14px', border: '1.5px solid #e2e8f0', borderRadius: '10px', fontSize: '14px', color: '#0f172a', backgroundColor: '#ffffff', transition: 'all 0.2s', outline: 'none', boxSizing: 'border-box' }} />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '10px', alignItems: 'center' }}>
-              <button type="submit" style={{ width: '100%', height: '44px', background: 'linear-gradient(135deg, var(--color-primary, #3b82f6) 0%, var(--color-primary-dark, #1d4ed8) 100%)', color: 'white', border: 'none', fontWeight: '700', fontSize: '14px', borderRadius: '10px', cursor: 'pointer', boxShadow: '0 4px 12px rgba(59, 130, 246, 0.2)', transition: 'all 0.25s ease' }}>Đăng nhập</button>
-              <button type="button" onClick={() => setShowRegister(true)} style={{ background: 'none', border: 'none', color: 'var(--color-primary, #3b82f6)', fontSize: '13.5px', fontWeight: '700', cursor: 'pointer', padding: '4px 0' }}>Chưa có tài khoản? Đăng ký ngay</button>
+              <button type="submit" style={{ width: '100%', height: '44px', background: 'linear-gradient(135deg, var(--color-primary, #3b82f6) 0%, var(--color-primary-dark, #1d4ed8) 100%)', color: 'white', border: 'none', fontWeight: '700', fontSize: '14px', borderRadius: '10px', cursor: 'pointer', boxShadow: '0 4px 12px rgba(59, 130, 246, 0.2)', transition: 'all 0.25s ease' }}>Log In</button>
+              <button type="button" onClick={() => setShowRegister(true)} style={{ background: 'none', border: 'none', color: 'var(--color-primary, #3b82f6)', fontSize: '13.5px', fontWeight: '700', cursor: 'pointer', padding: '4px 0' }}>Don't have an account? Sign up now</button>
               <button
                 type="button"
                 onClick={() => {
@@ -552,7 +552,7 @@ export default function LoginModal({ show, onClose }) {
                 }}
                 style={{ background: 'none', border: 'none', color: 'var(--color-primary, #3b82f6)', fontSize: '13.5px', fontWeight: '700', cursor: 'pointer', padding: '4px 0' }}
               >
-                Quên mật khẩu?
+                Forgot password?
               </button>
             </div>
           </form>
