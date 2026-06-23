@@ -347,7 +347,7 @@ export default function AccountantDashboard() {
   }
 
   return (
-    <div className="role-dashboard-shell work-dashboard">
+    <div className="role-dashboard-shell work-dashboard" style={{ backgroundColor: '#ffffff' }}>
       <RoleTopNav role="accountant" />
 
       <div className="dashboard-layout">
