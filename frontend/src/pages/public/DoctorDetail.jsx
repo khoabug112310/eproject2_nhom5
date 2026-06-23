@@ -94,11 +94,44 @@ export default function DoctorDetail() {
   const avatar = doctor.avatarURL;
   const deptName = doctor.departmentId?.departmentName || doctor.department || 'General Clinic';
 
+  const responsiveStyles = `
+    .doctor-detail-layout {
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      gap: 30px;
+      align-items: start;
+    }
+    @media (max-width: 992px) {
+      .doctor-detail-layout {
+        grid-template-columns: 1fr;
+        gap: 24px;
+      }
+      .doctor-sidebar {
+        max-width: 480px;
+        margin: 0 auto;
+        width: 100%;
+      }
+    }
+    .detail-card {
+      background: white;
+      border: 1px solid var(--color-border, #e2e8f0);
+      border-radius: 20px;
+      padding: 30px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.01);
+      transition: box-shadow 0.2s ease;
+    }
+    .detail-card:hover {
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.04), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
+    }
+  `;
+
   return (
-    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '20px', boxSizing: 'border-box' }} className="fade-in">
+    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '20px 10px', boxSizing: 'border-box' }} className="fade-in">
+      <style>{responsiveStyles}</style>
+
       {/* Breadcrumbs & Navigation */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: '#64748b' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '28px', flexWrap: 'wrap', gap: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13.5px', color: '#64748b' }}>
           <Link to="/" style={{ color: '#64748b', textDecoration: 'none', fontWeight: '500' }}>Home</Link>
           <span>/</span>
           <Link to="/specialists" style={{ color: '#64748b', textDecoration: 'none', fontWeight: '500' }}>Specialists</Link>
@@ -115,7 +148,7 @@ export default function DoctorDetail() {
             border: 'none',
             color: 'var(--color-primary, #2563eb)',
             fontWeight: '700',
-            fontSize: '14px',
+            fontSize: '13.5px',
             cursor: 'pointer',
             padding: 0,
             transition: 'opacity 0.2s'
@@ -132,122 +165,81 @@ export default function DoctorDetail() {
       </div>
 
       {/* Main Profile Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(300px, 360px) 1fr', gap: '30px' }} className="grid-form">
+      <div className="doctor-detail-layout">
         
-        {/* Left Column: Portrait & Key Stats */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        {/* Left Column: Sidebar / Key Action Card */}
+        <div className="doctor-sidebar" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           
           <div style={{
             background: 'white',
-            border: '1px solid #cbd5e1',
+            border: '1px solid var(--color-border, #e2e8f0)',
             borderRadius: '24px',
             padding: '24px',
-            boxShadow: 'var(--shadow-md, 0 4px 12px rgba(15,23,42,0.06))',
+            boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02), 0 2px 4px -1px rgba(0,0,0,0.01)',
             display: 'flex',
             flexDirection: 'column',
-            alignItems: 'center',
-            textAlign: 'center'
+            alignItems: 'stretch'
           }}>
-            {/* Avatar block with blurring */}
+            
+            {/* Rectangular Image Cover (object-fit: cover) */}
             <div style={{
               position: 'relative',
-              width: '180px',
-              height: '180px',
-              borderRadius: '50%',
+              width: '100%',
+              height: '320px',
+              borderRadius: '16px',
               overflow: 'hidden',
-              background: '#0f172a',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+              backgroundColor: '#f1f5f9',
               marginBottom: '20px',
-              boxShadow: '0 8px 24px rgba(15,23,42,0.1)'
+              boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
             }}>
               {avatar && !imageError ? (
-                <>
-                  <img 
-                    src={avatar} 
-                    alt="" 
-                    style={{ 
-                      position: 'absolute',
-                      width: '100%', 
-                      height: '100%', 
-                      objectFit: 'cover',
-                      filter: 'blur(10px) brightness(0.6)',
-                      opacity: 0.5,
-                      transform: 'scale(1.15)',
-                      pointerEvents: 'none'
-                    }} 
-                  />
-                  <img 
-                    src={avatar} 
-                    alt={doctor.fullName} 
-                    onError={() => setImageError(true)}
-                    style={{ 
-                      position: 'relative',
-                      width: '100%', 
-                      height: '100%', 
-                      objectFit: 'contain',
-                      zIndex: 1
-                    }} 
-                  />
-                </>
+                <img 
+                  src={avatar} 
+                  alt={doctor.fullName} 
+                  onError={() => setImageError(true)}
+                  style={{ 
+                    width: '100%', 
+                    height: '100%', 
+                    objectFit: 'cover'
+                  }} 
+                />
               ) : (
                 <div style={{
-                  width: '90px',
-                  height: '90px',
-                  borderRadius: '50%',
+                  width: '100%',
+                  height: '100%',
                   background: 'linear-gradient(135deg, var(--color-primary, #2563eb) 0%, var(--color-secondary, #0ea5e9) 100%)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: '32px',
+                  fontSize: '44px',
                   fontWeight: '800',
-                  color: 'white',
-                  boxShadow: '0 4px 14px rgba(37, 99, 235, 0.3)'
+                  color: 'white'
                 }}>
                   {initials}
                 </div>
               )}
             </div>
 
-            {/* General Info */}
-            <h2 style={{ fontSize: '22px', fontWeight: '800', color: '#1e293b', margin: '0 0 4px 0' }}>{doctor.fullName}</h2>
-            <div style={{ fontSize: '14px', color: 'var(--color-primary, #2563eb)', fontWeight: '700', marginBottom: '8px' }}>
-              {doctor.specialization}
-            </div>
-            
-            {deptName && (
-              <span style={{ 
-                color: 'var(--color-primary-dark, #1d4ed8)', 
-                backgroundColor: 'var(--color-primary-light, #eff6ff)', 
-                border: '1px solid var(--color-primary-soft, #dbeafe)',
-                padding: '4px 12px', 
-                borderRadius: '8px', 
-                fontSize: '12px',
-                fontWeight: '700',
-                display: 'inline-block',
-                marginBottom: '20px'
-              }}>{deptName}</span>
-            )}
-
-            {/* Quick Stats Grid */}
+            {/* Quick Stats Panel */}
             <div style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
+              display: 'flex',
+              flexDirection: 'column',
               gap: '12px',
               width: '100%',
-              borderTop: '1px solid #e2e8f0',
-              borderBottom: '1px solid #e2e8f0',
-              padding: '16px 0',
-              marginBottom: '24px'
+              backgroundColor: '#f8fafc',
+              padding: '16px',
+              borderRadius: '16px',
+              marginBottom: '20px',
+              border: '1px solid var(--color-border, #e2e8f0)'
             }}>
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: '11px', color: '#94a3b8', textTransform: 'uppercase', fontWeight: '700', letterSpacing: '0.5px', marginBottom: '4px' }}>Experience</div>
-                <div style={{ fontSize: '16px', fontWeight: '800', color: '#1e293b' }}>{doctor.experienceYears || 0} Years</div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '13px', color: '#64748b', fontWeight: '500' }}>Experience</span>
+                <span style={{ fontSize: '14.5px', fontWeight: '700', color: '#0f172a' }}>{doctor.experienceYears || 0} Years</span>
               </div>
-              <div style={{ textAlign: 'center', borderLeft: '1px solid #e2e8f0' }}>
-                <div style={{ fontSize: '11px', color: '#94a3b8', textTransform: 'uppercase', fontWeight: '700', letterSpacing: '0.5px', marginBottom: '4px' }}>Base Fee</div>
-                <div style={{ fontSize: '16px', fontWeight: '800', color: '#1e293b' }}>{formatCurrency(doctor.baseFee)}</div>
+              <div style={{ height: '1px', backgroundColor: '#e2e8f0' }} />
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '13px', color: '#64748b', fontWeight: '500' }}>Consultation Fee</span>
+                <span style={{ fontSize: '14.5px', fontWeight: '800', color: 'var(--color-primary, #2563eb)' }}>{formatCurrency(doctor.baseFee)}</span>
               </div>
             </div>
 
@@ -256,7 +248,7 @@ export default function DoctorDetail() {
               onClick={handleBook}
               style={{
                 width: '100%',
-                padding: '12px 20px',
+                padding: '14px 20px',
                 fontSize: '14px',
                 fontWeight: '700',
                 borderRadius: '12px',
@@ -275,10 +267,12 @@ export default function DoctorDetail() {
               onMouseEnter={(e) => {
                 e.currentTarget.style.boxShadow = '0 6px 20px rgba(37, 99, 235, 0.3)';
                 e.currentTarget.style.filter = 'brightness(1.05)';
+                e.currentTarget.style.transform = 'translateY(-1px)';
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.boxShadow = '0 4px 14px rgba(37, 99, 235, 0.2)';
                 e.currentTarget.style.filter = 'none';
+                e.currentTarget.style.transform = 'translateY(0)';
               }}
             >
               <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
@@ -294,21 +288,41 @@ export default function DoctorDetail() {
 
         </div>
 
-        {/* Right Column: Detailed Bio & Qualifications */}
+        {/* Right Column: Detailed Biography & Title Section */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           
+          {/* Header Title Section */}
+          <div className="detail-card" style={{ padding: '30px' }}>
+            <span style={{ 
+              fontSize: '12px', 
+              fontWeight: '700', 
+              textTransform: 'uppercase', 
+              letterSpacing: '1.5px', 
+              color: 'var(--color-primary, #2563eb)',
+              backgroundColor: 'var(--color-primary-light, #eff6ff)',
+              padding: '4px 10px',
+              borderRadius: '6px',
+              display: 'inline-block',
+              marginBottom: '12px'
+            }}>
+              Specialist Profile
+            </span>
+            <h1 style={{ fontSize: '32px', fontWeight: '800', color: '#0f172a', margin: '0 0 8px 0', letterSpacing: '-0.5px' }}>
+              {doctor.fullName}
+            </h1>
+            <div style={{ fontSize: '16px', color: '#64748b', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              <span>{doctor.specialization}</span>
+              <span style={{ color: '#cbd5e1' }}>•</span>
+              <span style={{ color: 'var(--color-secondary-dark, #0284c7)' }}>{deptName}</span>
+            </div>
+          </div>
+
           {/* Qualifications block */}
-          <div style={{
-            background: 'white',
-            border: '1px solid #e2e8f0',
-            borderRadius: '24px',
-            padding: '30px',
-            boxShadow: 'var(--shadow-sm, 0 1px 3px rgba(15,23,42,0.06))'
-          }}>
+          <div className="detail-card">
             <h3 style={{
               fontSize: '18px',
               fontWeight: '800',
-              color: '#1e293b',
+              color: '#0f172a',
               marginBottom: '16px',
               display: 'flex',
               alignItems: 'center',
@@ -317,31 +331,25 @@ export default function DoctorDetail() {
               <span style={{ fontSize: '20px' }}>🎓</span> Qualifications & Expertise
             </h3>
             <div style={{ 
-              fontSize: '15px', 
+              fontSize: '14.5px', 
               lineHeight: '1.6',
               padding: '16px 20px',
-              backgroundColor: '#fffbeb',
-              borderLeft: '4px solid #d97706',
+              backgroundColor: 'var(--color-primary-light, #eff6ff)',
+              borderLeft: '4px solid var(--color-primary, #2563eb)',
               borderRadius: '8px',
               fontWeight: '700',
-              color: '#1e293b'
+              color: 'var(--color-primary-dark, #1d4ed8)'
             }}>
               {doctor.qualifications || 'Specialist Doctor'}
             </div>
           </div>
 
           {/* Biography block */}
-          <div style={{
-            background: 'white',
-            border: '1px solid #e2e8f0',
-            borderRadius: '24px',
-            padding: '30px',
-            boxShadow: 'var(--shadow-sm, 0 1px 3px rgba(15,23,42,0.06))'
-          }}>
+          <div className="detail-card">
             <h3 style={{
               fontSize: '18px',
               fontWeight: '800',
-              color: '#1e293b',
+              color: '#0f172a',
               marginBottom: '16px',
               display: 'flex',
               alignItems: 'center',
@@ -351,8 +359,8 @@ export default function DoctorDetail() {
             </h3>
             <div style={{
               fontSize: '15px',
-              lineHeight: '1.7',
-              color: '#475569',
+              lineHeight: '1.75',
+              color: '#334155',
               whiteSpace: 'pre-line'
             }}>
               {doctor.bio || 'A dedicated specialist with deep clinical knowledge and a compassionate, patient-centered approach to care. Committed to offering modern diagnostics integrated with traditional medicine methods to deliver effective clinical treatments.'}
@@ -362,15 +370,15 @@ export default function DoctorDetail() {
           {/* Booking & Clinic Schedule note */}
           <div style={{
             background: '#f8fafc',
-            border: '1px solid #e2e8f0',
-            borderRadius: '24px',
+            border: '1px solid var(--color-border, #e2e8f0)',
+            borderRadius: '20px',
             padding: '30px',
-            boxShadow: 'var(--shadow-xs)'
+            boxShadow: 'none'
           }}>
             <h3 style={{
-              fontSize: '16px',
+              fontSize: '15px',
               fontWeight: '800',
-              color: '#1e293b',
+              color: '#0f172a',
               marginBottom: '10px',
               display: 'flex',
               alignItems: 'center',
@@ -378,7 +386,7 @@ export default function DoctorDetail() {
             }}>
               <span style={{ fontSize: '18px' }}>🏥</span> Consultation Hours & Information
             </h3>
-            <p style={{ fontSize: '14px', color: '#64748b', lineHeight: '1.6', margin: 0 }}>
+            <p style={{ fontSize: '13.5px', color: '#64748b', lineHeight: '1.6', margin: 0 }}>
               The doctor is regularly scheduled for consultations at Hopsontai General Clinic.
               <br />
               <strong>Hours:</strong> Monday – Sunday: 7:00 AM – 8:00 PM.
