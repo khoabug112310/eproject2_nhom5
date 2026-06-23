@@ -703,18 +703,6 @@ export default function DoctorDetail() {
 
           </div>
 
-          {/* Quick Clinic Guarantees */}
-          <div className="profile-card" style={{ padding: '22px' }}>
-            <div className="guarantees-grid">
-              <div className="guarantee-box">
-                <div className="guarantee-icon">✓</div>
-                <div>
-                  <div className="guarantee-title">Direct Scheduling</div>
-                  <div className="guarantee-desc">Select date and matching time slots instantly.</div>
-                </div>
-              </div>
-            </div>
-          </div>
 
         </div>
 
