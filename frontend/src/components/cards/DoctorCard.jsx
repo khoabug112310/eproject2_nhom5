@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
-export default function DoctorCard({ avatar, fullName, specialization, department, experienceYears, qualifications, bio, onBook }) {
+export default function DoctorCard({ id, _id, avatar, fullName, specialization, department, experienceYears, qualifications, bio, onBook }) {
+  const navigate = useNavigate();
   const [imageError, setImageError] = useState(false);
   const [isBioExpanded, setIsBioExpanded] = useState(false);
 
@@ -257,10 +259,10 @@ export default function DoctorCard({ avatar, fullName, specialization, departmen
           }}
           onClick={(e) => {
             e.stopPropagation();
-            setIsBioExpanded(!isBioExpanded);
+            navigate(`/specialists/${id || _id}`);
           }}
         >
-          {isBioExpanded ? 'Thu gọn' : 'Xem chi tiết'}
+          View Details
         </button>
 
         <button 
@@ -296,7 +298,7 @@ export default function DoctorCard({ avatar, fullName, specialization, departmen
             onBook();
           }}
         >
-          Đặt lịch hẹn
+          Book Appointment
           <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
             <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
             <line x1="16" y1="2" x2="16" y2="6" />

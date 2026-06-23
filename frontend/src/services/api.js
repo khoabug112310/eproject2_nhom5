@@ -58,6 +58,7 @@ export const authAPI = {
 export const profilesAPI = {
   getUsers: () => apiClient.get('/profiles/users'),
   getUser: (id) => apiClient.get(`/profiles/users/${id}`),
+  getDoctor: (id) => apiClient.get(`/profiles/doctors/${id}`),
   updateUser: (id, data) =>
     apiClient.put(`/profiles/profile/${id}`, data),
   getPatients: () => apiClient.get('/profiles/patients'),

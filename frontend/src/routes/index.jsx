@@ -9,6 +9,7 @@ import AccountantDashboard from '../pages/accountant/Dashboard';
 import Home from '../pages/public/Home';
 import Departments from '../pages/public/Departments';
 import Specialists from '../pages/public/Specialists';
+import DoctorDetail from '../pages/public/DoctorDetail';
 import About from '../pages/public/About';
 import Posts from '../pages/public/Posts';
 import Contact from '../pages/public/Contact';
@@ -51,6 +52,14 @@ const AppRoutes = () => {
           element={
             <PublicLayout>
               <Specialists />
+            </PublicLayout>
+          }
+        />
+        <Route
+          path="/specialists/:id"
+          element={
+            <PublicLayout>
+              <DoctorDetail />
             </PublicLayout>
           }
         />
