@@ -3,7 +3,7 @@ const express = require('express');
 const { authenticateToken } = require('../../middlewares/auth');
 const { authorizeRole } = require('../../middlewares/rbac');
 const { USER_ROLE } = require('../../constants/enums');
-const { getMedicines, createMedicine, updateMedicine, deleteMedicine, createMedicalRecord, getMedicalRecords, createPrescription, getPrescriptions, getDoctorsPublic: getDoctors, getPublicStats } = require('./controller');
+const { getMedicines, createMedicine, updateMedicine, deleteMedicine, createMedicalRecord, getMedicalRecords, createPrescription, getPrescriptions, deletePrescription, getDoctorsPublic: getDoctors, getPublicStats } = require('./controller');
 
 const router = express.Router();
 
@@ -20,6 +20,7 @@ router.delete('/medicines/:id', authenticateToken, authorizeRole(USER_ROLE.ADMIN
 // Doctor
 router.post('/medical-records', authenticateToken, authorizeRole(USER_ROLE.DOCTOR), createMedicalRecord);
 router.post('/prescriptions', authenticateToken, authorizeRole(USER_ROLE.DOCTOR), createPrescription);
+router.delete('/prescriptions/:id', authenticateToken, authorizeRole(USER_ROLE.DOCTOR), deletePrescription);
 
 // Authenticated
 router.get('/medical-records', authenticateToken, getMedicalRecords);

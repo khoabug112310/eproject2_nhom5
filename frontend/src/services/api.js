@@ -89,6 +89,10 @@ export const schedulingAPI = {
     apiClient.post('/scheduling/doctor-schedules', data),
   deleteDoctorSchedule: (id) =>
     apiClient.delete(`/scheduling/doctor-schedules/${id}`),
+  blockSchedule: (id, reason) =>
+    apiClient.put(`/scheduling/doctor-schedules/${id}/block`, { reason }),
+  unblockSchedule: (id) =>
+    apiClient.put(`/scheduling/doctor-schedules/${id}/unblock`),
   bookAppointment: (data) =>
     apiClient.post('/scheduling/appointments', data),
   getAppointments: () =>
@@ -119,6 +123,8 @@ export const clinicalAPI = {
     apiClient.post('/clinical/prescriptions', data),
   getPrescriptions: (recordId) =>
     apiClient.get('/clinical/prescriptions', { params: { recordId } }),
+  deletePrescription: (id) =>
+    apiClient.delete(`/clinical/prescriptions/${id}`),
 };
 
 // Billing API

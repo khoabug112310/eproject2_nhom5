@@ -165,8 +165,18 @@ const createPrescription = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Medical record not found' });
     }
 
-    let totalAmount = 0;
-    const detailItems = [];
+    let invoice = await Invoice.findOne({ appointmentId: record.appointmentId, invoiceType: INVOICE_TYPE.PHARMACY, status: INVOICE_STATUS.UNPAID });
+    if (!invoice && medicines.length > 0) {
+      invoice = await Invoice.create({
+        appointmentId: record.appointmentId,
+        patientId: record.patientId,
+        invoiceType: INVOICE_TYPE.PHARMACY,
+        totalAmount: 0,
+        status: INVOICE_STATUS.UNPAID,
+        issuedAt: new Date(),
+      });
+    }
+
     const prescriptionsCreated = [];
 
     for (const item of medicines) {
@@ -177,52 +187,52 @@ const createPrescription = async (req, res) => {
 
       const qty = Number(item.quantity) || 1;
       const subTotal = (med.unitPrice || 0) * qty;
-      totalAmount += subTotal;
 
-      const presc = await Prescription.create({
-        recordId,
-        medicineId: item.medicineId,
-        quantity: qty,
-        dosage: item.dosage || '1 tablet',
-        frequency: item.frequency || 'Twice a day',
-        durationDays: Number(item.durationDays) || 7,
-        specialInstructions: item.specialInstructions || '',
-      });
+      let presc = await Prescription.findOne({ recordId, medicineId: item.medicineId });
+      if (presc) {
+        presc.quantity += qty;
+        presc.dosage = item.dosage || presc.dosage;
+        presc.frequency = item.frequency || presc.frequency;
+        presc.durationDays = Number(item.durationDays) || presc.durationDays;
+        presc.specialInstructions = item.specialInstructions || presc.specialInstructions;
+        await presc.save();
+      } else {
+        presc = await Prescription.create({
+          recordId,
+          medicineId: item.medicineId,
+          quantity: qty,
+          dosage: item.dosage || '1 tablet',
+          frequency: item.frequency || 'Twice a day',
+          durationDays: Number(item.durationDays) || 7,
+          specialInstructions: item.specialInstructions || '',
+        });
+      }
       prescriptionsCreated.push(presc);
 
-      detailItems.push({
-        medicineId: item.medicineId,
-        quantity: qty,
-        unitPrice: med.unitPrice,
-        subTotal,
-      });
+      // Handle invoice detail
+      if (invoice) {
+        let existingDetail = await Invoice_Detail.findOne({ invoiceId: invoice._id, medicineId: item.medicineId });
+        if (existingDetail) {
+          existingDetail.quantity += qty;
+          existingDetail.subTotal += subTotal;
+          await existingDetail.save();
+        } else {
+          await Invoice_Detail.create({
+            invoiceId: invoice._id,
+            medicineId: item.medicineId,
+            quantity: qty,
+            unitPrice: med.unitPrice,
+            subTotal: subTotal,
+          });
+        }
+        invoice.totalAmount += subTotal;
+        await invoice.save();
+      }
 
       // Deduct stock quantity
       if (typeof med.stockQuantity === 'number') {
         med.stockQuantity = Math.max(0, med.stockQuantity - qty);
         await med.save();
-      }
-    }
-
-    // Auto-create Pharmacy Invoice
-    if (detailItems.length > 0) {
-      const invoice = await Invoice.create({
-        appointmentId: record.appointmentId,
-        patientId: record.patientId,
-        invoiceType: INVOICE_TYPE.PHARMACY,
-        totalAmount,
-        status: INVOICE_STATUS.UNPAID,
-        issuedAt: new Date(),
-      });
-
-      for (const d of detailItems) {
-        await Invoice_Detail.create({
-          invoiceId: invoice._id,
-          medicineId: d.medicineId,
-          quantity: d.quantity,
-          unitPrice: d.unitPrice,
-          subTotal: d.subTotal,
-        });
       }
     }
 
@@ -316,4 +326,54 @@ const deleteMedicine = async (req, res) => {
   }
 };
 
-module.exports = { getMedicines, createMedicine, updateMedicine, deleteMedicine, createMedicalRecord, getMedicalRecords, createPrescription, getPrescriptions, getDoctorsPublic, getPublicStats };
+const deletePrescription = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const presc = await Prescription.findById(id);
+    if (!presc) {
+      const { fail } = require('../../utils/response');
+      return fail(res, 'Prescription not found', 404);
+    }
+
+    const med = await Medicine.findById(presc.medicineId);
+    
+    // Find the medical record to get appointmentId
+    const record = await Medical_Record.findById(presc.recordId);
+    if (record) {
+      // Find the unpaid pharmacy invoice
+      let invoice = await Invoice.findOne({ appointmentId: record.appointmentId, invoiceType: INVOICE_TYPE.PHARMACY, status: INVOICE_STATUS.UNPAID });
+      if (invoice) {
+        // Find and delete the invoice detail
+        const existingDetail = await Invoice_Detail.findOne({ invoiceId: invoice._id, medicineId: presc.medicineId });
+        if (existingDetail) {
+           invoice.totalAmount -= existingDetail.subTotal;
+           if (invoice.totalAmount < 0) invoice.totalAmount = 0;
+           await Invoice_Detail.findByIdAndDelete(existingDetail._id);
+           
+           if (invoice.totalAmount === 0) {
+              await Invoice.findByIdAndDelete(invoice._id);
+           } else {
+              await invoice.save();
+           }
+        }
+      }
+    }
+
+    // Restore stock
+    if (med && typeof med.stockQuantity === 'number') {
+      med.stockQuantity += presc.quantity;
+      await med.save();
+    }
+
+    await Prescription.findByIdAndDelete(id);
+
+    const { success: ok } = require('../../utils/response');
+    return ok(res, null, 'Prescription deleted successfully');
+  } catch (err) {
+    console.error('deletePrescription error', err);
+    const { fail } = require('../../utils/response');
+    return fail(res, 'Error deleting the prescription', 500, err.message);
+  }
+};
+
+module.exports = { getMedicines, createMedicine, updateMedicine, deleteMedicine, createMedicalRecord, getMedicalRecords, createPrescription, getPrescriptions, deletePrescription, getDoctorsPublic, getPublicStats };

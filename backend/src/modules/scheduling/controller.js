@@ -161,6 +161,17 @@ const bookAppointment = async (req, res) => {
 
     // Basic conflict check: doctor already has appointment at same date+time
     if (doctorId) {
+      const Doctor_Schedule = require('../../models/Doctor_Schedule');
+      const shiftSchedule = await Doctor_Schedule.findOne({
+        doctorId,
+        workDate: dateOnly,
+        startTime: requestedTime
+      });
+
+      if (shiftSchedule && shiftSchedule.status === 'Blocked') {
+        return res.status(409).json({ success: false, message: 'This time slot has been blocked by the doctor. Please choose another one.' });
+      }
+
       const exists = await Appointment.findOne({
         doctorId,
         requestedDate: dateOnly,
@@ -446,8 +457,8 @@ const createDoctorSchedule = async (req, res) => {
     }
     const dateOnly = new Date(workDate);
     dateOnly.setHours(0, 0, 0, 0);
-    const existing = await Doctor_Schedule.findOne({ doctorId, workDate: dateOnly });
-    if (existing) return res.status(409).json({ success: false, message: 'The doctor already has a shift on this day' });
+    const existing = await Doctor_Schedule.findOne({ doctorId, workDate: dateOnly, startTime, endTime });
+    if (existing) return res.status(409).json({ success: false, message: 'The doctor already has this specific shift on this day' });
     const schedule = await Doctor_Schedule.create({ doctorId, workDate: dateOnly, startTime, endTime, maxPatients: Number(maxPatients), currentBooked: 0, status: 'Available' });
     const populated = await Doctor_Schedule.findById(schedule._id).populate('doctorId').lean();
     const { success: ok } = require('../../utils/response');
@@ -481,4 +492,58 @@ const getAllSchedules = async (req, res) => {
   }
 };
 
-module.exports = { getDepartments, createDepartment, updateDepartment, deleteDepartment, getSchedules, getAllSchedules, createDoctorSchedule, deleteDoctorSchedule, bookAppointment, getAppointments, updateAppointmentStatus };
+const blockDoctorSchedule = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+    
+    if (!reason) {
+      return res.status(400).json({ success: false, message: 'Reason is required to block a schedule' });
+    }
+
+    const schedule = await Doctor_Schedule.findById(id);
+    if (!schedule) {
+      return res.status(404).json({ success: false, message: 'Shift not found' });
+    }
+
+    if (schedule.currentBooked > 0) {
+      return res.status(400).json({ success: false, message: 'Cannot block this shift because patients are already booked.' });
+    }
+
+    schedule.status = 'Blocked';
+    schedule.blockReason = reason;
+    await schedule.save();
+
+    const { success: ok } = require('../../utils/response');
+    return ok(res, schedule, 'Shift blocked successfully');
+  } catch (err) {
+    const { fail } = require('../../utils/response');
+    return fail(res, 'Error blocking the shift', 500, err.message);
+  }
+};
+
+const unblockDoctorSchedule = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const schedule = await Doctor_Schedule.findById(id);
+    if (!schedule) {
+      return res.status(404).json({ success: false, message: 'Shift not found' });
+    }
+
+    if (schedule.status !== 'Blocked') {
+      return res.status(400).json({ success: false, message: 'Shift is not blocked' });
+    }
+
+    schedule.status = 'Available';
+    schedule.blockReason = null;
+    await schedule.save();
+
+    const { success: ok } = require('../../utils/response');
+    return ok(res, schedule, 'Shift unblocked successfully');
+  } catch (err) {
+    const { fail } = require('../../utils/response');
+    return fail(res, 'Error unblocking the shift', 500, err.message);
+  }
+};
+
+module.exports = { getDepartments, createDepartment, updateDepartment, deleteDepartment, getSchedules, getAllSchedules, createDoctorSchedule, deleteDoctorSchedule, bookAppointment, getAppointments, updateAppointmentStatus, blockDoctorSchedule, unblockDoctorSchedule };
