@@ -721,8 +721,6 @@ export default function DoctorDetail() {
               <span style={{ color: '#0f172a' }}>{doctor.specialization}</span>
               <span className="meta-separator">•</span>
               <span style={{ color: 'var(--color-primary, #2563eb)' }}>{deptName}</span>
-              <span className="meta-separator">•</span>
-              <span>ID: {doctor._id || doctor.id}</span>
             </div>
           </div>
 
