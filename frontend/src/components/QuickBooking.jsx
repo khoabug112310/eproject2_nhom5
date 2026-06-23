@@ -79,12 +79,77 @@ export default function QuickBooking({
   const activeDoctors = doctors.length > 0 ? doctors : localDoctors;
 
   useEffect(() => {
-    if (initialDepartmentId) setDepartment(initialDepartmentId);
-  }, [initialDepartmentId]);
-
-  useEffect(() => {
     if (initialDoctorId) setDoctor(initialDoctorId);
   }, [initialDoctorId]);
+
+  const [doctorSchedules, setDoctorSchedules] = useState([]);
+  const [fetchingSchedule, setFetchingSchedule] = useState(false);
+  const [scheduleError, setScheduleError] = useState(null);
+
+  const generateTimeSlots = (startStr, endStr) => {
+    const slots = [];
+    if (!startStr || !endStr) return slots;
+    const [startH, startM] = startStr.split(':').map(Number);
+    const [endH, endM] = endStr.split(':').map(Number);
+    
+    let current = startH * 60 + startM;
+    const end = endH * 60 + endM;
+    
+    while (current <= end) {
+      const h = String(Math.floor(current / 60)).padStart(2, '0');
+      const m = String(current % 60).padStart(2, '0');
+      slots.push(`${h}:${m}`);
+      current += 30;
+    }
+    return slots;
+  };
+
+  const generateAllTimeSlots = (schedules) => {
+    let allSlots = [];
+    schedules.forEach(sched => {
+      const slots = generateTimeSlots(sched.startTime, sched.endTime);
+      allSlots = [...allSlots, ...slots];
+    });
+    return [...new Set(allSlots)].sort();
+  };
+
+  useEffect(() => {
+    if (doctor && date) {
+      setFetchingSchedule(true);
+      setScheduleError(null);
+      setDoctorSchedules([]);
+      
+      schedulingAPI.getSchedules(doctor, date)
+        .then(res => {
+          const schedules = res.data?.data || [];
+          if (schedules.length > 0) {
+            setDoctorSchedules(schedules);
+          } else {
+            setDoctorSchedules([]);
+            setScheduleError('Bác sĩ không có lịch làm việc vào ngày đã chọn. Vui lòng chọn ngày khác.');
+          }
+        })
+        .catch(err => {
+          console.error('Error fetching schedules:', err);
+          setScheduleError('Không thể kiểm tra lịch làm việc của bác sĩ.');
+        })
+        .finally(() => {
+          setFetchingSchedule(false);
+        });
+    } else {
+      setDoctorSchedules([]);
+      setScheduleError(null);
+    }
+  }, [doctor, date]);
+
+  useEffect(() => {
+    if (doctorSchedules.length > 0) {
+      const slots = generateAllTimeSlots(doctorSchedules);
+      if (slots.length > 0 && !slots.includes(time)) {
+        setTime(slots[0]);
+      }
+    }
+  }, [doctorSchedules]);
 
   // Dynamic filtering of doctors based on selected department ID
   const selectedDepObj = activeDepartments.find(d => d._id === department);
@@ -150,11 +215,25 @@ export default function QuickBooking({
       return;
     }
 
-    // Validate working hours (09:00 - 17:00)
-    if (time < '09:00' || time > '17:00') {
-      setError('Appointment time must be between 09:00 and 17:00.');
-      setLoading(false);
-      return;
+    // Validate working hours / doctor schedule
+    if (doctor) {
+      if (doctorSchedules.length === 0) {
+        setError('Bác sĩ không có lịch làm việc vào ngày đã chọn. Vui lòng chọn ngày khác hoặc chọn bác sĩ khác.');
+        setLoading(false);
+        return;
+      }
+      const isValid = doctorSchedules.some(sched => time >= sched.startTime && time <= sched.endTime);
+      if (!isValid) {
+        setError('Giờ hẹn phải nằm trong khung giờ làm việc của bác sĩ.');
+        setLoading(false);
+        return;
+      }
+    } else {
+      if (time < '09:00' || time > '17:00') {
+        setError('Appointment time must be between 09:00 and 17:00.');
+        setLoading(false);
+        return;
+      }
     }
 
     try {
@@ -255,7 +334,7 @@ export default function QuickBooking({
         <form onSubmit={handleSubmit} className="form-grid-2">
           <div className="booking-field-group">
             <label className="booking-label">
-              Department
+              Department <span style={{ color: '#ef4444' }}>*</span>
             </label>
             <div className="booking-input-wrapper">
               <svg className="booking-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -300,7 +379,7 @@ export default function QuickBooking({
 
           <div className="booking-field-group">
             <label className="booking-label">
-              Appointment Date
+              Appointment Date <span style={{ color: '#ef4444' }}>*</span>
             </label>
             <div className="booking-input-wrapper">
               <svg className="booking-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -321,27 +400,91 @@ export default function QuickBooking({
 
           <div className="booking-field-group">
             <label className="booking-label">
-              Appointment Time
+              Appointment Time <span style={{ color: '#ef4444' }}>*</span>
             </label>
             <div className="booking-input-wrapper">
               <svg className="booking-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="10"/>
                 <polyline points="12 6 12 12 16 14"/>
               </svg>
-              <input 
-                type="time" 
+              <select 
                 value={time} 
-                min="09:00"
-                max="17:00"
                 onChange={e => setTime(e.target.value)} 
-                required 
-              />
+                required
+                disabled={doctor && doctorSchedules.length === 0}
+              >
+                {doctor ? (
+                  doctorSchedules.length > 0 ? (
+                    generateAllTimeSlots(doctorSchedules).map(slot => (
+                      <option key={slot} value={slot}>{slot}</option>
+                    ))
+                  ) : (
+                    <option value="">-- Không có lịch trực --</option>
+                  )
+                ) : (
+                  ['09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00'].map(slot => (
+                    <option key={slot} value={slot}>{slot}</option>
+                  ))
+                )}
+              </select>
+              <div className="booking-select-arrow">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="6 9 12 15 18 9"/>
+                </svg>
+              </div>
             </div>
           </div>
 
+          {/* Schedule status messages */}
+          {fetchingSchedule && (
+            <div style={{ gridColumn: '1 / -1', fontSize: '13px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '8px', margin: '4px 0 12px 0' }}>
+              <span className="btn-spinner" style={{ width: '12px', height: '12px', borderWidth: '2px', borderTopColor: 'var(--color-primary)' }}></span>
+              Đang kiểm tra lịch làm việc của bác sĩ...
+            </div>
+          )}
+          {doctorSchedules.length > 0 && (
+            <div style={{ 
+              gridColumn: '1 / -1', 
+              fontSize: '13px', 
+              backgroundColor: 'var(--color-primary-light, #f0fdfa)', 
+              color: 'var(--color-primary-dark, #0f766e)', 
+              border: '1px solid var(--color-primary-soft, #dbeafe)',
+              padding: '10px 14px',
+              borderRadius: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              margin: '4px 0 12px 0'
+            }}>
+              <span>📅</span>
+              <span>
+                <strong>Lịch trực bác sĩ:</strong>{' '}
+                {doctorSchedules.map((s, idx) => `Ca ${idx + 1} (${s.startTime} - ${s.endTime})`).join(', ')}
+              </span>
+            </div>
+          )}
+          {scheduleError && (
+            <div style={{ 
+              gridColumn: '1 / -1', 
+              fontSize: '13px', 
+              backgroundColor: '#fff7ed', 
+              color: '#c2410c', 
+              border: '1px solid #ffedd5',
+              padding: '10px 14px',
+              borderRadius: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              margin: '4px 0 12px 0'
+            }}>
+              <span>⚠️</span>
+              <span>{scheduleError}</span>
+            </div>
+          )}
+
           <div className="booking-field-group">
             <label className="booking-label">
-              Patient Full Name
+              Patient Full Name <span style={{ color: '#ef4444' }}>*</span>
             </label>
             <div className="booking-input-wrapper">
               <svg className="booking-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -362,7 +505,7 @@ export default function QuickBooking({
 
           <div className="booking-field-group">
             <label className="booking-label">
-              Contact Phone Number
+              Contact Phone Number <span style={{ color: '#ef4444' }}>*</span>
             </label>
             <div className="booking-input-wrapper">
               <svg className="booking-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -383,19 +526,53 @@ export default function QuickBooking({
 
           <div className="booking-field-group" style={{ gridColumn: '1 / -1' }}>
             <label className="booking-label">Symptoms / Reason for visit</label>
-            <div className="booking-input-wrapper">
-              <svg className="booking-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <div className="booking-input-wrapper" style={{ display: 'block', position: 'relative' }}>
+              <svg 
+                className="booking-icon" 
+                xmlns="http://www.w3.org/2000/svg" 
+                viewBox="0 0 24 24" 
+                fill="none" 
+                stroke="currentColor" 
+                strokeWidth="2" 
+                strokeLinecap="round" 
+                strokeLinejoin="round"
+                style={{ top: '14px', transform: 'none' }}
+              >
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                 <polyline points="14 2 14 8 20 8"/>
                 <line x1="16" y1="13" x2="8" y2="13"/>
                 <line x1="16" y1="17" x2="8" y2="17"/>
               </svg>
-              <input
-                type="text"
-                placeholder="e.g. Headache, fever, cough... (optional)"
+              <textarea
+                placeholder="Describe your symptoms, reason for visit, or any special requirements (optional)..."
                 value={symptoms}
                 onChange={e => setSymptoms(e.target.value)}
-                maxLength={200}
+                maxLength={1000}
+                rows={4}
+                style={{
+                  width: '100%',
+                  padding: '12px 16px 12px 38px',
+                  border: '1.5px solid #e2e8f0',
+                  backgroundColor: '#ffffff',
+                  borderRadius: '12px',
+                  fontSize: '14px',
+                  color: 'var(--color-text-dark)',
+                  fontFamily: 'inherit',
+                  transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                  resize: 'vertical',
+                  minHeight: '100px',
+                  boxShadow: 'var(--shadow-sm)'
+                }}
+                onFocus={e => {
+                  e.target.style.borderColor = 'var(--color-primary)';
+                  e.target.style.boxShadow = '0 0 0 4px rgba(59, 130, 246, 0.1)';
+                }}
+                onBlur={e => {
+                  e.target.style.borderColor = '#e2e8f0';
+                  e.target.style.boxShadow = 'none';
+                }}
               />
             </div>
           </div>

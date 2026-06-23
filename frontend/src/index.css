@@ -169,34 +169,39 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .site-header {
-  background-color: transparent;
-  padding: var(--space-3) 0;
+  background: linear-gradient(135deg, var(--color-primary-dark, #0f766e) 0%, var(--color-secondary-dark, #0e7490) 100%);
+  padding: 10px 0;
+  box-shadow: 0 4px 12px rgba(15, 118, 110, 0.15);
 }
 
 .site-header.compact .nav {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: var(--space-5);
+  gap: var(--space-3);
   flex-wrap: wrap;
 }
 
 .site-header.compact .nav a {
-  color: var(--color-text-body);
+  color: rgba(255, 255, 255, 0.85);
   text-decoration: none;
   font-weight: 700;
-  font-size: 13px;
-  letter-spacing: 0.05em;
-  padding: var(--space-2) var(--space-4);
+  font-size: 14.5px;
+  letter-spacing: 0.02em;
+  padding: 8px 18px;
   border-radius: 999px;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
+  transition: all 0.2s ease;
 }
 
-.site-header.compact .nav a:hover, 
+.site-header.compact .nav a:hover {
+  color: #ffffff;
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
 .site-header.compact .nav a.active {
-  color: var(--color-primary);
-  background-color: var(--color-primary-light);
+  color: #ffffff;
+  background-color: rgba(255, 255, 255, 0.25);
+  font-weight: 800;
 }
 
 /* Premium Buttons */
@@ -3509,7 +3514,7 @@ h1, h2, h3, h4, h5, h6 {
 .home-doctors-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: var(--space-5);
+  gap: 24px;
   width: 100%;
 }
 

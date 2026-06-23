@@ -57,16 +57,17 @@ export default function Specialists() {
   };
 
   const handleBookDoctor = (doc) => {
-    setActiveDoctor(doc.id || doc._id || '');
-    // Find department ID that matches doctor's department name
-    if (doc.department) {
-      const matchDep = departments.find(dept => (dept.departmentName || dept.name) === doc.department);
-      if (matchDep) {
-        setActiveDept(matchDep._id);
+    // Find the department ID that matches the doctor's department name
+    const deptObj = departments.find(d => (d.departmentName || d.name) === doc.department);
+    const deptId = deptObj ? deptObj._id : '';
+
+    // Open the Quick Booking modal popup with prefilled doctor info
+    window.dispatchEvent(new CustomEvent('open-booking-modal', {
+      detail: {
+        doctorId: doc.id || doc._id || '',
+        departmentId: deptId
       }
-    }
-    // Scroll smoothly to QuickBooking widget
-    bookingRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }));
   };
 
   const removeDiacritics = (str) => {
@@ -98,7 +99,7 @@ export default function Specialists() {
       <section style={{
         textAlign: 'center',
         padding: '80px 20px',
-        background: 'linear-gradient(135deg, var(--color-primary-dark, #1e3a8a) 0%, var(--color-secondary-dark, #0f766e) 100%)',
+        background: 'linear-gradient(135deg, var(--color-primary-dark, #0f766e) 0%, var(--color-secondary-dark, #0e7490) 100%)',
         color: 'white',
         position: 'relative',
         overflow: 'hidden'
@@ -137,10 +138,8 @@ export default function Specialists() {
       {/* 2. BODY CONTENT SECTION */}
       <section style={{ padding: '60px 20px', maxWidth: '1200px', margin: '0 auto' }}>
         <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: '1fr 360px', 
-          gap: '30px'
-        }} className="home-grid">
+          width: '100%'
+        }}>
           
           {/* Main Doctors Column */}
           <div>
@@ -176,8 +175,8 @@ export default function Specialists() {
                     boxSizing: 'border-box'
                   }}
                   onFocus={(e) => {
-                    e.currentTarget.style.borderColor = 'var(--color-primary, #3b82f6)';
-                    e.currentTarget.style.boxShadow = '0 0 0 4px rgba(59, 130, 246, 0.1)';
+                    e.currentTarget.style.borderColor = 'var(--color-primary, #0d9488)';
+                    e.currentTarget.style.boxShadow = '0 0 0 4px rgba(13, 148, 136, 0.1)';
                   }}
                   onBlur={(e) => {
                     e.currentTarget.style.borderColor = '#e2e8f0';
@@ -224,9 +223,9 @@ export default function Specialists() {
                       fontWeight: '600',
                       borderRadius: '50px',
                       border: '1px solid',
-                      borderColor: selectedDeptName === 'All' ? 'var(--color-primary, #3b82f6)' : '#e2e8f0',
-                      backgroundColor: selectedDeptName === 'All' ? 'var(--color-primary-light, #eff6ff)' : 'white',
-                      color: selectedDeptName === 'All' ? 'var(--color-primary, #3b82f6)' : '#475569',
+                      borderColor: selectedDeptName === 'All' ? 'var(--color-primary, #0d9488)' : '#e2e8f0',
+                      backgroundColor: selectedDeptName === 'All' ? 'var(--color-primary-light, #f0fdfa)' : 'white',
+                      color: selectedDeptName === 'All' ? 'var(--color-primary, #0d9488)' : '#475569',
                       cursor: 'pointer',
                       transition: 'all 0.2s',
                       outline: 'none'
@@ -247,9 +246,9 @@ export default function Specialists() {
                           fontWeight: '600',
                           borderRadius: '50px',
                           border: '1px solid',
-                          borderColor: isActive ? 'var(--color-primary, #3b82f6)' : '#e2e8f0',
-                          backgroundColor: isActive ? 'var(--color-primary-light, #eff6ff)' : 'white',
-                          color: isActive ? 'var(--color-primary, #3b82f6)' : '#475569',
+                          borderColor: isActive ? 'var(--color-primary, #0d9488)' : '#e2e8f0',
+                          backgroundColor: isActive ? 'var(--color-primary-light, #f0fdfa)' : 'white',
+                          color: isActive ? 'var(--color-primary, #0d9488)' : '#475569',
                           cursor: 'pointer',
                           transition: 'all 0.2s',
                           outline: 'none'
@@ -275,7 +274,7 @@ export default function Specialists() {
             }}>
               <div style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(270px, 1fr))',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
                 gap: '24px'
               }}>
                 {loading ? (
@@ -298,18 +297,6 @@ export default function Specialists() {
               </div>
             </div>
 
-          </div>
-
-          {/* QuickBooking sidebar */}
-          <div style={{ position: 'relative' }}>
-            <div ref={bookingRef} style={{ position: 'sticky', top: '100px' }}>
-              <QuickBooking 
-                doctors={doctors} 
-                departments={departments} 
-                initialDoctorId={activeDoctor}
-                initialDepartmentId={activeDept}
-              />
-            </div>
           </div>
 
         </div>

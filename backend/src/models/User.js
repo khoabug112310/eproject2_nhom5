@@ -36,6 +36,8 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  resetCode: String,
+  resetCodeExpires: Date,
   lastLoginAt: Date,
   createdAt: {
     type: Date,

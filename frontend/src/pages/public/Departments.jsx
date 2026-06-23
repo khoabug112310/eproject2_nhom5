@@ -29,13 +29,6 @@ export default function Departments() {
   const ITEMS_PER_PAGE = 6;
   const sectionRef = useRef(null);
 
-  // Scroll to section when page changes so that the user sees the full content from the start
-  useEffect(() => {
-    if (sectionRef.current) {
-      sectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  }, [currentPage]);
-
   // Reset page to 1 when filters or query changes
   useEffect(() => {
     setCurrentPage(1);
@@ -100,7 +93,7 @@ export default function Departments() {
       <section style={{
         textAlign: 'center',
         padding: '80px 20px',
-        background: 'linear-gradient(135deg, var(--color-primary-dark, #1e3a8a) 0%, var(--color-secondary-dark, #0f766e) 100%)',
+        background: 'linear-gradient(135deg, var(--color-primary-dark, #0f766e) 0%, var(--color-secondary-dark, #0e7490) 100%)',
         color: 'white',
         position: 'relative',
         overflow: 'hidden'
@@ -184,8 +177,8 @@ export default function Departments() {
                   boxSizing: 'border-box'
                 }}
                 onFocus={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--color-primary, #3b82f6)';
-                  e.currentTarget.style.boxShadow = '0 0 0 4px rgba(59, 130, 246, 0.1)';
+                  e.currentTarget.style.borderColor = 'var(--color-primary, #0d9488)';
+                  e.currentTarget.style.boxShadow = '0 0 0 4px rgba(13, 148, 136, 0.1)';
                 }}
                 onBlur={(e) => {
                   e.currentTarget.style.borderColor = '#e2e8f0';
@@ -234,8 +227,8 @@ export default function Departments() {
                     border: '1px solid transparent',
                     cursor: 'pointer',
                     transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                    backgroundColor: isActive ? 'var(--color-primary-light, #eff6ff)' : 'transparent',
-                    color: isActive ? 'var(--color-primary, #3b82f6)' : '#64748b',
+                    backgroundColor: isActive ? 'var(--color-primary-light, #f0fdfa)' : 'transparent',
+                    color: isActive ? 'var(--color-primary, #0d9488)' : '#64748b',
                     outline: 'none'
                   }}
                   onMouseEnter={(e) => {
@@ -316,9 +309,9 @@ export default function Departments() {
               }}
               onMouseEnter={(e) => {
                 if (currentPage !== 1) {
-                  e.currentTarget.style.borderColor = 'var(--color-primary, #3b82f6)';
-                  e.currentTarget.style.color = 'var(--color-primary, #3b82f6)';
-                  e.currentTarget.style.backgroundColor = '#eff6ff';
+                  e.currentTarget.style.borderColor = 'var(--color-primary, #0d9488)';
+                  e.currentTarget.style.color = 'var(--color-primary, #0d9488)';
+                  e.currentTarget.style.backgroundColor = 'var(--color-primary-light, #f0fdfa)';
                 }
               }}
               onMouseLeave={(e) => {
@@ -348,21 +341,21 @@ export default function Departments() {
                     width: '40px',
                     height: '40px',
                     borderRadius: '50%',
-                    border: isActive ? '1px solid var(--color-primary, #3b82f6)' : '1px solid #e2e8f0',
-                    backgroundColor: isActive ? 'var(--color-primary, #3b82f6)' : 'white',
+                    border: isActive ? '1px solid var(--color-primary, #0d9488)' : '1px solid #e2e8f0',
+                    backgroundColor: isActive ? 'var(--color-primary, #0d9488)' : 'white',
                     color: isActive ? 'white' : '#1e293b',
                     fontWeight: '700',
                     fontSize: '14px',
                     cursor: 'pointer',
                     transition: 'all 0.2s',
-                    boxShadow: isActive ? '0 4px 12px rgba(59, 130, 246, 0.25)' : 'none',
+                    boxShadow: isActive ? '0 4px 12px rgba(13, 148, 136, 0.25)' : 'none',
                     outline: 'none'
                   }}
                   onMouseEnter={(e) => {
                     if (!isActive) {
-                      e.currentTarget.style.borderColor = 'var(--color-primary, #3b82f6)';
-                      e.currentTarget.style.color = 'var(--color-primary, #3b82f6)';
-                      e.currentTarget.style.backgroundColor = '#eff6ff';
+                      e.currentTarget.style.borderColor = 'var(--color-primary, #0d9488)';
+                      e.currentTarget.style.color = 'var(--color-primary, #0d9488)';
+                      e.currentTarget.style.backgroundColor = 'var(--color-primary-light, #f0fdfa)';
                     }
                   }}
                   onMouseLeave={(e) => {
@@ -398,9 +391,9 @@ export default function Departments() {
               }}
               onMouseEnter={(e) => {
                 if (currentPage !== Math.ceil(filteredDepts.length / ITEMS_PER_PAGE)) {
-                  e.currentTarget.style.borderColor = 'var(--color-primary, #3b82f6)';
-                  e.currentTarget.style.color = 'var(--color-primary, #3b82f6)';
-                  e.currentTarget.style.backgroundColor = '#eff6ff';
+                  e.currentTarget.style.borderColor = 'var(--color-primary, #0d9488)';
+                  e.currentTarget.style.color = 'var(--color-primary, #0d9488)';
+                  e.currentTarget.style.backgroundColor = 'var(--color-primary-light, #f0fdfa)';
                 }
               }}
               onMouseLeave={(e) => {

@@ -51,7 +51,7 @@ export default function About() {
       <section style={{
         textAlign: 'center',
         padding: '80px 20px',
-        background: 'linear-gradient(135deg, var(--color-primary-dark, #1e3a8a) 0%, var(--color-secondary-dark, #0f766e) 100%)',
+        background: 'linear-gradient(135deg, var(--color-primary-dark, #0f766e) 0%, var(--color-secondary-dark, #0e7490) 100%)',
         color: 'white',
         position: 'relative',
         overflow: 'hidden'
@@ -110,7 +110,7 @@ export default function About() {
               fontSize: '28px', 
               fontWeight: '700', 
               marginBottom: '20px',
-              borderLeft: '5px solid var(--color-primary, #3b82f6)',
+              borderLeft: '5px solid var(--color-primary, #0d9488)',
               paddingLeft: '16px'
             }}>
               Committed to Dedicated, Compassionate Medicine
@@ -140,7 +140,7 @@ export default function About() {
                 onMouseEnter={(e) => {
                   e.currentTarget.style.transform = 'translateY(-3px)';
                   e.currentTarget.style.boxShadow = 'var(--shadow-md, 0 4px 6px -1px rgba(0,0,0,0.1))';
-                  e.currentTarget.style.borderColor = 'var(--color-primary, #3b82f6)';
+                  e.currentTarget.style.borderColor = 'var(--color-primary, #0d9488)';
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.transform = 'translateY(0)';
@@ -180,7 +180,7 @@ export default function About() {
               top: '8px',
               bottom: '8px',
               width: '2px',
-              background: 'linear-gradient(to bottom, var(--color-primary, #3b82f6), var(--color-secondary, #10b981))'
+              background: 'linear-gradient(to bottom, var(--color-primary, #0d9488), var(--color-secondary, #0891b2))'
             }} />
 
             {historyData.map((item, index) => (
@@ -207,8 +207,8 @@ export default function About() {
                   height: '18px',
                   borderRadius: '50%',
                   backgroundColor: 'white',
-                  border: '3px solid var(--color-primary, #3b82f6)',
-                  boxShadow: '0 0 0 4px rgba(59, 130, 246, 0.1)',
+                  border: '3px solid var(--color-primary, #0d9488)',
+                  boxShadow: '0 0 0 4px rgba(13, 148, 136, 0.1)',
                   zIndex: 2,
                   boxSizing: 'border-box'
                 }} />
@@ -225,7 +225,7 @@ export default function About() {
                     fontSize: '13px',
                     fontWeight: '700',
                     color: 'white',
-                    backgroundColor: 'var(--color-primary, #3b82f6)',
+                    backgroundColor: 'var(--color-primary, #0d9488)',
                     padding: '4px 10px',
                     borderRadius: '50px',
                     display: 'inline-block',

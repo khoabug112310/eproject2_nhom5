@@ -9,6 +9,7 @@ export default function RegisterModal({ show, onClose }) {
   const [fullName, setFullName] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [gender, setGender] = useState('');
+  const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');
   const [isError, setIsError] = useState(false);
 
@@ -21,6 +22,7 @@ export default function RegisterModal({ show, onClose }) {
       setFullName(''); 
       setDateOfBirth(''); 
       setGender(''); 
+      setEmail('');
       setMessage('');
       setIsError(false);
     }
@@ -119,7 +121,7 @@ export default function RegisterModal({ show, onClose }) {
     }
 
     try {
-      const res = await authAPI.register({ phone, password, fullName, dateOfBirth, gender });
+      const res = await authAPI.register({ phone, password, fullName, dateOfBirth, gender, email });
       setMessage('Account registered successfully.');
       // Auto login after registration
       const lg = await authAPI.login(phone, password);
@@ -219,7 +221,17 @@ export default function RegisterModal({ show, onClose }) {
         {step === 2 && (
           <form onSubmit={handleActivate}>
             <div className="form-group-outline">
-              <label htmlFor="reg-activate-password">New password</label>
+              <label htmlFor="reg-activate-email">Email</label>
+              <input
+                id="reg-activate-email"
+                type="email"
+                placeholder="e.g. john.smith@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
+            <div className="form-group-outline">
+              <label htmlFor="reg-activate-password">New password <span style={{ color: '#ef4444' }}>*</span></label>
               <input
                 id="reg-activate-password"
                 type="password"
@@ -260,7 +272,7 @@ export default function RegisterModal({ show, onClose }) {
         {step === 3 && (
           <form onSubmit={handleActivate}>
             <div className="form-group-outline">
-              <label htmlFor="reg-name">Full name</label>
+              <label htmlFor="reg-name">Full name <span style={{ color: '#ef4444' }}>*</span></label>
               <input
                 id="reg-name"
                 type="text"
@@ -268,6 +280,18 @@ export default function RegisterModal({ show, onClose }) {
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)} 
                 required 
+              />
+            </div>
+
+            <div className="form-group-outline">
+              <label htmlFor="reg-email">Email <span style={{ color: '#ef4444' }}>*</span></label>
+              <input
+                id="reg-email"
+                type="email"
+                placeholder="e.g. john.smith@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
               />
             </div>
 

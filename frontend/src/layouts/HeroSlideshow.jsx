@@ -16,11 +16,10 @@ export default function HeroSlideshow({ images = [], interval = 5000, children }
       className="hero-full" 
       style={{
         width: '100%',
-        maxWidth: '1100px', // Restrict width so it doesn't stretch too wide
-        margin: '0 auto 24px auto', // Center it and add bottom margin
-        height: '270px', // Even more compact height (down from 340px)
+        margin: '0 0 24px 0', // Bottom margin spacing
+        height: '350px', // Taller height for visual balance
         position: 'relative',
-        borderRadius: '20px',
+        borderRadius: '24px', // Rounded corners matching other sections
         overflow: 'hidden',
         background: '#0f172a',
         boxShadow: '0 12px 30px rgba(15, 23, 42, 0.08)' // Premium shadow

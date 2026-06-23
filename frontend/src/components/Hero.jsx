@@ -53,14 +53,16 @@ export default function Hero() {
       gap: '16px',
       padding: '24px',
       
-      // Keep the original white frame (no rounded corners)
+      // Synchronize style with other home sections
       background: 'white',
       border: '1px solid var(--color-border)',
-      boxShadow: 'var(--shadow-md)',
+      borderRadius: '24px', // Rounded corners matching other sections
+      boxShadow: 'var(--shadow-sm)',
       
-      // Adjust size and center for balance
-      maxWidth: '1200px',    // Limit the width of the white box
-      margin: '0 auto 24px auto', // Center horizontally with 24px bottom spacing
+      // Fill the container width
+      width: '100%',
+      boxSizing: 'border-box',
+      margin: '0 0 24px 0',
       
       textAlign: 'center',
     }}>
