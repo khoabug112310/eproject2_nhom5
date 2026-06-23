@@ -150,7 +150,7 @@ export default function Posts() {
       <section style={{
         textAlign: 'center',
         padding: '80px 20px',
-        background: 'linear-gradient(135deg, var(--color-primary-dark, #1e3a8a) 0%, var(--color-secondary-dark, #0f766e) 100%)',
+        background: 'linear-gradient(135deg, var(--color-primary-dark, #0f766e) 0%, var(--color-secondary-dark, #0e7490) 100%)',
         color: 'white',
         position: 'relative',
         overflow: 'hidden'
@@ -221,7 +221,7 @@ export default function Posts() {
                   <div className="post-detail-cover-fallback" style={{
                     width: '100%',
                     height: '100%',
-                    background: 'linear-gradient(135deg, var(--color-primary-light, #eff6ff), var(--color-secondary-light, #f0fdfa))',
+                    background: 'linear-gradient(135deg, var(--color-primary-light, #f0fdfa), var(--color-secondary-light, #ecfeff))',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -238,7 +238,7 @@ export default function Posts() {
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: '8px',
-                    color: 'var(--color-primary, #3b82f6)',
+                    color: 'var(--color-primary, #0d9488)',
                     fontWeight: '700',
                     fontSize: '14px',
                     border: 'none',
@@ -293,8 +293,8 @@ export default function Posts() {
                     display: 'flex', 
                     alignItems: 'center', 
                     gap: '6px',
-                    color: 'var(--color-primary, #3b82f6)',
-                    backgroundColor: 'var(--color-primary-light, #eff6ff)',
+                    color: 'var(--color-primary, #0d9488)',
+                    backgroundColor: 'var(--color-primary-light, #f0fdfa)',
                     padding: '2px 8px',
                     borderRadius: '50px',
                     fontSize: '11px',
@@ -348,20 +348,20 @@ export default function Posts() {
                   padding: '12px',
                   borderRadius: '10px',
                   border: 'none',
-                  background: 'linear-gradient(135deg, var(--color-primary, #3b82f6) 0%, var(--color-primary-dark, #1d4ed8) 100%)',
+                  background: 'linear-gradient(135deg, var(--color-primary, #0d9488) 0%, var(--color-primary-dark, #0f766e) 100%)',
                   color: 'white',
                   fontWeight: '700',
                   fontSize: '13px',
                   cursor: 'pointer',
                   transition: 'all 0.25s ease',
-                  boxShadow: '0 4px 12px rgba(59, 130, 246, 0.25)'
+                  boxShadow: '0 4px 12px rgba(13, 148, 136, 0.25)'
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(59, 130, 246, 0.35)';
+                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(13, 148, 136, 0.35)';
                   e.currentTarget.style.filter = 'brightness(1.05)';
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.25)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(13, 148, 136, 0.25)';
                   e.currentTarget.style.filter = 'none';
                 }}
               >
@@ -521,20 +521,20 @@ export default function Posts() {
                     padding: '12px',
                     borderRadius: '10px',
                     border: 'none',
-                    background: 'linear-gradient(135deg, var(--color-primary, #3b82f6) 0%, var(--color-primary-dark, #1d4ed8) 100%)',
+                    background: 'linear-gradient(135deg, var(--color-primary, #0d9488) 0%, var(--color-primary-dark, #0f766e) 100%)',
                     color: 'white',
                     fontWeight: '700',
                     fontSize: '13px',
                     cursor: 'pointer',
                     transition: 'all 0.25s ease',
-                    boxShadow: '0 4px 12px rgba(59, 130, 246, 0.25)'
+                    boxShadow: '0 4px 12px rgba(13, 148, 136, 0.25)'
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.boxShadow = '0 6px 16px rgba(59, 130, 246, 0.35)';
+                    e.currentTarget.style.boxShadow = '0 6px 16px rgba(13, 148, 136, 0.35)';
                     e.currentTarget.style.filter = 'brightness(1.05)';
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.25)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(13, 148, 136, 0.25)';
                     e.currentTarget.style.filter = 'brightness(1)';
                   }}
                 >
@@ -549,7 +549,7 @@ export default function Posts() {
                 </h4>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                    <span style={{ fontSize: '20px', background: '#e0f2fe', width: '36px', height: '36px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-primary, #3b82f6)' }}>📞</span>
+                    <span style={{ fontSize: '20px', background: '#ccfbf1', width: '36px', height: '36px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-primary, #0d9488)' }}>📞</span>
                     <div>
                       <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Consultation hotline</div>
                       <div style={{ fontSize: '15px', color: '#0f766e', fontWeight: '800' }}>091-444-4444</div>

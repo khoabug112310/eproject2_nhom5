@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import QuickBooking from './QuickBooking';
 
-export default function QuickBookingModal({ show, onClose }) {
+export default function QuickBookingModal({ show, onClose, initialDoctorId = '', initialDepartmentId = '' }) {
   useEffect(() => {
     if (show) {
       const onKey = (e) => { if (e.key === 'Escape') onClose(); };
@@ -40,7 +40,13 @@ export default function QuickBookingModal({ show, onClose }) {
         >
           &times;
         </button>
-        <QuickBooking isInline={false} isModal={true} />
+        <QuickBooking 
+          isInline={false} 
+          isModal={true} 
+          onSuccess={onClose}
+          initialDoctorId={initialDoctorId}
+          initialDepartmentId={initialDepartmentId}
+        />
       </div>
     </div>
   );

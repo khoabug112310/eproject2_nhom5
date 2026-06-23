@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 
 export default function DoctorCard({ avatar, fullName, specialization, department, experienceYears, qualifications, bio, onBook }) {
   const [imageError, setImageError] = useState(false);
+  const [isBioExpanded, setIsBioExpanded] = useState(false);
 
   // Helper to extract doctor's initials from the actual name (ignoring titles)
   const getInitials = (name) => {
@@ -149,9 +150,9 @@ export default function DoctorCard({ avatar, fullName, specialization, departmen
             }}>
               {department && (
                 <span style={{ 
-                  color: '#0f766e', 
-                  backgroundColor: '#f0fdfa', 
-                  border: '1px solid #ccfbf1',
+                  color: 'var(--color-primary-dark, #1d4ed8)', 
+                  backgroundColor: 'var(--color-primary-light, #eff6ff)', 
+                  border: '1px solid var(--color-primary-soft, #dbeafe)',
                   padding: '3px 8px', 
                   borderRadius: '6px', 
                   fontSize: '11px',
@@ -214,11 +215,11 @@ export default function DoctorCard({ avatar, fullName, specialization, departmen
             fontSize: '12.5px',
             lineHeight: '1.6',
             color: '#64748b',
-            height: '60px',
-            overflow: 'hidden',
+            height: isBioExpanded ? 'auto' : '60px',
+            overflow: isBioExpanded ? 'visible' : 'hidden',
             textOverflow: 'ellipsis',
-            display: '-webkit-box',
-            WebkitLineClamp: 3,
+            display: isBioExpanded ? 'block' : '-webkit-box',
+            WebkitLineClamp: isBioExpanded ? 'none' : 3,
             WebkitBoxOrient: 'vertical'
           }} title={bio}>
             {bio || 'A dedicated specialist with deep clinical knowledge and a compassionate, patient-centered approach to care.'}
@@ -226,13 +227,48 @@ export default function DoctorCard({ avatar, fullName, specialization, departmen
         </div>
       </div>
 
-      {/* Booking Button Footer */}
-      <div style={{ padding: '0 20px 20px 20px' }}>
-        <button 
+      {/* Two Buttons Footer */}
+      <div style={{ padding: '0 20px 20px 20px', display: 'flex', gap: '8px' }}>
+        <button
+          type="button"
           style={{
-            width: '100%',
-            padding: '11px 16px',
-            fontSize: '13px',
+            flex: 1,
+            padding: '10px 8px',
+            fontSize: '12.5px',
+            fontWeight: '700',
+            borderRadius: '10px',
+            border: '1px solid #cbd5e1',
+            backgroundColor: 'white',
+            color: '#475569',
+            cursor: 'pointer',
+            transition: 'all 0.25s ease',
+            outline: 'none',
+            textAlign: 'center'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = '#f8fafc';
+            e.currentTarget.style.borderColor = 'var(--color-primary, #3b82f6)';
+            e.currentTarget.style.color = 'var(--color-primary, #3b82f6)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'white';
+            e.currentTarget.style.borderColor = '#cbd5e1';
+            e.currentTarget.style.color = '#475569';
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsBioExpanded(!isBioExpanded);
+          }}
+        >
+          {isBioExpanded ? 'Thu gọn' : 'Xem chi tiết'}
+        </button>
+
+        <button 
+          type="button"
+          style={{
+            flex: 1.3,
+            padding: '10px 8px',
+            fontSize: '12.5px',
             fontWeight: '700',
             borderRadius: '10px',
             border: 'none',
@@ -243,7 +279,7 @@ export default function DoctorCard({ avatar, fullName, specialization, departmen
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: '8px',
+            gap: '4px',
             transition: 'all 0.25s ease',
             outline: 'none'
           }}
@@ -260,8 +296,8 @@ export default function DoctorCard({ avatar, fullName, specialization, departmen
             onBook();
           }}
         >
-          Book Appointment
-          <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+          Đặt lịch hẹn
+          <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
             <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
             <line x1="16" y1="2" x2="16" y2="6" />
             <line x1="8" y1="2" x2="8" y2="6" />

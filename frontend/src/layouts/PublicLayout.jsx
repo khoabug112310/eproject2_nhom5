@@ -15,6 +15,7 @@ export default function PublicLayout({ children }) {
   const [showLogin, setShowLogin] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [showBooking, setShowBooking] = useState(false);
+  const [bookingPrefill, setBookingPrefill] = useState({ doctorId: '', departmentId: '' });
   const location = useLocation();
   const isHome = location.pathname === '/';
 
@@ -54,7 +55,11 @@ export default function PublicLayout({ children }) {
   };
 
   useEffect(() => {
-    const handleOpenBooking = () => setShowBooking(true);
+    const handleOpenBooking = (e) => {
+      const { doctorId = '', departmentId = '' } = e.detail || {};
+      setBookingPrefill({ doctorId, departmentId });
+      setShowBooking(true);
+    };
     window.addEventListener('open-booking-modal', handleOpenBooking);
     return () => window.removeEventListener('open-booking-modal', handleOpenBooking);
   }, []);
@@ -112,7 +117,10 @@ export default function PublicLayout({ children }) {
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
                   Log in
                 </button>
-                <button className="btn btn-primary btn-quick" onClick={() => setShowBooking(true)}>
+                <button className="btn btn-primary btn-quick" onClick={() => {
+                  setBookingPrefill({ doctorId: '', departmentId: '' });
+                  setShowBooking(true);
+                }}>
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
                   Quick Booking
                 </button>
@@ -122,38 +130,49 @@ export default function PublicLayout({ children }) {
         </div>
       </div>
 
-      <div className="header-separator" />
       <Header />
 
-      {/* Full-width hero slideshow on the homepage */}
-      {isHome && (
-        <HeroSlideshow images={[hero1, hero2, hero3]}>
-          <div className="hero-overlay-container" style={{ padding: '20px 32px' }}>
-            <div className="hero-overlay-content" style={{ maxWidth: '600px' }}>
-              <h1 style={{ fontSize: '30px', lineHeight: '1.25', marginBottom: '10px', textShadow: '0 2px 6px rgba(0,0,0,0.45)' }}>
-                Compassionate healthcare — book your visit in just a few clicks
-              </h1>
-              <p style={{ fontSize: '14px', opacity: 0.92, lineHeight: '1.6', marginBottom: '18px' }}>
-                Highly qualified physicians, modern medical equipment, and the combined strengths of traditional and modern medicine. Schedule an appointment in a few simple steps.
-              </p>
-              <div className="hero-overlay-ctas" style={{ display: 'flex', gap: '10px' }}>
-                <button className="btn btn-primary" style={{ padding: '10px 20px' }} onClick={() => setShowBooking(true)}>
-                  Book Now
-                </button>
-                <a className="btn btn-ghost" href="/departments" style={{ color: '#ffffff', borderColor: 'rgba(255,255,255,0.7)', background: 'rgba(255,255,255,0.08)', padding: '10px 20px' }}>
-                  View Departments
-                </a>
-              </div>
-            </div>
-          </div>
-        </HeroSlideshow>
-      )}
-
       <LoginModal show={showLogin} onClose={() => setShowLogin(false)} />
-      <QuickBookingModal show={showBooking} onClose={() => setShowBooking(false)} />
+      <QuickBookingModal 
+        show={showBooking} 
+        onClose={() => {
+          setShowBooking(false);
+          setBookingPrefill({ doctorId: '', departmentId: '' });
+        }} 
+        initialDoctorId={bookingPrefill.doctorId}
+        initialDepartmentId={bookingPrefill.departmentId}
+      />
       <ChatbotWidget />
 
-      <main className="container">{children}</main>
+      <main className="container">
+        {/* Full-width hero slideshow on the homepage */}
+        {isHome && (
+          <HeroSlideshow images={[hero1, hero2, hero3]}>
+            <div className="hero-overlay-container" style={{ padding: '20px 32px' }}>
+              <div className="hero-overlay-content" style={{ maxWidth: '600px' }}>
+                <h1 style={{ fontSize: '30px', lineHeight: '1.25', marginBottom: '10px', textShadow: '0 2px 6px rgba(0,0,0,0.45)' }}>
+                  Compassionate healthcare — book your visit in just a few clicks
+                </h1>
+                <p style={{ fontSize: '14px', opacity: 0.92, lineHeight: '1.6', marginBottom: '18px' }}>
+                  Highly qualified physicians, modern medical equipment, and the combined strengths of traditional and modern medicine. Schedule an appointment in a few simple steps.
+                </p>
+                <div className="hero-overlay-ctas" style={{ display: 'flex', gap: '10px' }}>
+                  <button className="btn btn-primary" style={{ padding: '10px 20px' }} onClick={() => {
+                    setBookingPrefill({ doctorId: '', departmentId: '' });
+                    setShowBooking(true);
+                  }}>
+                    Book Now
+                  </button>
+                  <a className="btn btn-ghost" href="/departments" style={{ color: '#ffffff', borderColor: 'rgba(255,255,255,0.7)', background: 'rgba(255,255,255,0.08)', padding: '10px 20px' }}>
+                    View Departments
+                  </a>
+                </div>
+              </div>
+            </div>
+          </HeroSlideshow>
+        )}
+        {children}
+      </main>
 
       <footer className="site-footer">
         <div className="container site-footer-inner">

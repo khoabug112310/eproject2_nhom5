@@ -45,6 +45,13 @@ export const authAPI = {
     apiClient.post('/auth/logout'),
   impersonate: (userId) =>
     apiClient.post(`/auth/impersonate/${userId}`),
+  // New methods for password recovery
+  forgotPassword: (phone) =>
+    apiClient.post('/auth/forgotPassword', { phone }),
+  verifyOtp: (phone, code) =>
+    apiClient.post('/auth/verifyOtp', { phone, code }),
+  resetPassword: (phone, code, newPassword) =>
+    apiClient.post('/auth/resetPassword', { phone, code, newPassword }),
 };
 
 // Profiles API

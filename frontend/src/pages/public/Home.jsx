@@ -75,8 +75,7 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="app">
-      <main>
+    <div style={{ width: '100%', boxSizing: 'border-box' }}>
         {/* Trust Stats Bar */}
         <Hero />
 
@@ -130,20 +129,23 @@ export default function Home() {
                   Loading doctors...
                 </div>
               ) : doctors.length ? (
-                doctors.slice(0, 4).map((d, i) => (
-                  <DoctorCard
-                    key={i}
-                    {...d}
-                    onBook={() => handleBookDoctor(d)}
-                  />
-                ))
+                [...doctors]
+                  .sort((a, b) => (b.experienceYears || 0) - (a.experienceYears || 0))
+                  .slice(0, 4)
+                  .map((d, i) => (
+                    <DoctorCard
+                      key={i}
+                      {...d}
+                      onBook={() => handleBookDoctor(d)}
+                    />
+                  ))
               ) : (
                 <div style={{ padding: '24px', textAlign: 'center', width: '100%', gridColumn: '1/-1' }}>
                   No doctor information available
                 </div>
               )}
             </div>
-
+            
             {!loading && doctors.length > 4 && (
               <div style={{ display: 'flex', justifyContent: 'center', marginTop: '36px' }}>
                 <button
@@ -152,25 +154,25 @@ export default function Home() {
                     padding: '12px 28px',
                     fontSize: '14px',
                     fontWeight: '700',
-                    color: 'var(--color-primary, #3b82f6)',
+                    color: 'var(--color-primary, #2563eb)',
                     backgroundColor: 'var(--color-primary-light, #eff6ff)',
                     border: '1px solid transparent',
                     borderRadius: '12px',
                     cursor: 'pointer',
                     transition: 'all 0.25s ease',
-                    boxShadow: '0 4px 12px rgba(59, 130, 246, 0.06)',
+                    boxShadow: '0 4px 12px rgba(37, 99, 235, 0.06)',
                     outline: 'none'
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = 'var(--color-primary, #3b82f6)';
+                    e.currentTarget.style.backgroundColor = 'var(--color-primary, #2563eb)';
                     e.currentTarget.style.color = 'white';
-                    e.currentTarget.style.boxShadow = '0 6px 16px rgba(59, 130, 246, 0.15)';
+                    e.currentTarget.style.boxShadow = '0 6px 16px rgba(37, 99, 235, 0.15)';
                     e.currentTarget.style.transform = 'translateY(-2px)';
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.backgroundColor = 'var(--color-primary-light, #eff6ff)';
-                    e.currentTarget.style.color = 'var(--color-primary, #3b82f6)';
-                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.06)';
+                    e.currentTarget.style.color = 'var(--color-primary, #2563eb)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(37, 99, 235, 0.06)';
                     e.currentTarget.style.transform = 'translateY(0)';
                   }}
                 >
@@ -239,25 +241,105 @@ export default function Home() {
             />
           </div>
 
-          {/* News & Latest Posts Section */}
-          <div className="post-list">
-            {loading ? (
-              <div style={{ padding: '24px', textAlign: 'center', gridColumn: '1/-1', color: 'var(--color-text-muted)' }}>Loading medical news...</div>
-            ) : posts.length ? (
-              posts.slice(0, 3).map((p, i) => (
-                <PostCard
-                  key={i}
-                  title={p.title}
-                  excerpt={p.excerpt}
-                  date={p.publishedAt || p.date}
-                  thumbnail={p.thumbnail || p.thumbnailURL || p.imageUrl || p.image || POST_PLACEHOLDERS[i % POST_PLACEHOLDERS.length]}
-                  onRead={() => navigate(`/news?slug=${p.slug || p._id}`)}
-                />
-              ))
-            ) : (
-              <div style={{ padding: '24px', textAlign: 'center', gridColumn: '1/-1' }}>No news updates yet</div>
+          {/* News & Latest Posts Section - Enclosed in a beautiful matching container card */}
+          <section style={{
+            background: 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)',
+            border: '1px solid #e2e8f0',
+            borderRadius: '24px',
+            padding: '40px 32px',
+            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.02), 0 4px 6px -2px rgba(0, 0, 0, 0.01)',
+            marginBottom: '30px'
+          }}>
+            <div style={{ textAlign: 'center', marginBottom: '36px' }}>
+              <span style={{
+                fontSize: '11px',
+                fontWeight: '800',
+                color: 'var(--color-secondary, #0ea5e9)',
+                textTransform: 'uppercase',
+                letterSpacing: '2px',
+                backgroundColor: 'var(--color-secondary-light, #f0f9ff)',
+                padding: '5px 14px',
+                borderRadius: '50px',
+                display: 'inline-block',
+                boxShadow: '0 2px 4px rgba(14, 165, 233, 0.05)'
+              }}>Health & Updates</span>
+
+              <h2 style={{
+                fontSize: '32px',
+                fontWeight: '800',
+                color: '#1e293b',
+                margin: '12px 0 8px 0',
+                letterSpacing: '-0.5px'
+              }}>Latest Medical News</h2>
+
+              <p style={{
+                fontSize: '15px',
+                color: '#64748b',
+                maxWidth: '620px',
+                margin: '0 auto',
+                lineHeight: '1.6'
+              }}>
+                Stay updated with the latest medical insights, clinic news, and health tips from our expert medical specialists.
+              </p>
+            </div>
+
+            <div className="post-list">
+              {loading ? (
+                <div style={{ padding: '24px', textAlign: 'center', gridColumn: '1/-1', color: 'var(--color-text-muted)' }}>Loading medical news...</div>
+              ) : posts.length ? (
+                [...posts]
+                  .sort((a, b) => new Date(b.publishedAt || b.createdAt || b.date || 0) - new Date(a.publishedAt || a.createdAt || a.date || 0))
+                  .slice(0, 4)
+                  .map((p, i) => (
+                    <PostCard
+                      key={i}
+                      title={p.title}
+                      excerpt={p.excerpt}
+                      date={p.publishedAt || p.date}
+                      thumbnail={p.thumbnail || p.thumbnailURL || p.imageUrl || p.image || POST_PLACEHOLDERS[i % POST_PLACEHOLDERS.length]}
+                      onRead={() => navigate(`/news?slug=${p.slug || p._id}`)}
+                    />
+                  ))
+              ) : (
+                <div style={{ padding: '24px', textAlign: 'center', gridColumn: '1/-1' }}>No news updates yet</div>
+              )}
+            </div>
+
+            {!loading && posts.length > 4 && (
+              <div style={{ display: 'flex', justifyContent: 'center', marginTop: '36px' }}>
+                <button
+                  onClick={() => navigate('/news')}
+                  style={{
+                    padding: '12px 28px',
+                    fontSize: '14px',
+                    fontWeight: '700',
+                    color: 'var(--color-primary, #2563eb)',
+                    backgroundColor: 'var(--color-primary-light, #eff6ff)',
+                    border: '1px solid transparent',
+                    borderRadius: '12px',
+                    cursor: 'pointer',
+                    transition: 'all 0.25s ease',
+                    boxShadow: '0 4px 12px rgba(37, 99, 235, 0.06)',
+                    outline: 'none'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = 'var(--color-primary, #2563eb)';
+                    e.currentTarget.style.color = 'white';
+                    e.currentTarget.style.boxShadow = '0 6px 16px rgba(37, 99, 235, 0.15)';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'var(--color-primary-light, #eff6ff)';
+                    e.currentTarget.style.color = 'var(--color-primary, #2563eb)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(37, 99, 235, 0.06)';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }}
+                >
+                  View all news
+                </button>
+              </div>
             )}
-          </div>
+          </section>
 
         </div>
 
@@ -275,7 +357,6 @@ export default function Home() {
             ⚠️ {error}
           </div>
         )}
-      </main>
     </div>
   );
 }
