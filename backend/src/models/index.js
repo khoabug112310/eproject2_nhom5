@@ -17,4 +17,5 @@ module.exports = {
   Post: require('./Post'),
   Contact_Inquiry: require('./Contact_Inquiry'),
   ChatMessage: require('./ChatMessage'),
+  DoctorReview: require('./DoctorReview'),
 };

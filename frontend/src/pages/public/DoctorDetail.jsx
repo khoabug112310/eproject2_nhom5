@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { profilesAPI } from '../../services/api';
+import { profilesAPI, reviewAPI } from '../../services/api';
 
 export default function DoctorDetail() {
   const { id } = useParams();
@@ -9,6 +9,45 @@ export default function DoctorDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [imageError, setImageError] = useState(false);
+
+  // Reviews & ratings state
+  const [reviews, setReviews] = useState([]);
+  const [averageRating, setAverageRating] = useState(5.0);
+  const [ratingInput, setRatingInput] = useState(5);
+  const [commentInput, setCommentInput] = useState('');
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [reviewError, setReviewError] = useState('');
+  const [reviewSuccess, setReviewSuccess] = useState('');
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  const loadReviews = async () => {
+    try {
+      const res = await reviewAPI.getDoctorReviews(id);
+      if (res.data?.success && res.data?.data) {
+        const list = res.data.data;
+        setReviews(list);
+        if (list.length > 0) {
+          const sum = list.reduce((acc, r) => acc + r.rating, 0);
+          setAverageRating((sum / list.length).toFixed(1));
+        } else {
+          setAverageRating(5.0);
+        }
+      }
+    } catch (err) {
+      console.error('Error loading reviews:', err);
+    }
+  };
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    setIsLoggedIn(!!token);
+  }, []);
+
+  useEffect(() => {
+    if (id) {
+      loadReviews();
+    }
+  }, [id]);
 
   useEffect(() => {
     let mounted = true;
@@ -49,6 +88,40 @@ export default function DoctorDetail() {
         },
       })
     );
+  };
+
+  const handleReviewSubmit = async (e) => {
+    e.preventDefault();
+    setReviewError('');
+    setReviewSuccess('');
+    setSubmittingReview(true);
+
+    if (!commentInput.trim()) {
+      setReviewError('Vui lòng nhập nội dung đánh giá.');
+      setSubmittingReview(false);
+      return;
+    }
+
+    try {
+      const res = await reviewAPI.submitReview({
+        doctorId: id,
+        rating: ratingInput,
+        comment: commentInput.trim(),
+      });
+      if (res.data?.success) {
+        setReviewSuccess('Đăng đánh giá thành công!');
+        setCommentInput('');
+        setRatingInput(5);
+        loadReviews();
+      } else {
+        setReviewError(res.data?.message || 'Có lỗi xảy ra khi gửi đánh giá.');
+      }
+    } catch (err) {
+      console.error(err);
+      setReviewError(err.response?.data?.message || 'Không thể gửi đánh giá. Vui lòng thử lại sau.');
+    } finally {
+      setSubmittingReview(false);
+    }
   };
 
   const getInitials = (name) => {
@@ -574,7 +647,7 @@ export default function DoctorDetail() {
             {/* Verification & Review badge */}
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               <span className="rating-badge">
-                ⭐ 4.9 <span style={{ color: '#a16207', fontWeight: '500', fontSize: '12px' }}>(148 reviews)</span>
+                ⭐ {averageRating} <span style={{ color: '#a16207', fontWeight: '500', fontSize: '12px' }}>({reviews.length} reviews)</span>
               </span>
               <span style={{
                 display: 'inline-flex',
@@ -737,41 +810,156 @@ export default function DoctorDetail() {
             </div>
           </div>
 
-          {/* Patient Reviews section (Mocked) */}
+          {/* Patient Reviews section (Dynamic) */}
           <div className="premium-card">
             <h3 className="card-section-title">
-              <span className="card-section-title-icon">⭐️</span> Recent Patient Experiences
+              <span className="card-section-title-icon">⭐️</span> Patient Experiences ({reviews.length})
             </h3>
-            <div className="testimonial-grid">
+            
+            <div className="testimonial-grid" style={{ marginBottom: '30px' }}>
+              {reviews.length > 0 ? (
+                reviews.map((rev) => (
+                  <div key={rev._id} className="testimonial-card">
+                    <div className="testimonial-author">
+                      <div className="author-avatar">{getInitials(rev.patientName)}</div>
+                      <div className="author-info">
+                        <span className="author-name">{rev.patientName}</span>
+                        <div className="testimonial-stars" style={{ color: '#eab308' }}>
+                          {'★'.repeat(rev.rating)}{'☆'.repeat(5 - rev.rating)}
+                        </div>
+                      </div>
+                      <span style={{ marginLeft: 'auto', fontSize: '12px', color: '#94a3b8' }}>
+                        {new Date(rev.createdAt).toLocaleDateString('vi-VN')}
+                      </span>
+                    </div>
+                    <div className="testimonial-content">
+                      "{rev.comment}"
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p style={{ color: '#64748b', fontSize: '14.5px', fontStyle: 'italic', textAlign: 'center', margin: '20px 0' }}>
+                  Chưa có đánh giá nào cho bác sĩ này. Hãy là người đầu tiên đánh giá!
+                </p>
+              )}
+            </div>
+
+            {/* Write a Review Section */}
+            <div style={{ borderTop: '1.5px solid #edf2f7', paddingTop: '30px' }}>
+              <h4 style={{ fontSize: '17px', fontWeight: '800', color: '#0f172a', marginBottom: '16px' }}>
+                Để lại đánh giá của bạn
+              </h4>
               
-              <div className="testimonial-card">
-                <div className="testimonial-author">
-                  <div className="author-avatar">MT</div>
-                  <div className="author-info">
-                    <span className="author-name">Minh Tri</span>
-                    <div className="testimonial-stars">★★★★★</div>
-                  </div>
-                  <span style={{ marginLeft: 'auto', fontSize: '12px', color: '#94a3b8' }}>2 days ago</span>
-                </div>
-                <div className="testimonial-content">
-                  "The doctor was extremely thorough, explained my condition very clearly, and prescribed an effective treatment plan. The bedside manner is top-notch."
-                </div>
-              </div>
+              {isLoggedIn ? (
+                <form onSubmit={handleReviewSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  {reviewSuccess && (
+                    <div style={{ padding: '12px 16px', backgroundColor: '#f0fdf4', color: '#166534', border: '1px solid #bbf7d0', borderRadius: '12px', fontSize: '14px', fontWeight: '600' }}>
+                      ✓ {reviewSuccess}
+                    </div>
+                  )}
+                  {reviewError && (
+                    <div style={{ padding: '12px 16px', backgroundColor: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca', borderRadius: '12px', fontSize: '14px', fontWeight: '600' }}>
+                      ⚠️ {reviewError}
+                    </div>
+                  )}
 
-              <div className="testimonial-card">
-                <div className="testimonial-author">
-                  <div className="author-avatar">HL</div>
-                  <div className="author-info">
-                    <span className="author-name">Hoang Lan</span>
-                    <div className="testimonial-stars">★★★★★</div>
+                  {/* Stars input */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <span style={{ fontSize: '14px', color: '#475569', fontWeight: '600' }}>Chọn số sao:</span>
+                    <div style={{ display: 'flex', gap: '4px' }}>
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <button
+                          key={star}
+                          type="button"
+                          onClick={() => setRatingInput(star)}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            fontSize: '24px',
+                            padding: '0 2px',
+                            color: star <= ratingInput ? '#eab308' : '#cbd5e1',
+                            transition: 'transform 0.1s'
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.15)'}
+                          onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                        >
+                          ★
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                  <span style={{ marginLeft: 'auto', fontSize: '12px', color: '#94a3b8' }}>1 week ago</span>
-                </div>
-                <div className="testimonial-content">
-                  "Very dedicated and empathetic doctor. The clinic is modern, clean, and the check-up process was highly organized and professional. Strongly recommend!"
-                </div>
-              </div>
 
+                  {/* Comment input */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '13.5px', color: '#475569', fontWeight: '600' }}>Nội dung bình luận:</label>
+                    <textarea
+                      rows={4}
+                      value={commentInput}
+                      onChange={(e) => setCommentInput(e.target.value)}
+                      placeholder="Hãy chia sẻ trải nghiệm khám bệnh thực tế của bạn với bác sĩ này..."
+                      style={{
+                        width: '100%',
+                        padding: '12px 16px',
+                        border: '1.5px solid #e2e8f0',
+                        borderRadius: '12px',
+                        fontSize: '14px',
+                        color: '#0f172a',
+                        fontFamily: 'inherit',
+                        outline: 'none',
+                        boxSizing: 'border-box',
+                        resize: 'vertical',
+                        transition: 'border-color 0.2s'
+                      }}
+                      onFocus={(e) => e.target.style.borderColor = 'var(--color-primary, #2563eb)'}
+                      onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
+                      required
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={submittingReview}
+                    className="primary-book-btn"
+                    style={{ width: 'auto', padding: '12px 28px', alignSelf: 'flex-start', fontSize: '14px', borderRadius: '12px' }}
+                  >
+                    {submittingReview ? (
+                      <span className="btn-spinner" style={{ width: '12px', height: '12px' }}></span>
+                    ) : 'Gửi đánh giá'}
+                  </button>
+                </form>
+              ) : (
+                <div style={{
+                  padding: '24px',
+                  backgroundColor: '#f8fafc',
+                  border: '1.5px dashed #cbd5e1',
+                  borderRadius: '16px',
+                  textAlign: 'center'
+                }}>
+                  <p style={{ color: '#475569', fontSize: '14.5px', margin: '0 0 16px 0', fontWeight: '600' }}>
+                    Bạn cần đăng nhập để gửi bình luận và đánh giá cho bác sĩ này.
+                  </p>
+                  <button
+                    onClick={() => window.dispatchEvent(new CustomEvent('open-login-modal'))}
+                    style={{
+                      padding: '10px 20px',
+                      fontSize: '13.5px',
+                      fontWeight: '700',
+                      borderRadius: '10px',
+                      border: 'none',
+                      background: 'var(--color-primary, #2563eb)',
+                      color: 'white',
+                      cursor: 'pointer',
+                      boxShadow: '0 2px 8px rgba(37, 99, 235, 0.15)',
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.filter = 'brightness(1.05)'}
+                    onMouseLeave={(e) => e.currentTarget.style.filter = 'none'}
+                  >
+                    Đăng nhập ngay
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 

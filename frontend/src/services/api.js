@@ -162,4 +162,12 @@ export const bookingAPI = {
     apiClient.post('/booking', data),
 };
 
+// Reviews API
+export const reviewAPI = {
+  getDoctorReviews: (doctorId) =>
+    apiClient.get(`/reviews/doctor/${doctorId}`),
+  submitReview: (data) =>
+    apiClient.post('/reviews', data),
+};
+
 export default apiClient;

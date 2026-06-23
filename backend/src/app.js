@@ -13,6 +13,8 @@ const bookingRoutes = require('./modules/booking/routes');
 const clinicalRoutes = require('./modules/clinical/routes');
 const billingRoutes = require('./modules/billing/routes');
 const cmsRoutes = require('./modules/cms/routes');
+const reviewRoutes = require('./modules/review/routes');
+
 
 const path = require('path');
 
@@ -43,6 +45,8 @@ app.use('/api/booking', bookingRoutes);
 app.use('/api/clinical', clinicalRoutes);
 app.use('/api/billing', billingRoutes);
 app.use('/api/cms', cmsRoutes);
+app.use('/api/reviews', reviewRoutes);
+
 
 // 404 Handler
 app.use((req, res) => {
