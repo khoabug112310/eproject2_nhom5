@@ -75,14 +75,16 @@ export default function DoctorSchedule() {
   
   const [showServicesModal, setShowServicesModal] = useState(false);
   let availableServices = [
+    'Four-Diagnostic Methods',
+    'Meridian Electrodermal Diagnosis',
+    'Standard Acupuncture',
     'Electro-acupuncture',
-    'Pharmacopuncture',
+    'Pharmacopuncture (Acupoint Injection)',
+    'Auricular Acupuncture',
     'Catgut Embedding',
-    'Moxibustion',
-    'Medical Massage & Acupressure',
+    'Tui-na (Acupressure & Massage)',
     'Cupping Therapy',
-    'Infrared Therapy',
-    'Herbal Steam Therapy'
+    'Moxibustion / Herbal Poultice'
   ];
 
   const spec = doctor?.specialization?.toLowerCase() || '';
@@ -117,6 +119,69 @@ export default function DoctorSchedule() {
       'Endocrinology',
       'Nephrology & Urology',
       'Cardiology'
+    ];
+  } else if (spec.includes('obstetrics') || spec.includes('gynecology') || spec.includes('sản phụ khoa')) {
+    availableServices = [
+      'Routine Antenatal Care',
+      'Advanced Obstetric Ultrasound',
+      'Nuchal Translucency (NT) Ultrasound',
+      'Double / Triple Test',
+      'Non-Invasive Prenatal Testing (NIPT)',
+      'Obstetric Non-Stress Test (NST)',
+      'General Gynecological Exam',
+      'Pelvic Ultrasound',
+      'Breast Ultrasound',
+      'Pap Smear / ThinPrep Cytology',
+      'HPV DNA Testing',
+      'Colposcopy',
+      'IUD Insertion / Removal',
+      'Contraceptive Implant Insertion / Removal',
+      'Cervical Cautery / Laser / Cryotherapy'
+    ];
+  } else if (spec.includes('otorhinolaryngology') || spec.includes('ent') || spec.includes('tai mũi họng')) {
+    availableServices = [
+      'ENT Endoscopy',
+      'Pure Tone Audiometry',
+      'Tympanometry & Acoustic Reflex',
+      'Otoacoustic Emissions (OAE)',
+      'Endoscopic Ear Foreign Body Removal',
+      'Microscopic Ear Cleaning & Medication',
+      'Myringotomy with Grommet Insertion',
+      'Proetz Sinus Displacement Therapy',
+      'Endoscopic Nasal Suction & Cleaning',
+      'Epistaxis Packing / Cautery',
+      'Endoscopic Nasal Foreign Body Removal'
+    ];
+  } else if (spec.includes('odonto-stomatology') || spec.includes('dentistry') || spec.includes('răng hàm mặt')) {
+    availableServices = [
+      'Comprehensive Dental Exam',
+      'Periapical Radiography',
+      'Panorama Radiography',
+      'Cone Beam CT (CBCT)',
+      'Scaling and Polishing',
+      'Periodontal Treatment',
+      'Composite Resin Restoration',
+      'Simple / Primary Tooth Extraction',
+      'Endodontic Treatment',
+      'Surgical Wisdom Tooth Extraction',
+      'Apicoectomy'
+    ];
+  } else if (spec.includes('dermatology') || spec.includes('da liễu')) {
+    availableServices = [
+      'Dermoscopy',
+      'Fungal/Demodex Direct Smear',
+      'Patch Test',
+      'Diagnostic Skin Biopsy',
+      'Skin Curettage',
+      'Incision & Drainage (I&D)',
+      'Intralesional Injection',
+      'Cryotherapy',
+      'Electrocautery / CO2 Laser',
+      'Chemical Peel',
+      'Pigmentation Laser Therapy',
+      'Microneedling',
+      'Filler Injection',
+      'Botox Injection'
     ];
   }
 
