@@ -74,7 +74,7 @@ export default function DoctorSchedule() {
   });
   
   const [showServicesModal, setShowServicesModal] = useState(false);
-  const availableServices = [
+  let availableServices = [
     'Electro-acupuncture',
     'Pharmacopuncture',
     'Catgut Embedding',
@@ -84,6 +84,41 @@ export default function DoctorSchedule() {
     'Infrared Therapy',
     'Herbal Steam Therapy'
   ];
+
+  const spec = doctor?.specialization?.toLowerCase() || '';
+
+  if (spec.includes('cardiology') || spec.includes('tim mạch') || spec.includes('nội tim mạch')) {
+    availableServices = [
+      'Cardiac Catheterization',
+      'Coronary Angiography',
+      'Stent Placement',
+      'Ventricular Septal Defect Closure',
+      'Atrial Septal Defect Closure',
+      'Patent Ductus Arteriosus Closure',
+      'Aortic Coarctation Angioplasty',
+      'Thoracic/Abdominal & Peripheral Stenting'
+    ];
+  } else if (spec.includes('pediatric')) {
+    availableServices = [
+      'Well-child Care / Vaccination Counseling',
+      'Vaccination',
+      'Odonto-Stomatology',
+      'Ophthalmology',
+      'Speech Therapy',
+      'Nutrition Counseling',
+      'Psychology Counseling'
+    ];
+  } else if (spec.includes('general medicine') || spec.includes('nội tổng hợp')) {
+    availableServices = [
+      'Neurology',
+      'Gastroenterology',
+      'Pulmonology',
+      'Dermatology',
+      'Endocrinology',
+      'Nephrology & Urology',
+      'Cardiology'
+    ];
+  }
 
   // Active prescription state
   const [activeRecordForPrescription, setActiveRecordForPrescription] = useState(null);
