@@ -259,26 +259,7 @@ export default function BookingForm({ onBooked }) {
             Đang kiểm tra lịch làm việc của bác sĩ...
           </div>
         )}
-        {doctorSchedules.length > 0 && (
-          <div style={{ 
-            fontSize: '13px', 
-            backgroundColor: 'var(--color-primary-light, #f0fdfa)', 
-            color: 'var(--color-primary-dark, #0f766e)', 
-            border: '1px solid var(--color-primary-soft, #dbeafe)',
-            padding: '10px 14px',
-            borderRadius: '8px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            margin: '8px 0'
-          }}>
-            <span>📅</span>
-            <span>
-              <strong>Lịch trực bác sĩ:</strong>{' '}
-              {doctorSchedules.map((s, idx) => `Ca ${idx + 1} (${s.startTime} - ${s.endTime})`).join(', ')}
-            </span>
-          </div>
-        )}
+
         {scheduleError && (
           <div style={{ 
             fontSize: '13px', 
