@@ -69,6 +69,9 @@ export const profilesAPI = {
   deleteUserAdmin: (id) => apiClient.delete(`/profiles/admin/users/${id}`),
   deleteAppointmentAdmin: (id) => apiClient.delete(`/profiles/admin/appointments/${id}`),
   updateTimelineStepAdmin: (data) => apiClient.put('/profiles/admin/timeline/step', data),
+  getNotifications: () => apiClient.get('/profiles/notifications'),
+  markNotificationRead: (id) => apiClient.put(`/profiles/notifications/${id}/read`),
+  markAllNotificationsRead: () => apiClient.put('/profiles/notifications/read-all'),
 };
 
 // Scheduling API
@@ -81,8 +84,13 @@ export const schedulingAPI = {
     apiClient.put(`/scheduling/departments/${id}`, data),
   deleteDepartment: (id) =>
     apiClient.delete(`/scheduling/departments/${id}`),
-  getSchedules: (doctorId, date) =>
-    apiClient.get(`/scheduling/schedules?doctor=${doctorId}${date ? `&date=${date}` : ''}`),
+  getSchedules: (doctorId, date) => {
+    const params = [];
+    if (doctorId && doctorId !== 'undefined') params.push(`doctor=${doctorId}`);
+    if (date) params.push(`date=${date}`);
+    const query = params.length ? '?' + params.join('&') : '';
+    return apiClient.get(`/scheduling/schedules${query}`);
+  },
   getAllDoctorSchedules: () =>
     apiClient.get('/scheduling/doctor-schedules'),
   createDoctorSchedule: (data) =>
@@ -149,6 +157,8 @@ export const cmsAPI = {
     apiClient.get('/cms/contact-inquiries'),
   resolveContactInquiry: (id) =>
     apiClient.put(`/cms/contact-inquiries/${id}/resolve`),
+  replyContactInquiry: (id, data) =>
+    apiClient.post(`/cms/contact-inquiries/${id}/reply`, data),
   uploadImage: (image) =>
     apiClient.post('/cms/upload', { image }),
 };

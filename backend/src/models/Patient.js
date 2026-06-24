@@ -30,14 +30,28 @@ const patientSchema = new mongoose.Schema({
   },
   category: {
     type: String,
-    enum: ['Child', 'Adult'],
+    enum: ['Child', 'Adult', 'Elderly'],
     default: 'Adult',
+  },
+  birthCertificate: {
+    type: String,
+    sparse: true,
+  },
+  birthCertificateImg: {
+    type: String,
+  },
+  personalId: {
+    type: String,
+    sparse: true,
   },
   identityCard: {
     type: String,
     unique: true,
     sparse: true,
     note: 'Số CCCD/CMND - Rất quan trọng ở VN',
+  },
+  identityCardImg: {
+    type: String,
   },
   phoneNumber: {
     type: String,
@@ -62,5 +76,26 @@ const patientSchema = new mongoose.Schema({
     default: Date.now,
   },
 }, { timestamps: true });
+
+// Auto set category based on date of birth before save
+patientSchema.pre('save', function(next) {
+  if (this.dateOfBirth) {
+    const birthDate = new Date(this.dateOfBirth);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const m = today.getMonth() - birthDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    if (age < 15) {
+      this.category = 'Child';
+    } else if (age >= 60) {
+      this.category = 'Elderly';
+    } else {
+      this.category = 'Adult';
+    }
+  }
+  next();
+});
 
 module.exports = mongoose.model('Patient', patientSchema);

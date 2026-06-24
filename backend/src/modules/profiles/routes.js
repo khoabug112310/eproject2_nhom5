@@ -23,6 +23,9 @@ const {
   updateSubAccount,
   deleteSubAccount,
   createPatientByStaff,
+  getMyNotifications,
+  markNotificationRead,
+  markAllNotificationsRead,
 } = require('./controller');
 
 const router = express.Router();
@@ -58,5 +61,10 @@ router.post('/patients', authenticateToken, authorizeRole(USER_ROLE.STAFF, USER_
 
 // Authenticated
 router.put('/profile/:id', authenticateToken, updateUser);
+
+// Notifications
+router.get('/notifications', authenticateToken, getMyNotifications);
+router.put('/notifications/read-all', authenticateToken, markAllNotificationsRead);
+router.put('/notifications/:id/read', authenticateToken, markNotificationRead);
 
 module.exports = router;

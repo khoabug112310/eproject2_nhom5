@@ -1,4 +1,5 @@
 import React from 'react';
+import NotificationBell from './NotificationBell';
 
 const roleLabels = {
   patient: 'Patient',
@@ -9,10 +10,7 @@ const roleLabels = {
 };
 
 const navByRole = {
-  patient: [
-    // { label: 'Dashboard', href: '/patient/dashboard' },
-    // { label: 'Home', href: '/' },
-  ],
+  patient: [],
   doctor: [
     { label: 'Dashboard', href: '/doctor/schedule' },
     { label: 'Home', href: '/' },
@@ -53,7 +51,7 @@ export default function RoleTopNav({ role }) {
   return (
     <header className="role-topnav">
       <div className="role-topnav__brand">
-        <div className="role-topnav__title">Hopsontai General Clinic</div>
+        <a href="/" className="role-topnav__title" style={{ textDecoration: 'none', color: 'inherit' }}>Hopsontai General Clinic</a>
         <div className="role-topnav__subtitle">{roleLabels[role] || 'System'}</div>
       </div>
 
@@ -64,6 +62,7 @@ export default function RoleTopNav({ role }) {
       </nav>
 
       <div className="role-topnav__user">
+        {(role === 'patient' || role === 'staff') && <NotificationBell />}
         <div className="role-topnav__avatar" aria-hidden="true">{initials || 'U'}</div>
         <span className="role-topnav__name">{displayName}</span>
         <span className="role-topnav__role">{roleLabels[role] || 'System'}</span>

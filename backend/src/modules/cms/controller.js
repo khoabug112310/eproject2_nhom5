@@ -26,7 +26,7 @@ const getPosts = async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 50;
     let q = { status: POST_STATUS.PUBLISHED };
-    
+
     // Check if admin is requesting (we will mount a separate admin endpoint or check user role if authenticated)
     if (req.user && req.user.role === 'admin') {
       q = {};
@@ -161,26 +161,26 @@ const uploadImage = async (req, res) => {
   try {
     const { image } = req.body;
     if (!image) return res.status(400).json({ success: false, message: 'base64 image data is required' });
-    
+
     const matches = image.match(/^data:image\/([A-Za-z-+\/]+);base64,(.+)$/);
     if (!matches || matches.length !== 3) {
       return res.status(400).json({ success: false, message: 'Invalid image format' });
     }
-    
+
     const ext = matches[1] === 'jpeg' ? 'jpg' : matches[1];
     const buffer = Buffer.from(matches[2], 'base64');
     const filename = `img_${Date.now()}.${ext}`;
     const uploadDir = path.join(__dirname, '../../../uploads');
-    
+
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
-    
+
     fs.writeFileSync(path.join(uploadDir, filename), buffer);
-    
+
     const config = require('../../config/env');
     const imageUrl = `http://localhost:${config.PORT}/uploads/${filename}`;
-    
+
     const { success: ok } = require('../../utils/response');
     return ok(res, { url: imageUrl }, 'Image uploaded successfully');
   } catch (err) {
@@ -216,4 +216,57 @@ const resolveContactInquiry = async (req, res) => {
   }
 };
 
-module.exports = { getPosts, createPost, updatePost, deletePost, getContactInquiries, createContactInquiry, uploadImage, resolveContactInquiry };
+const replyContactInquiry = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { replyMessage } = req.body;
+
+    if (!replyMessage || !replyMessage.trim()) {
+      return res.status(400).json({ success: false, message: 'Reply message is required' });
+    }
+
+    const inquiry = await Contact_Inquiry.findById(id);
+    if (!inquiry) {
+      return res.status(404).json({ success: false, message: 'Inquiry not found' });
+    }
+
+    if (!inquiry.senderEmail) {
+      return res.status(400).json({ success: false, message: 'Inquiry does not have a registered email address' });
+    }
+
+    // Try sending email first before changing database status
+    const { sendReplyEmail } = require('../../utils/emailHelper');
+    await sendReplyEmail(inquiry.senderEmail, inquiry.senderName, inquiry.message, replyMessage.trim());
+
+    // Resolve the inquiry in DB
+    const staff = await Staff.findOne({ userId: req.user.id });
+    inquiry.isResolved = true;
+    inquiry.replyMessage = replyMessage.trim();
+    inquiry.repliedAt = new Date();
+    if (staff) {
+      inquiry.handledBy = staff._id;
+    }
+    await inquiry.save();
+
+    const populatedInquiry = await Contact_Inquiry.findById(id).populate('handledBy');
+
+    const { success: ok } = require('../../utils/response');
+    return ok(res, populatedInquiry, 'Reply sent and inquiry marked as resolved');
+  } catch (err) {
+    console.error('replyContactInquiry error', err);
+    const { fail } = require('../../utils/response');
+    return fail(res, 'Error sending reply and resolving inquiry', 500, err.message);
+  }
+};
+
+module.exports = { 
+  getPosts, 
+  createPost, 
+  updatePost, 
+  deletePost, 
+  getContactInquiries, 
+  createContactInquiry, 
+  uploadImage, 
+  resolveContactInquiry,
+  replyContactInquiry
+};

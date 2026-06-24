@@ -183,6 +183,26 @@ const bookAppointment = async (req, res) => {
       status: APPOINTMENT_STATUS.PENDING,
     });
 
+    try {
+      const { notifyPatient, notifyStaff } = require('../../utils/notificationHelper');
+      const dateStr = dateOnly.toISOString().split('T')[0];
+      const patientObj = await Patient.findById(patientId);
+      const patientName = patientObj ? patientObj.fullName : 'Guest';
+
+      await notifyPatient(
+        patientId,
+        'Appointment Request Pending',
+        `Your booking request for ${dateStr} at ${requestedTime} is pending confirmation.`
+      );
+
+      await notifyStaff(
+        'New Appointment Request',
+        `Patient ${patientName} has requested an appointment on ${dateStr} at ${requestedTime}.`
+      );
+    } catch (notifErr) {
+      console.error('Error sending booking notifications:', notifErr);
+    }
+
     const { success: ok } = require('../../utils/response');
     return ok(res, appt, 'Appointment booked successfully', 201);
   } catch (err) {
@@ -256,20 +276,31 @@ const getAppointments = async (req, res) => {
 const updateAppointmentStatus = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, attendance } = req.body;
-    if (!status && !attendance) return res.status(400).json({ success: false, message: 'status or attendance is required' });
+    const { status, attendance, requestedDate, requestedTime, scheduleId, doctorId } = req.body;
+    if (!status && !attendance && !requestedDate && !requestedTime && !scheduleId && !doctorId) {
+      return res.status(400).json({ success: false, message: 'status, attendance, requestedDate, requestedTime, scheduleId or doctorId is required' });
+    }
 
     const appt = await Appointment.findById(id);
     if (!appt) return res.status(404).json({ success: false, message: 'Appointment not found' });
 
     const oldStatus = appt.status;
+    const oldScheduleId = appt.scheduleId;
+    const oldDoctorId = appt.doctorId;
     const { APPOINTMENT_STATUS, INVOICE_TYPE, INVOICE_STATUS } = require('../../constants/enums');
 
-    // Detect whether doctor is being changed in this update
-    const newDoctorId = req.body.doctorId || appt.doctorId;
-    if (req.body.doctorId) {
-      appt.doctorId = req.body.doctorId;
+    // Update fields if provided
+    if (requestedDate) {
+      appt.requestedDate = new Date(requestedDate);
     }
+    if (requestedTime) {
+      appt.requestedTime = requestedTime;
+    }
+    if (doctorId) {
+      appt.doctorId = doctorId;
+    }
+
+    const newDoctorId = appt.doctorId;
 
     const timeToMinutes = (time) => {
       if (!time) return null;
@@ -284,39 +315,54 @@ const updateAppointmentStatus = async (req, res) => {
       return minutes !== null && start !== null && end !== null && minutes >= start && minutes <= end;
     };
 
-    // If confirming, ensure schedule capacity
-    if (oldStatus !== APPOINTMENT_STATUS.CONFIRMED && status === APPOINTMENT_STATUS.CONFIRMED) {
+    const targetStatus = status || oldStatus;
+
+    // If confirming or reassigned while confirmed, ensure schedule capacity
+    if (targetStatus === APPOINTMENT_STATUS.CONFIRMED) {
       const dateOnly = new Date(appt.requestedDate);
       dateOnly.setHours(0, 0, 0, 0);
 
-      // try to find schedule for the target doctor
-      let schedule = null;
-      if (appt.scheduleId) {
-        const existingSchedule = await Doctor_Schedule.findById(appt.scheduleId);
-        if (
-          existingSchedule &&
-          String(existingSchedule.doctorId) === String(newDoctorId) &&
-          new Date(existingSchedule.workDate).toISOString().split('T')[0] === dateOnly.toISOString().split('T')[0]
-        ) {
-          schedule = existingSchedule;
-        }
-      }
-      if (!schedule) {
-        schedule = await Doctor_Schedule.findOne({ doctorId: newDoctorId, workDate: dateOnly });
-      }
+      const scheduleChanged = (status && oldStatus !== APPOINTMENT_STATUS.CONFIRMED) || 
+                              (scheduleId && String(scheduleId) !== String(oldScheduleId)) ||
+                              (requestedDate && new Date(requestedDate).getTime() !== new Date(appt.requestedDate).getTime()) ||
+                              (doctorId && String(doctorId) !== String(oldDoctorId));
 
-      if (schedule) {
-        if (!isWithinSchedule(appt.requestedTime, schedule.startTime, schedule.endTime)) {
-          return res.status(409).json({ success: false, message: 'The requested time is outside this work shift.' });
+      if (scheduleChanged) {
+        let schedule = null;
+        if (scheduleId) {
+          schedule = await Doctor_Schedule.findById(scheduleId);
+        } else {
+          schedule = await Doctor_Schedule.findOne({ doctorId: newDoctorId, workDate: dateOnly });
         }
 
-        if (typeof schedule.currentBooked !== 'number') schedule.currentBooked = 0;
-        if (schedule.maxPatients && schedule.currentBooked >= schedule.maxPatients) {
-          return res.status(409).json({ success: false, message: 'This shift is full; no more appointments can be confirmed.' });
+        if (schedule) {
+          if (!isWithinSchedule(appt.requestedTime, schedule.startTime, schedule.endTime)) {
+            return res.status(409).json({ success: false, message: 'The requested time is outside this work shift.' });
+          }
+
+          if (typeof schedule.currentBooked !== 'number') schedule.currentBooked = 0;
+
+          const isSameSchedule = oldScheduleId && String(oldScheduleId) === String(schedule._id) && oldStatus === APPOINTMENT_STATUS.CONFIRMED;
+          if (!isSameSchedule && schedule.maxPatients && schedule.currentBooked >= schedule.maxPatients) {
+            return res.status(409).json({ success: false, message: 'This shift is full; no more appointments can be confirmed.' });
+          }
+
+          // Decrement old schedule if already confirmed
+          if (oldStatus === APPOINTMENT_STATUS.CONFIRMED && oldScheduleId) {
+            const oldSchedule = await Doctor_Schedule.findById(oldScheduleId);
+            if (oldSchedule && typeof oldSchedule.currentBooked === 'number' && oldSchedule.currentBooked > 0) {
+              oldSchedule.currentBooked = Math.max(0, oldSchedule.currentBooked - 1);
+              await oldSchedule.save();
+            }
+          }
+
+          // Increment new schedule
+          schedule.currentBooked = (schedule.currentBooked || 0) + 1;
+          await schedule.save();
+          appt.scheduleId = schedule._id;
+        } else {
+          return res.status(409).json({ success: false, message: 'The selected doctor has no working schedule shift on this day.' });
         }
-        schedule.currentBooked = (schedule.currentBooked || 0) + 1;
-        await schedule.save();
-        appt.scheduleId = schedule._id;
       }
 
       // Auto-create Consultation Invoice (Unpaid) if it doesn't exist
@@ -391,6 +437,42 @@ const updateAppointmentStatus = async (req, res) => {
     if (status) appt.status = status;
     if (req.user && (req.user.id || req.user._id)) appt.confirmedBy = req.user.id || req.user._id;
     await appt.save();
+
+    // Send notifications if status changed
+    if (status && status !== oldStatus) {
+      try {
+        const { notifyPatient, notifyStaff } = require('../../utils/notificationHelper');
+        const dateStr = new Date(appt.requestedDate).toISOString().split('T')[0];
+        const patientObj = await Patient.findById(appt.patientId);
+        const patientName = patientObj ? patientObj.fullName : 'Guest';
+
+        if (status === APPOINTMENT_STATUS.CONFIRMED) {
+          await notifyPatient(
+            appt.patientId,
+            'Appointment Confirmed',
+            `Your appointment on ${dateStr} at ${appt.requestedTime} has been confirmed.`
+          );
+        } else if (status === APPOINTMENT_STATUS.CANCELED) {
+          await notifyPatient(
+            appt.patientId,
+            'Appointment Cancelled',
+            `Your appointment on ${dateStr} at ${appt.requestedTime} has been cancelled.`
+          );
+          await notifyStaff(
+            'Appointment Cancelled',
+            `Patient ${patientName} cancelled their appointment for ${dateStr} at ${appt.requestedTime}.`
+          );
+        } else if (status === APPOINTMENT_STATUS.COMPLETED) {
+          await notifyPatient(
+            appt.patientId,
+            'Appointment Completed',
+            `Thank you for your visit! Your appointment on ${dateStr} at ${appt.requestedTime} is completed.`
+          );
+        }
+      } catch (notifErr) {
+        console.error('Error sending status update notifications:', notifErr);
+      }
+    }
 
     const { success: ok } = require('../../utils/response');
     return ok(res, appt, 'Appointment status updated successfully');

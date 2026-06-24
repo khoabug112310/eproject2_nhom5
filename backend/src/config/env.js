@@ -21,4 +21,9 @@ module.exports = {
   
   // Gemini API Key
   GEMINI_API_KEY: process.env.GEMINI_API_KEY || '',
+
+  // Email SMTP Settings
+  SMTP_EMAIL: process.env.SMTP_EMAIL || 'dkhoa410426@gmail.com',
+  SMTP_PASSWORD: process.env.SMTP_PASSWORD || 'prys rjdd rbia pzec',
 };
+

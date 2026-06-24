@@ -2,25 +2,34 @@ import React, { useState, useEffect } from 'react';
 import { schedulingAPI, clinicalAPI } from '../services/api';
 
 export default function DoctorScheduleModal({ appointment, onClose, onConfirm, isLoading }) {
-  const [selectedDoctorId, setSelectedDoctorId] = useState(appointment?.doctorId?._id);
   const [doctors, setDoctors] = useState([]);
   const [schedules, setSchedules] = useState([]);
   const [loadingSchedules, setLoadingSchedules] = useState(false);
   const [error, setError] = useState('');
 
-  // Load doctors from the same department on mount
+  // Form states for reassigning
+  const [checkDate, setCheckDate] = useState(
+    appointment?.requestedDate
+      ? new Date(appointment.requestedDate).toISOString().split('T')[0]
+      : new Date().toISOString().split('T')[0]
+  );
+  const [filterDoctorId, setFilterDoctorId] = useState('');
+  const [selectedScheduleId, setSelectedScheduleId] = useState('');
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState(appointment?.requestedTime || '08:00 - 09:00');
+
+  // Load doctors from same department on mount
   useEffect(() => {
     if (appointment?.departmentId?._id) {
       fetchDoctors();
     }
   }, [appointment]);
 
-  // Load schedules for the selected doctor whenever it changes
+  // Load schedules whenever checkDate changes
   useEffect(() => {
-    if (selectedDoctorId && appointment?.requestedDate) {
-      fetchSchedule(selectedDoctorId);
+    if (checkDate) {
+      fetchSchedules();
     }
-  }, [selectedDoctorId, appointment?.requestedDate]);
+  }, [checkDate]);
 
   const fetchDoctors = async () => {
     try {
@@ -31,177 +40,187 @@ export default function DoctorScheduleModal({ appointment, onClose, onConfirm, i
       setDoctors(res.data.data || []);
     } catch (err) {
       console.error('Error fetching doctors:', err);
-      setError('Error loading the doctor list');
+      setError('Error loading the doctor list.');
     }
   };
 
-  const fetchSchedule = async (doctorId) => {
+  const fetchSchedules = async () => {
     try {
       setLoadingSchedules(true);
       setError('');
-      const dateStr = new Date(appointment.requestedDate).toISOString().split('T')[0];
-      const res = await schedulingAPI.getSchedules(doctorId, dateStr);
+      // Fetch all schedules for this date
+      const res = await schedulingAPI.getSchedules(undefined, checkDate);
       setSchedules(res.data.data || []);
+      // Reset selected schedule if date changes
+      setSelectedScheduleId('');
     } catch (err) {
-      console.error('Error fetching schedule:', err);
-      setError("Error loading the doctor's schedule");
+      console.error('Error fetching schedules:', err);
+      setError('Error loading schedules for the selected date.');
     } finally {
       setLoadingSchedules(false);
     }
   };
 
-  const getCurrentDoctorSchedule = () => {
-    if (!appointment?.doctorId?._id) return null;
-    const dateStr = new Date(appointment.requestedDate).toISOString().split('T')[0];
-    const schedule = schedules.find(
-      s => String(s.doctorId) === String(appointment.doctorId._id) &&
-        new Date(s.workDate).toISOString().split('T')[0] === dateStr
-    );
-    return schedule;
+  // Find the selected schedule object
+  const selectedScheduleObj = schedules.find(s => s._id === selectedScheduleId);
+  const selectedDocObj = selectedScheduleObj
+    ? doctors.find(d => d._id === selectedScheduleObj.doctorId)
+    : null;
+
+  // Filter schedules to only show department doctors and optionally apply doctor filter
+  const departmentDocIds = doctors.map(d => d._id);
+  const filteredShifts = schedules.filter(s => {
+    const matchesDept = departmentDocIds.includes(s.doctorId);
+    const matchesDoc = !filterDoctorId || s.doctorId === filterDoctorId;
+    return matchesDept && matchesDoc;
+  });
+
+  const handleConfirmReassign = () => {
+    if (!selectedScheduleObj) return;
+    onConfirm({
+      doctorId: selectedScheduleObj.doctorId,
+      scheduleId: selectedScheduleObj._id,
+      requestedDate: checkDate,
+      requestedTime: selectedTimeSlot,
+    });
   };
-
-  const getSelectedDoctorSchedule = () => {
-    if (!selectedDoctorId) return null;
-    const dateStr = new Date(appointment.requestedDate).toISOString().split('T')[0];
-    const schedule = schedules.find(
-      s => String(s.doctorId) === String(selectedDoctorId) &&
-        new Date(s.workDate).toISOString().split('T')[0] === dateStr
-    );
-    return schedule;
-  };
-
-  const isDoctorAvailable = (doctorSchedule) => {
-    if (!doctorSchedule) return false;
-    return doctorSchedule.currentBooked < doctorSchedule.maxPatients;
-  };
-
-  const currentSchedule = getCurrentDoctorSchedule();
-  const selectedSchedule = getSelectedDoctorSchedule();
-  const selectedDoctor = doctors.find(d => d._id === selectedDoctorId);
-  const originalDoctor = doctors.find(d => d._id === appointment?.doctorId?._id);
-
-  const canChangeDoctor = selectedDoctorId !== appointment?.doctorId?._id;
-  const isNewDoctorAvailable = isDoctorAvailable(selectedSchedule);
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={e => e.stopPropagation()}>
+      <div className="modal-content" style={{ maxWidth: 700 }} onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <h3>📋 Check Doctor Schedule &amp; Reassign</h3>
+          <h3>📋 Check Doctor Schedules &amp; Transfer</h3>
           <button className="modal-close" onClick={onClose}>✕</button>
         </div>
 
-        <div className="modal-body">
+        <div className="modal-body" style={{ maxHeight: '72vh', overflowY: 'auto' }}>
           {error && <div className="alert alert-danger">{error}</div>}
 
-          {/* Appointment Details */}
-          <div className="section section--info">
-            <h4>Appointment details</h4>
-            <div className="info-grid">
-              <div className="info-item">
-                <span className="label">Date:</span>
-                <span className="value">{new Date(appointment.requestedDate).toLocaleDateString('en-US')}</span>
-              </div>
-              <div className="info-item">
-                <span className="label">Time:</span>
-                <span className="value">{appointment.requestedTime}</span>
-              </div>
-              <div className="info-item">
-                <span className="label">Department:</span>
-                <span className="value">{appointment.departmentId?.departmentName}</span>
-              </div>
+          {/* Current Appointment info */}
+          <div className="section section--info" style={{ background: '#f8fafc', borderLeft: '4px solid var(--color-primary)', padding: 12, borderRadius: 6, marginBottom: 16 }}>
+            <h4 style={{ margin: '0 0 8px 0', fontSize: 13, textTransform: 'uppercase', color: 'var(--color-text-muted)' }}>Current Appointment</h4>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, fontSize: 13 }}>
+              <div><strong>Patient:</strong> {appointment?.patientId?.fullName || 'Guest'}</div>
+              <div><strong>Original Date:</strong> {appointment?.requestedDate ? new Date(appointment.requestedDate).toLocaleDateString('en-US') : '—'}</div>
+              <div><strong>Original Time:</strong> {appointment?.requestedTime || '—'}</div>
+              <div><strong>Original Doctor:</strong> {appointment?.doctorId ? `Dr. ${appointment.doctorId.fullName}` : 'Not Assigned'}</div>
             </div>
           </div>
 
-          {/* Current Doctor Schedule */}
-          <div className="section section--current">
-            <h4>🔵 Current doctor</h4>
-            {originalDoctor ? (
-              <div className="doctor-card">
-                <div className="doctor-card__header">
-                  <p className="doctor-name"><strong>{originalDoctor.fullName}</strong></p>
-                  <p className="doctor-spec">{originalDoctor.specialization}</p>
-                </div>
-                <div className="doctor-card__body">
-                  {currentSchedule ? (
-                    <div className="schedule-info">
-                      <p className="schedule-time">⏰ {currentSchedule.startTime} - {currentSchedule.endTime}</p>
-                      <p className="schedule-capacity">
-                        Capacity: {currentSchedule.currentBooked}/{currentSchedule.maxPatients}
-                        <span className={isDoctorAvailable(currentSchedule) ? 'capacity-available' : 'capacity-full'}>
-                          {isDoctorAvailable(currentSchedule) ? '✓ Available' : '✗ Full'}
-                        </span>
-                      </p>
-                    </div>
-                  ) : (
-                    <p className="no-schedule">No working schedule on this day</p>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <p className="text-muted">No doctor assigned</p>
-            )}
+          {/* Search/Filters bar */}
+          <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap', background: 'var(--color-bg)', padding: 12, borderRadius: 8, border: '1px solid var(--color-border)' }}>
+            <div style={{ flex: 1, minWidth: 150, display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>Check Date</label>
+              <input
+                type="date"
+                value={checkDate}
+                onChange={e => setCheckDate(e.target.value)}
+                style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid var(--color-border)', fontSize: 13 }}
+              />
+            </div>
+            <div style={{ flex: 1, minWidth: 180, display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>Filter Doctor</label>
+              <select
+                value={filterDoctorId}
+                onChange={e => setFilterDoctorId(e.target.value)}
+                style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid var(--color-border)', fontSize: 13 }}
+              >
+                <option value="">All Doctors in Department</option>
+                {doctors.map(doc => (
+                  <option key={doc._id} value={doc._id}>
+                    Dr. {doc.fullName} ({doc.specialization})
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
-          {/* Doctor Selection */}
-          <div className="section section--selection">
-            <h4>🔄 Choose another doctor (same department)</h4>
+          {/* Shifts results */}
+          <div className="section" style={{ borderLeft: '4px solid var(--color-info)' }}>
+            <h4 style={{ margin: '0 0 10px 0', fontSize: 14 }}>Available shifts on {new Date(checkDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</h4>
+            
             {loadingSchedules ? (
-              <p className="text-center">Loading...</p>
+              <div style={{ padding: '20px 0', textAlign: 'center', color: 'var(--color-text-muted)' }}>Loading working shifts...</div>
+            ) : filteredShifts.length === 0 ? (
+              <div className="empty-state" style={{ padding: '20px 0', fontSize: 13 }}>
+                No active schedules or matching shifts found on this date.
+              </div>
             ) : (
-              <div className="doctor-selector">
-                <select
-                  value={selectedDoctorId}
-                  onChange={e => setSelectedDoctorId(e.target.value)}
-                  className="select-input"
-                  disabled={isLoading}
-                >
-                  <option value="">-- Select a doctor --</option>
-                  {doctors.map(doc => (
-                    <option key={doc._id} value={doc._id}>
-                      {doc.fullName} ({doc.specialization})
-                    </option>
-                  ))}
-                </select>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {filteredShifts.map(s => {
+                  const docInfo = doctors.find(d => d._id === s.doctorId);
+                  const isFull = (s.currentBooked || 0) >= (s.maxPatients || 0);
+                  const isSelected = selectedScheduleId === s._id;
+                  
+                  return (
+                    <div
+                      key={s._id}
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        padding: 12,
+                        borderRadius: 8,
+                        border: isSelected ? '2px solid var(--color-primary)' : '1px solid var(--color-border)',
+                        background: isSelected ? '#f0fdfa' : isFull ? '#fffbeb' : '#fff',
+                        transition: 'all 0.2s ease',
+                      }}
+                    >
+                      <div>
+                        <strong style={{ fontSize: 14, color: 'var(--color-text-dark)' }}>
+                          Dr. {docInfo?.fullName || 'Unknown Doctor'}
+                        </strong>
+                        <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 2 }}>
+                          ⏰ {s.startTime} - {s.endTime} | 👥 Booked: {s.currentBooked || 0} / {s.maxPatients || 0}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                        <span className={`badge ${isFull ? 'badge-danger' : 'badge-success'}`} style={{ fontSize: 11 }}>
+                          {isFull ? 'Full / Closed' : 'Available'}
+                        </span>
+                        <button
+                          type="button"
+                          className={`btn ${isSelected ? 'btn-primary' : 'btn-ghost'}`}
+                          style={{ padding: '4px 10px', fontSize: 12, minWidth: 70 }}
+                          onClick={() => setSelectedScheduleId(s._id)}
+                        >
+                          {isSelected ? 'Selected' : 'Select'}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
 
-          {/* Selected Doctor Schedule */}
-          {selectedDoctorId && selectedDoctor && (
-            <div className="section section--selected">
-              <h4>✓ Selected doctor</h4>
-              <div className={`doctor-card ${!isNewDoctorAvailable ? 'doctor-card--unavailable' : ''}`}>
-                <div className="doctor-card__header">
-                  <p className="doctor-name"><strong>{selectedDoctor.fullName}</strong></p>
-                  <p className="doctor-spec">{selectedDoctor.specialization}</p>
-                </div>
-                <div className="doctor-card__body">
-                  {selectedSchedule ? (
-                    <div className="schedule-info">
-                      <p className="schedule-time">⏰ {selectedSchedule.startTime} - {selectedSchedule.endTime}</p>
-                      <p className="schedule-capacity">
-                        Capacity: {selectedSchedule.currentBooked}/{selectedSchedule.maxPatients}
-                        <span className={isNewDoctorAvailable ? 'capacity-available' : 'capacity-full'}>
-                          {isNewDoctorAvailable ? '✓ Available' : '✗ Full'}
-                        </span>
-                      </p>
-                    </div>
-                  ) : (
-                    <p className="no-schedule warning">⚠ This doctor has no working schedule on this day</p>
-                  )}
+          {/* Time slot & Confirmation section */}
+          {selectedScheduleObj && selectedDocObj && (
+            <div style={{ marginTop: 20, padding: 14, background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8 }}>
+              <h4 style={{ margin: '0 0 10px 0', fontSize: 14, color: 'var(--color-success-dark)' }}>Confirm reassignment Details</h4>
+              
+              <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap', marginBottom: 12 }}>
+                <div style={{ flex: 1, minWidth: 200, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text-body)' }}>Reschedule Time Slot *</label>
+                  <input
+                    type="text"
+                    value={selectedTimeSlot}
+                    onChange={e => setSelectedTimeSlot(e.target.value)}
+                    placeholder="e.g. 08:30 - 09:30"
+                    style={{
+                      padding: '8px 12px',
+                      borderRadius: 6,
+                      border: '1px solid var(--color-border)',
+                      fontSize: 13,
+                      background: 'var(--color-surface)'
+                    }}
+                    required
+                  />
                 </div>
               </div>
-            </div>
-          )}
 
-          {/* Confirmation Note */}
-          {canChangeDoctor && (
-            <div className="confirmation-note">
-              <p className="note-title">📝 Note:</p>
-              <p>
-                You are about to reassign the doctor from <strong>{originalDoctor?.fullName}</strong> to <strong>{selectedDoctor?.fullName}</strong>.
-                Please make sure the new doctor has an available slot before confirming.
+              <p style={{ margin: 0, fontSize: 13, color: '#166534', lineHeight: 1.5 }}>
+                📝 Rescheduling appointment to <strong>Dr. {selectedDocObj.fullName}</strong> on <strong>{new Date(checkDate).toLocaleDateString('en-US')}</strong> at <strong>{selectedTimeSlot}</strong>.
               </p>
             </div>
           )}
@@ -209,6 +228,7 @@ export default function DoctorScheduleModal({ appointment, onClose, onConfirm, i
 
         <div className="modal-footer">
           <button
+            type="button"
             className="btn btn-secondary"
             onClick={onClose}
             disabled={isLoading}
@@ -216,11 +236,12 @@ export default function DoctorScheduleModal({ appointment, onClose, onConfirm, i
             Cancel
           </button>
           <button
+            type="button"
             className="btn btn-primary"
-            onClick={() => onConfirm(selectedDoctorId)}
-            disabled={isLoading || !selectedDoctorId || (canChangeDoctor && !isNewDoctorAvailable)}
+            onClick={handleConfirmReassign}
+            disabled={isLoading || !selectedScheduleId || !selectedTimeSlot}
           >
-            {isLoading ? 'Processing...' : 'Confirm'}
+            {isLoading ? 'Processing...' : 'Confirm Transfer'}
           </button>
         </div>
       </div>
@@ -303,169 +324,6 @@ export default function DoctorScheduleModal({ appointment, onClose, onConfirm, i
           color: #333;
         }
 
-        .info-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 12px;
-        }
-
-        .info-item {
-          display: flex;
-          flex-direction: column;
-        }
-
-        .info-item .label {
-          font-size: 12px;
-          color: #666;
-          font-weight: 500;
-          margin-bottom: 4px;
-        }
-
-        .info-item .value {
-          font-size: 14px;
-          color: #333;
-          font-weight: 600;
-        }
-
-        .section--current {
-          border-left-color: #007bff;
-        }
-
-        .section--selection {
-          border-left-color: #0066cc;
-        }
-
-        .section--selected {
-          border-left-color: #28a745;
-        }
-
-        .doctor-card {
-          background: white;
-          border: 1px solid #e0e0e0;
-          border-radius: 6px;
-          overflow: hidden;
-          margin: 10px 0;
-        }
-
-        .doctor-card--unavailable {
-          opacity: 0.6;
-          background-color: #fff3cd;
-        }
-
-        .doctor-card__header {
-          padding: 12px;
-          background-color: #f5f7fa;
-          border-bottom: 1px solid #e0e0e0;
-        }
-
-        .doctor-name {
-          margin: 0 0 4px 0;
-          font-size: 14px;
-          color: #333;
-        }
-
-        .doctor-spec {
-          margin: 0;
-          font-size: 12px;
-          color: #666;
-        }
-
-        .doctor-card__body {
-          padding: 12px;
-        }
-
-        .schedule-info {
-          font-size: 13px;
-        }
-
-        .schedule-time {
-          margin: 0 0 8px 0;
-          color: #333;
-        }
-
-        .schedule-capacity {
-          margin: 0;
-          color: #666;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-        }
-
-        .capacity-available {
-          color: #28a745;
-          font-weight: 600;
-          font-size: 12px;
-          background-color: #d4edda;
-          padding: 2px 8px;
-          border-radius: 3px;
-        }
-
-        .capacity-full {
-          color: #dc3545;
-          font-weight: 600;
-          font-size: 12px;
-          background-color: #f8d7da;
-          padding: 2px 8px;
-          border-radius: 3px;
-        }
-
-        .no-schedule {
-          color: #999;
-          font-size: 13px;
-          margin: 0;
-          font-style: italic;
-        }
-
-        .no-schedule.warning {
-          color: #ff6b6b;
-        }
-
-        .doctor-selector {
-          margin-top: 10px;
-        }
-
-        .select-input {
-          width: 100%;
-          padding: 10px;
-          border: 1px solid #ddd;
-          border-radius: 4px;
-          font-size: 14px;
-          font-family: inherit;
-        }
-
-        .select-input:focus {
-          outline: none;
-          border-color: #0066cc;
-          box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
-        }
-
-        .select-input:disabled {
-          background-color: #f5f5f5;
-          cursor: not-allowed;
-        }
-
-        .confirmation-note {
-          background-color: #fff3cd;
-          border: 1px solid #ffc107;
-          border-radius: 6px;
-          padding: 12px;
-          margin: 15px 0;
-        }
-
-        .note-title {
-          margin: 0 0 8px 0;
-          font-size: 13px;
-          font-weight: 600;
-          color: #856404;
-        }
-
-        .confirmation-note p:last-child {
-          margin: 0;
-          font-size: 13px;
-          color: #856404;
-          line-height: 1.5;
-        }
-
         .modal-footer {
           display: flex;
           gap: 10px;
@@ -511,16 +369,6 @@ export default function DoctorScheduleModal({ appointment, onClose, onConfirm, i
         .btn-secondary:disabled {
           opacity: 0.6;
           cursor: not-allowed;
-        }
-
-        .text-muted {
-          color: #999;
-          font-size: 13px;
-        }
-
-        .text-center {
-          text-align: center;
-          color: #666;
         }
 
         .alert {

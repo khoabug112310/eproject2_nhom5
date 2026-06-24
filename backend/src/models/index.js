@@ -16,4 +16,5 @@ module.exports = {
   QuickBooking: require('./QuickBooking'),
   Post: require('./Post'),
   Contact_Inquiry: require('./Contact_Inquiry'),
+  Notification: require('./Notification'),
 };

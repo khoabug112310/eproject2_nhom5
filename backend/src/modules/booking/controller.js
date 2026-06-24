@@ -128,6 +128,24 @@ const createBooking = async (req, res) => {
       time: finalTime          
     });
 
+    try {
+      const { notifyPatient, notifyStaff } = require('../../utils/notificationHelper');
+      const dateStr = appointmentDate.toISOString().split('T')[0];
+      
+      await notifyPatient(
+        patient._id,
+        'Appointment Request Pending',
+        `Your booking request for ${dateStr} at ${finalTime} is pending confirmation.`
+      );
+      
+      await notifyStaff(
+        'New Appointment Request (Quick Booking)',
+        `Patient ${name} (Phone: ${phone}) has requested a booking on ${dateStr} at ${finalTime}.`
+      );
+    } catch (notifErr) {
+      console.error('Error sending quick booking notifications:', notifErr);
+    }
+
     return ok(res, { appointment: appt, quickBooking: booking, createdUser }, 'Your booking request has been sent to the customer care team', 201);
   } catch (error) {
     console.error('createBooking error', error);
