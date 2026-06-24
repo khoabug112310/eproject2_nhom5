@@ -4,6 +4,7 @@
 const Post = require('../../models/Post');
 const Contact_Inquiry = require('../../models/Contact_Inquiry');
 const Staff = require('../../models/Staff');
+const ChatMessage = require('../../models/ChatMessage');
 const { POST_STATUS } = require('../../constants/enums');
 
 // Simple Vietnamese slugify helper
@@ -215,5 +216,84 @@ const resolveContactInquiry = async (req, res) => {
     return fail(res, 'Error resolving inquiry', 500, err.message);
   }
 };
+const getChatHistory = async (req, res) => {
+  try {
+    const { sessionId, userId } = req.query;
+    if (!sessionId && !userId) {
+      return res.status(400).json({ success: false, message: 'sessionId or userId is required' });
+    }
 
-module.exports = { getPosts, createPost, updatePost, deletePost, getContactInquiries, createContactInquiry, uploadImage, resolveContactInquiry };
+    const conditions = [];
+    if (sessionId) conditions.push({ guestSessionId: sessionId });
+    if (userId) conditions.push({ senderId: userId });
+
+    const messages = await ChatMessage.find({ $or: conditions })
+      .sort({ createdAt: 1 })
+      .lean();
+
+    const { success: ok } = require('../../utils/response');
+    return ok(res, messages, 'Chat history loaded successfully');
+  } catch (err) {
+    console.error('getChatHistory error', err);
+    const { fail } = require('../../utils/response');
+    return fail(res, 'Error loading chat history', 500, err.message);
+  }
+};
+
+const getChatSessions = async (req, res) => {
+  try {
+    // Find active chat rooms grouped by guestSessionId or senderId
+    const sessions = await ChatMessage.aggregate([
+      {
+        $group: {
+          _id: {
+            $cond: [
+              { $ne: ["$guestSessionId", null] },
+              { type: "guest", id: "$guestSessionId" },
+              { type: "user", id: "$senderId" }
+            ]
+          },
+          lastMessage: { $last: "$messageText" },
+          lastTimestamp: { $last: "$createdAt" },
+          senderName: { $last: "$senderName" },
+          senderType: { $last: "$senderType" }
+        }
+      },
+      {
+        $sort: { lastTimestamp: -1 }
+      }
+    ]);
+
+    const mapped = sessions
+      .filter(s => s._id && s._id.id)
+      .map(s => ({
+        roomType: s._id.type,
+        roomId: s._id.id,
+        roomName: s._id.type === 'guest' ? `Guest #${String(s._id.id).substring(0, 6)}` : s.senderName,
+        lastMessage: s.lastMessage,
+        lastTimestamp: s.lastTimestamp,
+        senderName: s.senderName,
+        senderType: s.senderType
+      }));
+
+    const { success: ok } = require('../../utils/response');
+    return ok(res, mapped, 'Chat sessions loaded successfully');
+  } catch (err) {
+    console.error('getChatSessions error', err);
+    const { fail } = require('../../utils/response');
+    return fail(res, 'Error loading chat sessions', 500, err.message);
+  }
+};
+
+module.exports = {
+  getPosts,
+  createPost,
+  updatePost,
+  deletePost,
+  getContactInquiries,
+  createContactInquiry,
+  uploadImage,
+  resolveContactInquiry,
+  getChatHistory,
+  getChatSessions
+};

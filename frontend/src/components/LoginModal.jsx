@@ -21,10 +21,21 @@ export default function LoginModal({ show, onClose }) {
   const [otpArray, setOtpArray] = useState(['', '', '', '', '', '']);
   const [isSendingOtp, setIsSendingOtp] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
+  const [countdown, setCountdown] = useState(0);
   const phoneInputRef = useRef(null);
   const passwordInputRef = useRef(null);
   const forgotPhoneRef = useRef(null);
   const otpInputRefs = useRef([]);
+
+  useEffect(() => {
+    let timer;
+    if (countdown > 0) {
+      timer = setInterval(() => {
+        setCountdown((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [countdown]);
 
   useEffect(() => {
     if (show) {
@@ -43,6 +54,7 @@ export default function LoginModal({ show, onClose }) {
       setOtpArray(['', '', '', '', '', '']);
       setIsSendingOtp(false);
       setIsResetting(false);
+      setCountdown(0);
       setTimeout(() => {
         phoneInputRef.current?.focus();
       }, 50);
@@ -57,13 +69,13 @@ export default function LoginModal({ show, onClose }) {
   const handleSendOtp = async () => {
     if (isSendingOtp) return;
     if (!forgotPhone) {
-      setForgotError('Please enter your phone number or email.');
+      setForgotError('Vui lòng nhập số điện thoại hoặc email.');
       return;
     }
     const phoneRegex = /(84|0[3|5|7|8|9])+([0-9]{8})\b/;
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!phoneRegex.test(forgotPhone) && !emailRegex.test(forgotPhone)) {
-      setForgotError('Invalid phone number or email format. Please try again.');
+      setForgotError('Định dạng số điện thoại hoặc email không hợp lệ. Vui lòng kiểm tra lại.');
       return;
     }
     setIsSendingOtp(true);
@@ -75,13 +87,14 @@ export default function LoginModal({ show, onClose }) {
       setOtpCode('');
       setForgotStep(2);
       setForgotError('');
-      setForgotSuccess(response?.data?.message || 'Verification OTP code has been sent.');
+      setForgotSuccess(response?.data?.message || 'Mã xác thực OTP đã được gửi.');
+      setCountdown(60); // Đặt thời gian đếm ngược 60 giây
       // Auto focus first OTP input box
       setTimeout(() => {
         otpInputRefs.current[0]?.focus();
       }, 100);
     } catch (err) {
-      setForgotError(err?.response?.data?.message || 'Failed to send OTP. Please check your phone number or email.');
+      setForgotError(err?.response?.data?.message || 'Không thể gửi mã OTP. Vui lòng kiểm tra lại số điện thoại hoặc email của bạn.');
     } finally {
       setIsSendingOtp(false);
     }
@@ -123,7 +136,7 @@ export default function LoginModal({ show, onClose }) {
   const handleVerifyOtp = async () => {
     const codeValue = otpArray.join('');
     if (codeValue.length !== 6) {
-      setForgotError('Please enter the full 6-digit OTP code.');
+      setForgotError('Vui lòng nhập đầy đủ mã OTP gồm 6 chữ số.');
       return;
     }
     setForgotError('');
@@ -134,18 +147,18 @@ export default function LoginModal({ show, onClose }) {
       setForgotStep(3);
       setForgotError('');
     } catch (err) {
-      setForgotError(err?.response?.data?.message || 'Invalid or expired OTP. Please try again.');
+      setForgotError(err?.response?.data?.message || 'Mã OTP không hợp lệ hoặc đã hết hạn. Vui lòng thử lại.');
     }
   };
 
   const handleResetPassword = async () => {
     if (isResetting) return;
     if (!newPassword || !confirmPassword) {
-      setForgotError('Please fill in all new password fields.');
+      setForgotError('Vui lòng điền đầy đủ thông tin mật khẩu mới.');
       return;
     }
     if (newPassword !== confirmPassword) {
-      setForgotError('Passwords do not match.');
+      setForgotError('Mật khẩu xác nhận không khớp.');
       return;
     }
     setIsResetting(true);
@@ -166,7 +179,7 @@ export default function LoginModal({ show, onClose }) {
       setSuccess('Password changed successfully! Please log in with your new password.');
       setError('');
     } catch (err) {
-      setForgotError(err?.response?.data?.message || 'Failed to reset password. Please check your OTP code.');
+      setForgotError(err?.response?.data?.message || 'Không thể đặt lại mật khẩu. Vui lòng kiểm tra lại mã OTP.');
     } finally {
       setIsResetting(false);
     }
@@ -200,7 +213,7 @@ export default function LoginModal({ show, onClose }) {
         else window.location.href = '/patient/dashboard';
       })
       .catch((err) => {
-        setError('Incorrect phone number or password. Please check and try again!');
+        setError('Số điện thoại/Email hoặc mật khẩu không chính xác. Vui lòng kiểm tra lại!');
         setPassword('');
         if (passwordInputRef.current) {
           passwordInputRef.current.focus();
@@ -254,7 +267,7 @@ export default function LoginModal({ show, onClose }) {
             {showForgot ? 'Reset Password' : 'Log In'}
           </h3>
           <p style={{ fontSize: '13px', color: '#64748b', margin: 0, lineHeight: '1.5' }}>
-            {showForgot ? 'Enter your details to recover your account' : 'Enter your phone number to access the online clinic system'}
+            {showForgot ? 'Enter your details to recover your account' : 'Enter your phone number or email to access the online clinic system'}
           </p>
         </div>
  
@@ -386,6 +399,27 @@ export default function LoginModal({ show, onClose }) {
                       />
                     ))}
                   </div>
+                </div>
+                <div style={{ textAlign: 'center', margin: '4px 0', fontSize: '13px' }}>
+                  {countdown > 0 ? (
+                    <span style={{ color: '#64748b' }}>Resend code in {countdown} seconds</span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleSendOtp}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--color-primary, #3b82f6)',
+                        cursor: 'pointer',
+                        fontWeight: '600',
+                        fontSize: '13px',
+                        padding: '4px'
+                      }}
+                    >
+                      Resend OTP code
+                    </button>
+                  )}
                 </div>
                 {forgotError && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#b91c1c', backgroundColor: '#fef2f2', border: '1px solid #fee2e2', padding: '10px 14px', borderRadius: '10px', fontSize: '13px', fontWeight: '500' }}>

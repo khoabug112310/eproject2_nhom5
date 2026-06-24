@@ -1,8 +1,10 @@
-import React, { useState, useEffect, useMemo } from 'react';
+﻿import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { schedulingAPI, profilesAPI, clinicalAPI, cmsAPI } from '../../services/api';
 import Swal from 'sweetalert2';
 import RoleTopNav from '../../components/RoleTopNav';
 import DoctorScheduleModal from '../../components/DoctorScheduleModal';
+import { io } from 'socket.io-client';
+import { useAuth } from '../../store/authContext';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -44,10 +46,20 @@ const FILTERS = [
 // ── component ─────────────────────────────────────────────────────────────────
 
 export default function StaffDashboard() {
+  const { user } = useAuth();
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading]           = useState(true);
   const [submitting, setSubmitting]     = useState(false);
   const [banner, setBanner]             = useState({ msg: '', type: '' });
+
+  // Chat support states
+  const [sessions, setSessions] = useState([]);
+  const [selectedSession, setSelectedSession] = useState(null);
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatInput, setChatInput] = useState('');
+  const [chatSearch, setChatSearch] = useState('');
+  const [chatSocket, setChatSocket] = useState(null);
+  const chatEndRef = useRef(null);
 
   const [filterStatus, setFilterStatus] = useState('Pending');
   const [search, setSearch]             = useState('');
@@ -168,6 +180,114 @@ export default function StaffDashboard() {
   // ── data ──────────────────────────────────────────────────────────────────
 
   useEffect(() => { fetchData(); }, []);
+
+  const fetchSessions = async () => {
+    try {
+      const res = await cmsAPI.getChatSessions();
+      if (res.data && res.data.success) {
+        setSessions(res.data.data);
+      }
+    } catch (err) {
+      console.error('Error fetching chat sessions:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (activeView === 'chat') {
+      fetchSessions();
+    }
+  }, [activeView]);
+
+  useEffect(() => {
+    const socketUrl = 'http://localhost:4000';
+    const socketConn = io(socketUrl, {
+      withCredentials: true
+    });
+
+    socketConn.on('connect', () => {
+      socketConn.emit('join_staff');
+    });
+
+    socketConn.on('new_message', (msg) => {
+      fetchSessions();
+      setSelectedSession(curr => {
+        if (curr) {
+          const isMatch = (curr.roomId === msg.guestSessionId || curr.roomId === msg.senderId);
+          if (isMatch) {
+            setChatMessages(prev => {
+              if (prev.some(m => m._id === msg._id)) return prev;
+              return [...prev, msg];
+            });
+          }
+        }
+        return curr;
+      });
+    });
+
+    setChatSocket(socketConn);
+
+    return () => {
+      socketConn.disconnect();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [chatMessages]);
+
+  const handleSelectSession = async (session) => {
+    setSelectedSession(session);
+    try {
+      const params = {};
+      if (session.roomType === 'guest') {
+        params.sessionId = session.roomId;
+      } else {
+        params.userId = session.roomId;
+      }
+      
+      const res = await cmsAPI.getChatHistory(params);
+      if (res.data && res.data.success) {
+        setChatMessages(res.data.data);
+      }
+    } catch (err) {
+      console.error('Error loading chat history for session:', err);
+    }
+  };
+
+  const handleSendChat = (e) => {
+    if (e) e.preventDefault();
+    if (!chatInput.trim() || !selectedSession || !chatSocket) return;
+
+    const targetRoom = selectedSession.roomType === 'guest' 
+      ? `room_guest_${selectedSession.roomId}` 
+      : `room_user_${selectedSession.roomId}`;
+
+    chatSocket.emit('staff_reply', {
+      text: chatInput.trim(),
+      targetRoom,
+      staffId: user?.id,
+      staffName: user?.displayName || user?.username || 'Staff'
+    });
+
+    setChatInput('');
+  };
+
+  const handleSendTemplate = (templateText) => {
+    if (!selectedSession || !chatSocket) return;
+    
+    const targetRoom = selectedSession.roomType === 'guest' 
+      ? `room_guest_${selectedSession.roomId}` 
+      : `room_user_${selectedSession.roomId}`;
+
+    chatSocket.emit('staff_reply', {
+      text: templateText,
+      targetRoom,
+      staffId: user?.id,
+      staffName: user?.displayName || user?.username || 'Staff'
+    });
+  };
 
   useEffect(() => {
     if (activeView === 'patients') {
@@ -718,6 +838,19 @@ export default function StaffDashboard() {
               onClick={() => setActiveView('contacts')}
             >
               💬 Feedback
+            </button>
+            <button
+              style={{
+                padding: '8px 6px', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                gridColumn: '1 / -1',
+                background: activeView === 'chat' ? '#fff' : 'transparent',
+                color: activeView === 'chat' ? 'var(--color-primary-dark)' : 'var(--color-text-muted)',
+                boxShadow: activeView === 'chat' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                transition: 'all 0.2s',
+              }}
+              onClick={() => setActiveView('chat')}
+            >
+              💬 Chat Support
             </button>
           </div>
 
@@ -1684,7 +1817,185 @@ export default function StaffDashboard() {
               })()}
             </div>
           )}
+
+          {activeView === 'chat' && (
+            <div className="dashboard-card" style={{ padding: '20px' }}>
+              <h2>💬 Patient Chat Support</h2>
+              <p className="subtitle">Coordinate and reply in real-time to walk-in guests and registered patients.</p>
+
+              <div className="staff-chat-container">
+                {/* Left: Chat Session List */}
+                <div className="staff-chat-sidebar">
+                  <div className="staff-chat-sidebar-header">
+                    <h3>Conversations</h3>
+                    <input
+                      type="text"
+                      className="staff-chat-search"
+                      placeholder="Search patient or guest..."
+                      value={chatSearch}
+                      onChange={(e) => setChatSearch(e.target.value)}
+                    />
+                  </div>
+                  <div className="staff-chat-session-list">
+                    {sessions
+                      .filter(s => {
+                        const name = (s.roomName || '').toLowerCase();
+                        const query = chatSearch.toLowerCase();
+                        return name.includes(query) || (s.lastMessage || '').toLowerCase().includes(query);
+                      })
+                      .map((session) => {
+                        const isActive = selectedSession && selectedSession.roomId === session.roomId;
+                        const initial = session.roomName ? session.roomName.charAt(0).toUpperCase() : '?';
+                        const isGuest = session.roomType === 'guest';
+                        
+                        return (
+                          <div
+                            key={session.roomId}
+                            className={`staff-chat-session-item ${isActive ? 'active' : ''}`}
+                            onClick={() => handleSelectSession(session)}
+                          >
+                            <div className={`staff-chat-avatar ${isGuest ? 'guest' : ''}`}>
+                              {initial}
+                            </div>
+                            <div className="staff-chat-session-info">
+                              <div className="staff-chat-session-name-row">
+                                <span className="staff-chat-session-name">
+                                  {session.roomName}
+                                </span>
+                                <span className="staff-chat-session-time">
+                                  {session.lastTimestamp ? new Date(session.lastTimestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                                </span>
+                              </div>
+                              <div className="staff-chat-session-preview">
+                                {session.lastMessage || 'No messages'}
+                              </div>
+                              <div style={{ marginTop: '4px' }}>
+                                <span className={`staff-chat-badge ${isGuest ? 'guest' : 'patient'}`}>
+                                  {isGuest ? 'Guest' : 'Patient'}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    {sessions.length === 0 && (
+                      <div style={{ padding: '20px', textAlign: 'center', color: '#94a3b8', fontSize: '13px' }}>
+                        No active conversations.
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Right: Messages Area */}
+                {selectedSession ? (
+                  <div className="staff-chat-main">
+                    <div className="staff-chat-main-header">
+                      <div className={`staff-chat-avatar ${selectedSession.roomType === 'guest' ? 'guest' : ''}`}>
+                        {selectedSession.roomName ? selectedSession.roomName.charAt(0).toUpperCase() : '?'}
+                      </div>
+                      <div>
+                        <h3>{selectedSession.roomName}</h3>
+                        <p style={{ textTransform: 'capitalize' }}>
+                          Type: {selectedSession.roomType} | Room ID: {selectedSession.roomId}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="staff-chat-messages-area">
+                      {chatMessages.map((msg) => {
+                        const isSelf = msg.senderType === 'staff';
+                        const isAI = msg.senderType === 'ai';
+                        let rowClass = 'other';
+                        if (isSelf) rowClass = 'self';
+                        else if (isAI) rowClass = 'ai';
+
+                        return (
+                          <div key={msg._id} className={`staff-chat-bubble-row ${rowClass}`}>
+                            <div className="staff-chat-bubble">
+                              <strong>{msg.senderName}</strong>
+                              <div style={{ marginTop: '2px' }}>
+                                {msg.messageText.split('\n').map((line, idx) => (
+                                  <React.Fragment key={idx}>
+                                    {line}
+                                    {idx < msg.messageText.split('\n').length - 1 && <br />}
+                                  </React.Fragment>
+                                ))}
+                              </div>
+                            </div>
+                            <span className="staff-chat-msg-meta">
+                              {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                        );
+                      })}
+                      <div ref={chatEndRef} />
+                    </div>
+
+                    <div className="staff-chat-input-area">
+                      {/* Templates */}
+                      <div className="staff-chat-quick-templates">
+                        <button
+                          type="button"
+                          className="staff-chat-template-chip"
+                          onClick={() => handleSendTemplate("Hello! How can I assist you today?")}
+                        >
+                          👋 Hello
+                        </button>
+                        <button
+                          type="button"
+                          className="staff-chat-template-chip"
+                          onClick={() => handleSendTemplate("Please wait a moment while I look up your booking details.")}
+                        >
+                          ⏳ Please wait
+                        </button>
+                        <button
+                          type="button"
+                          className="staff-chat-template-chip"
+                          onClick={() => handleSendTemplate("The appointment has been confirmed. You will receive an SMS confirmation shortly.")}
+                        >
+                          ✅ Confirm details
+                        </button>
+                        <button
+                          type="button"
+                          className="staff-chat-template-chip"
+                          onClick={() => handleSendTemplate("Please call our emergency hotline directly at 091-444-4444.")}
+                        >
+                          📞 Hotline emergency
+                        </button>
+                      </div>
+
+                      <form className="staff-chat-form" onSubmit={handleSendChat}>
+                        <input
+                          type="text"
+                          className="staff-chat-input"
+                          placeholder="Type your message..."
+                          value={chatInput}
+                          onChange={(e) => setChatInput(e.target.value)}
+                        />
+                        <button
+                          type="submit"
+                          className="staff-chat-send-btn"
+                          disabled={!chatInput.trim()}
+                        >
+                          Send
+                        </button>
+                      </form>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="staff-chat-empty">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
+                    </svg>
+                    <h3>No Conversation Selected</h3>
+                    <p>Select a patient or guest conversation from the sidebar list to reply in real-time.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
+
       </div>
 
         {/* ── Appointment detail modal ── */}

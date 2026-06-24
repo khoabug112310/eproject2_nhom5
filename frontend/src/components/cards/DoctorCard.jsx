@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
-export default function DoctorCard({ avatar, fullName, specialization, department, experienceYears, qualifications, bio, onBook }) {
+export default function DoctorCard({ id, _id, avatar, fullName, specialization, department, experienceYears, qualifications, bio, onBook }) {
+  const navigate = useNavigate();
   const [imageError, setImageError] = useState(false);
   const [isBioExpanded, setIsBioExpanded] = useState(false);
 
@@ -228,68 +230,68 @@ export default function DoctorCard({ avatar, fullName, specialization, departmen
       </div>
 
       {/* Two Buttons Footer */}
-      <div style={{ padding: '0 20px 20px 20px', display: 'flex', gap: '8px' }}>
+      <div style={{ padding: '0 20px 20px 20px', display: 'flex', gap: '10px' }}>
         <button
           type="button"
           style={{
             flex: 1,
-            padding: '10px 8px',
-            fontSize: '12.5px',
+            padding: '12px 8px',
+            fontSize: '13px',
             fontWeight: '700',
-            borderRadius: '10px',
-            border: '1px solid #cbd5e1',
-            backgroundColor: 'white',
-            color: '#475569',
+            borderRadius: '12px',
+            border: '1.5px solid var(--color-primary-soft, #dbeafe)',
+            backgroundColor: 'var(--color-primary-light, #eff6ff)',
+            color: 'var(--color-primary, #2563eb)',
             cursor: 'pointer',
-            transition: 'all 0.25s ease',
+            transition: 'all 0.2s ease',
             outline: 'none',
             textAlign: 'center'
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = '#f8fafc';
-            e.currentTarget.style.borderColor = 'var(--color-primary, #3b82f6)';
-            e.currentTarget.style.color = 'var(--color-primary, #3b82f6)';
+            e.currentTarget.style.backgroundColor = 'var(--color-primary-soft, #dbeafe)';
+            e.currentTarget.style.borderColor = 'var(--color-primary, #2563eb)';
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = 'white';
-            e.currentTarget.style.borderColor = '#cbd5e1';
-            e.currentTarget.style.color = '#475569';
+            e.currentTarget.style.backgroundColor = 'var(--color-primary-light, #eff6ff)';
+            e.currentTarget.style.borderColor = 'var(--color-primary-soft, #dbeafe)';
           }}
           onClick={(e) => {
             e.stopPropagation();
-            setIsBioExpanded(!isBioExpanded);
+            navigate(`/specialists/${id || _id}`);
           }}
         >
-          {isBioExpanded ? 'Collapse' : 'View Details'}
+          View Details
         </button>
 
         <button 
           type="button"
           style={{
-            flex: 1.3,
-            padding: '10px 8px',
-            fontSize: '12.5px',
+            flex: 1,
+            padding: '12px 8px',
+            fontSize: '13px',
             fontWeight: '700',
-            borderRadius: '10px',
+            borderRadius: '12px',
             border: 'none',
-            background: 'linear-gradient(135deg, var(--color-primary, #3b82f6) 0%, var(--color-primary-dark, #1d4ed8) 100%)',
+            background: 'linear-gradient(135deg, var(--color-primary, #2563eb) 0%, var(--color-secondary, #0ea5e9) 100%)',
             color: 'white',
             cursor: 'pointer',
-            boxShadow: '0 4px 12px rgba(59, 130, 246, 0.15)',
+            boxShadow: '0 4px 12px rgba(37, 99, 235, 0.15)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: '4px',
-            transition: 'all 0.25s ease',
+            gap: '6px',
+            transition: 'all 0.2s ease',
             outline: 'none'
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.boxShadow = '0 6px 16px rgba(59, 130, 246, 0.25)';
+            e.currentTarget.style.boxShadow = '0 6px 16px rgba(37, 99, 235, 0.25)';
             e.currentTarget.style.filter = 'brightness(1.05)';
+            e.currentTarget.style.transform = 'translateY(-1px)';
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.15)';
+            e.currentTarget.style.boxShadow = '0 4px 12px rgba(37, 99, 235, 0.15)';
             e.currentTarget.style.filter = 'none';
+            e.currentTarget.style.transform = 'translateY(0)';
           }}
           onClick={(e) => {
             e.stopPropagation();

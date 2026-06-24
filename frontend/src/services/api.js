@@ -58,6 +58,7 @@ export const authAPI = {
 export const profilesAPI = {
   getUsers: () => apiClient.get('/profiles/users'),
   getUser: (id) => apiClient.get(`/profiles/users/${id}`),
+  getDoctor: (id) => apiClient.get(`/profiles/doctors/${id}`),
   updateUser: (id, data) =>
     apiClient.put(`/profiles/profile/${id}`, data),
   getPatients: () => apiClient.get('/profiles/patients'),
@@ -164,12 +165,24 @@ export const cmsAPI = {
     apiClient.put(`/cms/contact-inquiries/${id}/resolve`),
   uploadImage: (image) =>
     apiClient.post('/cms/upload', { image }),
+  getChatHistory: (params) =>
+    apiClient.get('/cms/chat/history', { params }),
+  getChatSessions: () =>
+    apiClient.get('/cms/chat/sessions'),
 };
 
 // Public Booking API
 export const bookingAPI = {
   submitQuickBooking: (data) =>
     apiClient.post('/booking', data),
+};
+
+// Reviews API
+export const reviewAPI = {
+  getDoctorReviews: (doctorId) =>
+    apiClient.get(`/reviews/doctor/${doctorId}`),
+  submitReview: (data) =>
+    apiClient.post('/reviews', data),
 };
 
 export default apiClient;

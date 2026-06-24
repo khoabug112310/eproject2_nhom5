@@ -5,7 +5,11 @@ const { GENDER } = require('../../constants/enums');
 // Quick booking flow for unauthenticated users:
 const createBooking = async (req, res) => {
   try {
-    const { name, phone, department: reqDept, doctor: reqDoc, bookingDate: reqDate, time } = req.body;    
+    const { name, phone } = req.body;
+    const reqDept = req.body.departmentId || req.body.department;
+    const reqDoc = req.body.doctorId || req.body.doctor;
+    const reqDate = req.body.requestedDate || req.body.bookingDate;
+    const time = req.body.requestedTime || req.body.time;
     
     if (!name || !phone) return fail(res, 'Name and phone are required', 400);
 

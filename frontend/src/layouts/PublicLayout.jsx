@@ -65,6 +65,22 @@ export default function PublicLayout({ children }) {
   }, []);
 
   useEffect(() => {
+    const handleOpenLogin = () => {
+      setShowLogin(true);
+    };
+    window.addEventListener('open-login-modal', handleOpenLogin);
+    return () => window.removeEventListener('open-login-modal', handleOpenLogin);
+  }, []);
+
+  useEffect(() => {
+    if (location.search.includes('login=true')) {
+      setShowLogin(true);
+      const cleanUrl = window.location.pathname;
+      window.history.replaceState({}, document.title, cleanUrl);
+    }
+  }, [location]);
+
+  useEffect(() => {
     const handleScroll = () => setShowScrollTop(window.scrollY > 300);
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);

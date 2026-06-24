@@ -121,7 +121,12 @@ export default function QuickBooking({
     while (current <= end) {
       const h = String(Math.floor(current / 60)).padStart(2, '0');
       const m = String(current % 60).padStart(2, '0');
-      slots.push(`${h}:${m}`);
+      const slot = `${h}:${m}`;
+      
+      // Exclude lunch break 12:00 - 13:00
+      if (!(slot >= '12:00' && slot < '13:00')) {
+        slots.push(slot);
+      }
       current += 30;
     }
     return slots;
@@ -479,27 +484,6 @@ export default function QuickBooking({
             <div style={{ gridColumn: '1 / -1', fontSize: '13px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '8px', margin: '4px 0 12px 0' }}>
               <span className="btn-spinner" style={{ width: '12px', height: '12px', borderWidth: '2px', borderTopColor: 'var(--color-primary)' }}></span>
               Checking doctor's schedule...
-            </div>
-          )}
-          {doctorSchedules.length > 0 && (
-            <div style={{ 
-              gridColumn: '1 / -1', 
-              fontSize: '13px', 
-              backgroundColor: 'var(--color-primary-light, #f0fdfa)', 
-              color: 'var(--color-primary-dark, #0f766e)', 
-              border: '1px solid var(--color-primary-soft, #dbeafe)',
-              padding: '10px 14px',
-              borderRadius: '8px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              margin: '4px 0 12px 0'
-            }}>
-              <span>📅</span>
-              <span>
-                <strong>Doctor's shifts:</strong>{' '}
-                {doctorSchedules.map((s, idx) => `Shift ${idx + 1} (${s.startTime} - ${s.endTime})`).join(', ')}
-              </span>
             </div>
           )}
           {scheduleError && (

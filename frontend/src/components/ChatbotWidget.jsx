@@ -1,98 +1,162 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { io } from 'socket.io-client';
+import { useAuth } from '../store/authContext';
+import { cmsAPI } from '../services/api';
 
 export default function ChatbotWidget() {
+  const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState([
-    {
-      id: 1,
-      sender: 'bot',
-      text: 'Hello! I am the virtual assistant of Hopsontai Clinic. How can I help you today?',
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    }
-  ]);
+  const [messages, setMessages] = useState([]);
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
-  const [hasNewMessage, setHasNewMessage] = useState(true);
+  const [hasNewMessage, setHasNewMessage] = useState(false);
+  const [socket, setSocket] = useState(null);
+  const [isStaffOnline, setIsStaffOnline] = useState(false);
   
   const messagesEndRef = useRef(null);
 
+  // Scroll to bottom
   useEffect(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [messages, isTyping]);
 
-  const quickReplies = [
-    { text: '🗓️ Book an appointment', query: 'dat_lich' },
-    { text: '🕒 Working hours', query: 'gio_lam_viec' },
-    { text: '📍 Address & Hotline', query: 'dia_chi' },
-    { text: '🩺 Our specialties', query: 'chuyen_khoa' }
-  ];
-
-  const getBotResponse = (query, userText) => {
-    const textLower = userText.toLowerCase();
-
-    if (query === 'dat_lich' || textLower.includes('book') || textLower.includes('appointment') || textLower.includes('schedule')) {
-      return {
-        text: 'You can submit a quick booking request right away by clicking the button below to fill in your details:',
-        cta: {
-          label: '🗓️ Book an Appointment Now',
-          action: 'open_booking'
-        }
-      };
+  // Load chat history
+  const loadHistory = async () => {
+    try {
+      const params = {};
+      if (user && user.role !== 'staff' && user.role !== 'admin') {
+        params.userId = user.id;
+      }
+      const guestSessionId = localStorage.getItem('guestSessionId');
+      if (guestSessionId) {
+        params.sessionId = guestSessionId;
+      }
+      
+      const res = await cmsAPI.getChatHistory(params);
+      if (res.data && res.data.success && res.data.data.length > 0) {
+        const mapped = res.data.data.map(msg => {
+          const textLower = msg.messageText.toLowerCase();
+          let cta = null;
+          if (msg.senderType === 'ai' && (textLower.includes('book') || textLower.includes('appointment') || textLower.includes('schedule') || textLower.includes('đặt lịch'))) {
+            cta = {
+              label: '🗓️ Book an Appointment Now',
+              action: 'open_booking'
+            };
+          }
+          return {
+            id: msg._id,
+            sender: (msg.senderType === 'patient' || msg.senderType === 'guest') ? 'user' : 'bot',
+            text: msg.messageText,
+            cta,
+            time: new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          };
+        });
+        setMessages(mapped);
+      } else {
+        // Default greeting
+        setMessages([
+          {
+            id: 'greeting',
+            sender: 'bot',
+            text: 'Hello! I am the virtual assistant of Hopsontai Clinic. How can I help you today?',
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          }
+        ]);
+      }
+    } catch (err) {
+      console.error('Error fetching chat history:', err);
     }
-
-    if (query === 'gio_lam_viec' || textLower.includes('hour') || textLower.includes('time') || textLower.includes('open')) {
-      return {
-        text: 'Hopsontai Clinic is open every day of the week (Monday to Sunday, including public holidays):\n\n🕒 **Opening hours:** 07:00 – 20:00 daily\n🏥 We also support after-hours visits and have doctors on call for consultation 24/7.'
-      };
-    }
-
-    if (query === 'dia_chi' || textLower.includes('address') || textLower.includes('where') || textLower.includes('hotline') || textLower.includes('phone') || textLower.includes('contact')) {
-      return {
-        text: 'Official contact information for Hopsontai Clinic:\n\n📍 **Address:** 123 Nguyen Trai Street, District 5, Ho Chi Minh City\n📞 **Support & booking hotline:** 091-444-4444\n✉️ **Email:** contact@hopsontai.vn'
-      };
-    }
-
-    if (query === 'chuyen_khoa' || textLower.includes('specialt') || textLower.includes('department') || textLower.includes('treat')) {
-      return {
-        text: 'Our clinic offers leading specialties with modern equipment:\n\n1. **Acupuncture & Traditional Medicine** (Our specialty)\n2. **Musculoskeletal** (Pain and spine therapy)\n3. **Pediatrics** (Child-friendly care)\n4. **Obstetrics & Gynecology** (Prenatal and gynecological care)\n5. **Dermatology & Skin Aesthetics**\n6. **General Check-up & Laboratory Tests**'
-      };
-    }
-
-    return {
-      text: 'Thank you for your question. The virtual assistant did not quite understand. For the best support, you can:\n\n📞 Call our hotline directly: **091-444-4444**\n🗓️ Or use the **Quick Booking** feature on the website.'
-    };
   };
 
-  const handleSend = (text, query = null) => {
-    if (!text.trim()) return;
+  // Socket.io initialization
+  useEffect(() => {
+    let guestSessionId = localStorage.getItem('guestSessionId');
+    if (!guestSessionId) {
+      guestSessionId = 'guest_' + Math.random().toString(36).substring(2, 15);
+      localStorage.setItem('guestSessionId', guestSessionId);
+    }
 
-    // Add user message
-    const userMsg = {
-      id: Date.now(),
-      sender: 'user',
-      text: text,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    loadHistory();
+
+    const socketUrl = 'http://localhost:4000';
+    const socketConn = io(socketUrl, {
+      withCredentials: true
+    });
+
+    socketConn.on('connect', () => {
+      socketConn.emit('join_room', {
+        userId: user && user.role !== 'staff' && user.role !== 'admin' ? user.id : null,
+        sessionId: guestSessionId
+      });
+    });
+
+    socketConn.on('staff_status', ({ online }) => {
+      setIsStaffOnline(online);
+    });
+
+    socketConn.on('new_message', (msg) => {
+      // Clear typing indicator if message from bot/ai/staff is received
+      if (msg.senderType === 'ai' || msg.senderType === 'staff') {
+        setIsTyping(false);
+      }
+
+      setMessages(prev => {
+        if (prev.some(m => m.id === msg._id)) return prev;
+
+        const textLower = msg.messageText.toLowerCase();
+        let cta = null;
+        if (msg.senderType === 'ai' && (textLower.includes('book') || textLower.includes('appointment') || textLower.includes('schedule') || textLower.includes('đặt lịch'))) {
+          cta = {
+            label: '🗓️ Book an Appointment Now',
+            action: 'open_booking'
+          };
+        }
+
+        if (!isOpen) {
+          setHasNewMessage(true);
+        }
+
+        return [...prev, {
+          id: msg._id,
+          sender: (msg.senderType === 'patient' || msg.senderType === 'guest') ? 'user' : 'bot',
+          text: msg.messageText,
+          cta,
+          time: new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }];
+      });
+    });
+
+    setSocket(socketConn);
+
+    return () => {
+      socketConn.disconnect();
     };
+  }, [user, isOpen]);
 
-    setMessages(prev => [...prev, userMsg]);
-    setInputValue('');
+  const quickReplies = [
+    { text: '🗓️ Book an appointment', query: 'book_appointment' },
+    { text: '🕒 Working hours', query: 'working_hours' },
+    { text: '📍 Address & Hotline', query: 'address_hotline' },
+    { text: '🩺 Our specialties', query: 'specialties' }
+  ];
+
+  const handleSend = (text) => {
+    if (!text.trim() || !socket) return;
+
+    const guestSessionId = localStorage.getItem('guestSessionId');
+    
+    // Emit message to socket
     setIsTyping(true);
+    socket.emit('send_message', {
+      text: text.trim(),
+      userId: user && user.role !== 'staff' && user.role !== 'admin' ? user.id : null,
+      sessionId: guestSessionId,
+      senderName: user ? (user.displayName || user.username) : 'Guest'
+    });
 
-    // Simulate bot thinking
-    setTimeout(() => {
-      const response = getBotResponse(query, text);
-      const botMsg = {
-        id: Date.now() + 1,
-        sender: 'bot',
-        text: response.text,
-        cta: response.cta,
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      };
-      setMessages(prev => [...prev, botMsg]);
-      setIsTyping(false);
-    }, 800);
+    setInputValue('');
   };
 
   const handleCtaAction = (action) => {
@@ -142,8 +206,8 @@ export default function ChatbotWidget() {
             <div className="chatbot-header-text">
               <h4>Hopsontai Assistant</h4>
               <div className="chatbot-status">
-                <span className="status-dot"></span>
-                <span>Online</span>
+                <span className={`status-dot ${isStaffOnline ? 'online' : 'offline'}`}></span>
+                <span>{isStaffOnline ? 'Support Staff Online' : 'AI Assistant (Staff Offline)'}</span>
               </div>
             </div>
           </div>
@@ -212,7 +276,7 @@ export default function ChatbotWidget() {
               key={i} 
               type="button" 
               className="chatbot-reply-chip"
-              onClick={() => handleSend(reply.text.substring(3), reply.query)}
+              onClick={() => handleSend(reply.text.substring(3))}
             >
               {reply.text}
             </button>

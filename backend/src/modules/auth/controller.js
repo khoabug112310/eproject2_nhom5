@@ -38,7 +38,7 @@ const login = async (req, res) => {
       const patient = await Patient.findOne({ userId: user._id });
       if (patient && patient.fullName) displayName = patient.fullName;
     }
-    return ok(res, { token, role: roleName, username: user.username, displayName }, 'Login successful');
+    return ok(res, { token, role: roleName, username: user.username, displayName, userId: user._id }, 'Login successful');
   } catch (err) {
     console.error('login error', err);
     return fail(res, 'Server error', 500, err.message);

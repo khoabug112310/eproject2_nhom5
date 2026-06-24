@@ -43,6 +43,15 @@ export default function RegisterModal({ show, onClose }) {
     e.preventDefault();
     setMessage('');
     setIsError(false);
+
+    // Validate phone number format
+    const phoneRegex = /(84|0[3|5|7|8|9])+([0-9]{8})\b/;
+    if (!phoneRegex.test(phone)) {
+      setMessage('Invalid phone number format. Please enter a valid 10-digit number (e.g. 0912345678).');
+      setIsError(true);
+      return;
+    }
+
     try {
       // Call register with only phone to check status
       await authAPI.register({ phone });
