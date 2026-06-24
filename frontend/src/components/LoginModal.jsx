@@ -212,7 +212,14 @@ export default function LoginModal({ show, onClose }) {
         else if (role === 'doctor') window.location.href = '/doctor/schedule';
         else if (role === 'staff') window.location.href = '/staff/dashboard';
         else if (role === 'accountant') window.location.href = '/accountant/dashboard';
-        else window.location.href = '/patient/dashboard';
+        else {
+          const path = window.location.pathname;
+          if (path.startsWith('/specialists') || path === '/' || path.startsWith('/news') || path.startsWith('/departments') || path.startsWith('/contact') || path.startsWith('/about')) {
+            window.location.reload();
+          } else {
+            window.location.href = '/patient/dashboard';
+          }
+        }
       })
       .catch((err) => {
         setError('Số điện thoại/Email hoặc mật khẩu không chính xác. Vui lòng kiểm tra lại!');
