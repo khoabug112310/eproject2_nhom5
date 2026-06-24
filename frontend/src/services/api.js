@@ -181,6 +181,8 @@ export const reviewAPI = {
     apiClient.get(`/reviews/doctor/${doctorId}`),
   submitReview: (data) =>
     apiClient.post('/reviews', data),
+  checkEligibility: (doctorId) =>
+    apiClient.get(`/reviews/eligibility/${doctorId}`),
 };
 
 export default apiClient;

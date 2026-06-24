@@ -19,6 +19,8 @@ export default function DoctorDetail() {
   const [reviewError, setReviewError] = useState('');
   const [reviewSuccess, setReviewSuccess] = useState('');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [eligibility, setEligibility] = useState({ eligible: false, reason: 'unauthenticated' });
+  const [checkingEligibility, setCheckingEligibility] = useState(false);
 
   const loadReviews = async () => {
     try {
@@ -38,10 +40,32 @@ export default function DoctorDetail() {
     }
   };
 
+  const loadEligibility = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setEligibility({ eligible: false, reason: 'unauthenticated' });
+      return;
+    }
+    setCheckingEligibility(true);
+    try {
+      const res = await reviewAPI.checkEligibility(id);
+      if (res.data?.success && res.data?.data) {
+        setEligibility(res.data.data);
+      }
+    } catch (err) {
+      console.error('Error checking review eligibility:', err);
+    } finally {
+      setCheckingEligibility(false);
+    }
+  };
+
   useEffect(() => {
     const token = localStorage.getItem('token');
     setIsLoggedIn(!!token);
-  }, []);
+    if (token && id) {
+      loadEligibility();
+    }
+  }, [id]);
 
   useEffect(() => {
     if (id) {
@@ -113,6 +137,7 @@ export default function DoctorDetail() {
         setCommentInput('');
         setRatingInput(5);
         loadReviews();
+        loadEligibility();
       } else {
         setReviewError(res.data?.message || 'Có lỗi xảy ra khi gửi đánh giá.');
       }
@@ -810,12 +835,48 @@ export default function DoctorDetail() {
             </div>
 
             {/* Write a Review Section */}
-            <div style={{ borderTop: '1.5px solid #edf2f7', paddingTop: '30px' }}>
+            <div style={{ borderTop: '1.5px solid #edf2f7', paddingTop: '30px' }} id="write-review-section">
               <h4 style={{ fontSize: '17px', fontWeight: '800', color: '#0f172a', marginBottom: '16px' }}>
                 Để lại đánh giá của bạn
               </h4>
               
-              {isLoggedIn ? (
+              {!isLoggedIn ? (
+                <div style={{
+                  padding: '24px',
+                  backgroundColor: '#f8fafc',
+                  border: '1.5px dashed #cbd5e1',
+                  borderRadius: '16px',
+                  textAlign: 'center'
+                }}>
+                  <p style={{ color: '#475569', fontSize: '14.5px', margin: '0 0 16px 0', fontWeight: '600' }}>
+                    Bạn cần đăng nhập để gửi bình luận và đánh giá cho bác sĩ này.
+                  </p>
+                  <button
+                    onClick={() => window.dispatchEvent(new CustomEvent('open-login-modal'))}
+                    style={{
+                      padding: '10px 20px',
+                      fontSize: '13.5px',
+                      fontWeight: '700',
+                      borderRadius: '10px',
+                      border: 'none',
+                      background: 'var(--color-primary, #2563eb)',
+                      color: 'white',
+                      cursor: 'pointer',
+                      boxShadow: '0 2px 8px rgba(37, 99, 235, 0.15)',
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.filter = 'brightness(1.05)'}
+                    onMouseLeave={(e) => e.currentTarget.style.filter = 'none'}
+                  >
+                    Đăng nhập ngay
+                  </button>
+                </div>
+              ) : checkingEligibility ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#64748b', fontSize: '14px' }}>
+                  <span className="btn-spinner" style={{ width: '14px', height: '14px', borderWidth: '2px', borderTopColor: 'var(--color-primary)' }}></span>
+                  Đang kiểm tra điều kiện đánh giá...
+                </div>
+              ) : eligibility.eligible ? (
                 <form onSubmit={handleReviewSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   {reviewSuccess && (
                     <div style={{ padding: '12px 16px', backgroundColor: '#f0fdf4', color: '#166534', border: '1px solid #bbf7d0', borderRadius: '12px', fontSize: '14px', fontWeight: '600' }}>
@@ -897,32 +958,73 @@ export default function DoctorDetail() {
                 <div style={{
                   padding: '24px',
                   backgroundColor: '#f8fafc',
-                  border: '1.5px dashed #cbd5e1',
+                  border: '1.5px solid #e2e8f0',
                   borderRadius: '16px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '12px',
                   textAlign: 'center'
                 }}>
-                  <p style={{ color: '#475569', fontSize: '14.5px', margin: '0 0 16px 0', fontWeight: '600' }}>
-                    Bạn cần đăng nhập để gửi bình luận và đánh giá cho bác sĩ này.
-                  </p>
-                  <button
-                    onClick={() => window.dispatchEvent(new CustomEvent('open-login-modal'))}
-                    style={{
-                      padding: '10px 20px',
-                      fontSize: '13.5px',
-                      fontWeight: '700',
-                      borderRadius: '10px',
-                      border: 'none',
-                      background: 'var(--color-primary, #2563eb)',
-                      color: 'white',
-                      cursor: 'pointer',
-                      boxShadow: '0 2px 8px rgba(37, 99, 235, 0.15)',
-                      transition: 'all 0.2s'
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.filter = 'brightness(1.05)'}
-                    onMouseLeave={(e) => e.currentTarget.style.filter = 'none'}
-                  >
-                    Đăng nhập ngay
-                  </button>
+                  {eligibility.reason === 'already_reviewed' ? (
+                    <>
+                      <span style={{ fontSize: '32px' }}>✓</span>
+                      <p style={{ color: '#1e293b', fontSize: '15px', fontWeight: '700', margin: 0 }}>
+                        Bạn đã gửi đánh giá cho bác sĩ này.
+                      </p>
+                      <p style={{ color: '#64748b', fontSize: '13.5px', margin: 0 }}>
+                        Cảm ơn bạn đã phản hồi ý kiến đóng góp quý báu để nâng cao chất lượng dịch vụ của phòng khám.
+                      </p>
+                    </>
+                  ) : eligibility.reason === 'no_completed_appointment' ? (
+                    <>
+                      <span style={{ fontSize: '32px' }}>🔒</span>
+                      <p style={{ color: '#1e293b', fontSize: '15px', fontWeight: '700', margin: 0 }}>
+                        Tính năng đánh giá đang bị khóa
+                      </p>
+                      <p style={{ color: '#64748b', fontSize: '13.5px', margin: '0 0 4px 0', maxWidth: '480px', lineHeight: '1.5' }}>
+                        Để đảm bảo tính trung thực, hệ thống chỉ cho phép bệnh nhân đã hoàn thành ca khám thực tế tại phòng khám gửi phản hồi về bác sĩ này.
+                      </p>
+                      <button
+                        onClick={handleBook}
+                        style={{
+                          padding: '10px 20px',
+                          fontSize: '13.5px',
+                          fontWeight: '700',
+                          borderRadius: '10px',
+                          border: 'none',
+                          background: 'linear-gradient(135deg, var(--color-primary, #2563eb) 0%, var(--color-secondary, #0ea5e9) 100%)',
+                          color: 'white',
+                          cursor: 'pointer',
+                          boxShadow: '0 4px 12px rgba(37, 99, 235, 0.15)',
+                          transition: 'all 0.2s',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.filter = 'brightness(1.05)'}
+                        onMouseLeave={(e) => e.currentTarget.style.filter = 'none'}
+                      >
+                        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                          <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                          <line x1="16" y1="2" x2="16" y2="6" />
+                          <line x1="8" y1="2" x2="8" y2="6" />
+                          <line x1="3" y1="10" x2="21" y2="10" />
+                        </svg>
+                        Đặt lịch khám ngay
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <span style={{ fontSize: '32px' }}>⚠️</span>
+                      <p style={{ color: '#1e293b', fontSize: '15px', fontWeight: '700', margin: 0 }}>
+                        Không thể gửi đánh giá
+                      </p>
+                      <p style={{ color: '#64748b', fontSize: '13.5px', margin: 0 }}>
+                        Tính năng này chỉ khả dụng cho hồ sơ tài khoản bệnh nhân.
+                      </p>
+                    </>
+                  )}
                 </div>
               )}
             </div>
