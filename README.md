@@ -48,18 +48,36 @@ cd backend
 npm install
 ```
 
-Configure `.env` file:
-```
+Tạo tệp `.env` trong thư mục `backend` bằng cách sao chép từ tệp `.env.example` hoặc tạo mới với nội dung sau:
+```env
 NODE_ENV=development
 PORT=4000
-DB_HOST=localhost
-DB_USER=root
-DB_PASSWORD=
-DB_NAME=eproject_clinic
-DB_PORT=3306
-JWT_SECRET=your_secret_key_here
+MONGODB_URI=mongodb://localhost:27017/eproject_clinic
+JWT_SECRET=your_jwt_secret_key
+JWT_EXPIRE=7d
 FRONTEND_URL=http://localhost:5173
+
+# Cấu hình gửi email OTP (Nodemailer SMTP)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=
+SMTP_PASS=
+
+# Cấu hình Twilio SMS OTP
+TWILIO_ACCOUNT_SID=
+TWILIO_AUTH_TOKEN=
+TWILIO_PHONE_NUMBER=
+TWILIO_VERIFY_SERVICE_SID=
+
+# CẤU HÌNH BẮT BUỘC ĐỂ DÙNG CHATBOT AI GEMINI:
+# Dán API Key Gemini của bạn dưới đây:
+GEMINI_API_KEY=
 ```
+
+> [!IMPORTANT]
+> **Lưu ý cấu hình Chatbot AI:**
+> Để sử dụng được tính năng chatbot tư vấn bằng AI (Gemini 2.5 Flash), bạn **bắt buộc** phải điền khóa `GEMINI_API_KEY` trong tệp `.env` ở trên.
+
 
 Run backend:
 ```bash
