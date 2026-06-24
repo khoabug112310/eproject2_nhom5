@@ -268,7 +268,7 @@ const getChatSessions = async (req, res) => {
         let roomName = '';
         if (isGuest) {
           const cleanId = String(s._id.id).replace('guest_', '').substring(0, 6).toUpperCase();
-          roomName = `Khách #${cleanId}`;
+          roomName = `Guest #${cleanId}`;
         } else {
           roomName = s.patientInfo?.fullName || s.senderName || 'Patient';
         }

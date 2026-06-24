@@ -66,6 +66,11 @@ export default function StaffDashboard() {
   }, [activeTab]);
 
   useEffect(() => {
+    if (activeTab !== 'chat') {
+      setChatSocket(null);
+      return;
+    }
+
     const socketUrl = 'http://localhost:4000';
     const socketConn = io(socketUrl, {
       withCredentials: true
@@ -112,7 +117,7 @@ export default function StaffDashboard() {
     return () => {
       socketConn.disconnect();
     };
-  }, []);
+  }, [activeTab]);
 
   useEffect(() => {
     if (chatEndRef.current) {

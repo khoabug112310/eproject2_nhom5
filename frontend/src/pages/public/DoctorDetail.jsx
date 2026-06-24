@@ -770,35 +770,7 @@ export default function DoctorDetail() {
             </div>
           </div>
 
-          {/* Guarantees & Care Standards */}
-          <div className="premium-card">
-            <h3 className="card-section-title">
-              <span className="card-section-title-icon">🛡️</span> Standards of Clinical Excellence
-            </h3>
-            <div className="guarantees-grid">
-              <div className="guarantee-box">
-                <div className="guarantee-icon" style={{ backgroundColor: '#eff6ff', color: '#2563eb' }}>⚡</div>
-                <div>
-                  <div className="guarantee-title">Modern Diagnostics</div>
-                  <div className="guarantee-desc">Using advanced tech to assure highly accurate screening.</div>
-                </div>
-              </div>
-              <div className="guarantee-box">
-                <div className="guarantee-icon" style={{ backgroundColor: '#fdf2f8', color: '#db2777' }}>❤️</div>
-                <div>
-                  <div className="guarantee-title">Empathy & Care</div>
-                  <div className="guarantee-desc">Devoted medical ethics prioritizing comfort & privacy.</div>
-                </div>
-              </div>
-              <div className="guarantee-box">
-                <div className="guarantee-icon" style={{ backgroundColor: '#f0fdf4', color: '#16a34a' }}>✨</div>
-                <div>
-                  <div className="guarantee-title">Continuous Training</div>
-                  <div className="guarantee-desc">Specialist actively participating in international medical research.</div>
-                </div>
-              </div>
-            </div>
-          </div>
+
 
           {/* Patient Reviews section (Dynamic) */}
           <div className="premium-card">

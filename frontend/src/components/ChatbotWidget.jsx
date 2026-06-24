@@ -193,7 +193,7 @@ export default function ChatbotWidget() {
               <h4>Hopsontai Assistant</h4>
               <div className="chatbot-status">
                 <span className={`status-dot ${isStaffOnline ? 'online' : 'offline'}`}></span>
-                <span>{isStaffOnline ? 'Support Staff Online' : 'AI Assistant (Staff Offline)'}</span>
+                <span>{isStaffOnline ? 'Support Staff Online' : 'AI Assistant'}</span>
               </div>
             </div>
           </div>

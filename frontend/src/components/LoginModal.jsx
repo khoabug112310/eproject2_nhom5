@@ -87,7 +87,9 @@ export default function LoginModal({ show, onClose }) {
       setOtpCode('');
       setForgotStep(2);
       setForgotError('');
+      
       setForgotSuccess(response?.data?.message || 'OTP verification code has been sent.');
+      
       setCountdown(60); // Đặt thời gian đếm ngược 60 giây
       // Auto focus first OTP input box
       setTimeout(() => {
@@ -463,31 +465,13 @@ export default function LoginModal({ show, onClose }) {
                     <span>{forgotError}</span>
                   </div>
                 )}
-                <div style={{ display: 'flex', gap: '10px' }}>
-                  <button 
-                    type="button" 
-                    onClick={() => { setForgotStep(2); setForgotError(''); setForgotSuccess(''); setOtpArray(['', '', '', '', '', '']); setOtpCode(''); }} 
-                    disabled={isResetting}
-                    style={{ 
-                      flex: 1, 
-                      height: '44px', 
-                      backgroundColor: isResetting ? '#e2e8f0' : '#f1f5f9', 
-                      color: isResetting ? '#94a3b8' : '#334155', 
-                      border: 'none', 
-                      fontWeight: '700', 
-                      fontSize: '14px', 
-                      borderRadius: '10px', 
-                      cursor: isResetting ? 'not-allowed' : 'pointer' 
-                    }}
-                  >
-                    Back
-                  </button>
+                <div>
                   <button 
                     type="button" 
                     onClick={handleResetPassword} 
                     disabled={isResetting}
                     style={{ 
-                      flex: 1, 
+                      width: '100%', 
                       height: '44px', 
                       background: isResetting ? '#94a3b8' : 'linear-gradient(135deg, var(--color-primary, #3b82f6) 0%, var(--color-primary-dark, #1d4ed8) 100%)', 
                       color: 'white', 
