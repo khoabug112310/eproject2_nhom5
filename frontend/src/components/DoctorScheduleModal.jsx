@@ -7,11 +7,21 @@ export default function DoctorScheduleModal({ appointment, onClose, onConfirm, i
   const [loadingSchedules, setLoadingSchedules] = useState(false);
   const [error, setError] = useState('');
 
+  const getLocalYYYYMMDDStr = (dateInput) => {
+    if (!dateInput) return '';
+    const d = new Date(dateInput);
+    if (isNaN(d.getTime())) return '';
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   // Form states for reassigning
   const [checkDate, setCheckDate] = useState(
     appointment?.requestedDate
-      ? new Date(appointment.requestedDate).toISOString().split('T')[0]
-      : new Date().toISOString().split('T')[0]
+      ? getLocalYYYYMMDDStr(appointment.requestedDate)
+      : getLocalYYYYMMDDStr(new Date())
   );
   const [filterDoctorId, setFilterDoctorId] = useState('');
   const [selectedScheduleId, setSelectedScheduleId] = useState('');
