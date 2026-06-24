@@ -69,13 +69,13 @@ export default function LoginModal({ show, onClose }) {
   const handleSendOtp = async () => {
     if (isSendingOtp) return;
     if (!forgotPhone) {
-      setForgotError('Vui lòng nhập số điện thoại hoặc email.');
+      setForgotError('Please enter your phone number or email.');
       return;
     }
     const phoneRegex = /(84|0[3|5|7|8|9])+([0-9]{8})\b/;
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!phoneRegex.test(forgotPhone) && !emailRegex.test(forgotPhone)) {
-      setForgotError('Định dạng số điện thoại hoặc email không hợp lệ. Vui lòng kiểm tra lại.');
+      setForgotError('Invalid phone number or email format. Please check and try again.');
       return;
     }
     setIsSendingOtp(true);
@@ -87,14 +87,14 @@ export default function LoginModal({ show, onClose }) {
       setOtpCode('');
       setForgotStep(2);
       setForgotError('');
-      setForgotSuccess(response?.data?.message || 'Mã xác thực OTP đã được gửi.');
+      setForgotSuccess(response?.data?.message || 'OTP verification code has been sent.');
       setCountdown(60); // Đặt thời gian đếm ngược 60 giây
       // Auto focus first OTP input box
       setTimeout(() => {
         otpInputRefs.current[0]?.focus();
       }, 100);
     } catch (err) {
-      setForgotError(err?.response?.data?.message || 'Không thể gửi mã OTP. Vui lòng kiểm tra lại số điện thoại hoặc email của bạn.');
+      setForgotError(err?.response?.data?.message || 'Failed to send OTP code. Please check your phone number or email.');
     } finally {
       setIsSendingOtp(false);
     }
@@ -136,7 +136,7 @@ export default function LoginModal({ show, onClose }) {
   const handleVerifyOtp = async () => {
     const codeValue = otpArray.join('');
     if (codeValue.length !== 6) {
-      setForgotError('Vui lòng nhập đầy đủ mã OTP gồm 6 chữ số.');
+      setForgotError('Please enter the complete 6-digit OTP code.');
       return;
     }
     setForgotError('');
@@ -147,18 +147,18 @@ export default function LoginModal({ show, onClose }) {
       setForgotStep(3);
       setForgotError('');
     } catch (err) {
-      setForgotError(err?.response?.data?.message || 'Mã OTP không hợp lệ hoặc đã hết hạn. Vui lòng thử lại.');
+      setForgotError(err?.response?.data?.message || 'Invalid or expired OTP code. Please try again.');
     }
   };
 
   const handleResetPassword = async () => {
     if (isResetting) return;
     if (!newPassword || !confirmPassword) {
-      setForgotError('Vui lòng điền đầy đủ thông tin mật khẩu mới.');
+      setForgotError('Please fill in your new password.');
       return;
     }
     if (newPassword !== confirmPassword) {
-      setForgotError('Mật khẩu xác nhận không khớp.');
+      setForgotError('Passwords do not match.');
       return;
     }
     setIsResetting(true);
@@ -176,10 +176,10 @@ export default function LoginModal({ show, onClose }) {
       
       // Go to login view immediately & show success alert
       setShowForgot(false);
-      setSuccess('Đổi mật khẩu thành công! Vui lòng đăng nhập với mật khẩu mới.');
+      setSuccess('Password reset successfully! Please log in with your new password.');
       setError('');
     } catch (err) {
-      setForgotError(err?.response?.data?.message || 'Không thể đặt lại mật khẩu. Vui lòng kiểm tra lại mã OTP.');
+      setForgotError(err?.response?.data?.message || 'Failed to reset password. Please verify your OTP code.');
     } finally {
       setIsResetting(false);
     }
@@ -193,7 +193,7 @@ export default function LoginModal({ show, onClose }) {
     const phoneRegex = /(84|0[3|5|7|8|9])+([0-9]{8})\b/;
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!phoneRegex.test(phone) && !emailRegex.test(phone)) {
-      setError('Số điện thoại hoặc Email không đúng định dạng. Vui lòng nhập lại.');
+      setError('Invalid phone number or email format. Please check and try again.');
       return;
     }
 
@@ -222,7 +222,7 @@ export default function LoginModal({ show, onClose }) {
         }
       })
       .catch((err) => {
-        setError('Số điện thoại/Email hoặc mật khẩu không chính xác. Vui lòng kiểm tra lại!');
+        setError('Incorrect phone number/email or password. Please try again!');
         setPassword('');
         if (passwordInputRef.current) {
           passwordInputRef.current.focus();

@@ -131,12 +131,12 @@ export default function QuickBooking({
             setDoctorSchedules(schedules);
           } else {
             setDoctorSchedules([]);
-            setScheduleError('Bác sĩ không có lịch làm việc vào ngày đã chọn. Vui lòng chọn ngày khác.');
+            setScheduleError('The doctor is not scheduled to work on the selected date. Please choose another date.');
           }
         })
         .catch(err => {
           console.error('Error fetching schedules:', err);
-          setScheduleError('Không thể kiểm tra lịch làm việc của bác sĩ.');
+          setScheduleError('Unable to verify doctor schedule.');
         })
         .finally(() => {
           setFetchingSchedule(false);
@@ -223,13 +223,13 @@ export default function QuickBooking({
     // Validate working hours / doctor schedule
     if (doctor) {
       if (doctorSchedules.length === 0) {
-        setError('Bác sĩ không có lịch làm việc vào ngày đã chọn. Vui lòng chọn ngày khác hoặc chọn bác sĩ khác.');
+        setError('The doctor has no available schedules for the selected date. Please choose another date or doctor.');
         setLoading(false);
         return;
       }
       const isValid = doctorSchedules.some(sched => time >= sched.startTime && time <= sched.endTime);
       if (!isValid) {
-        setError('Giờ hẹn phải nằm trong khung giờ làm việc của bác sĩ.');
+        setError('The selected time must be within the doctor\'s working hours.');
         setLoading(false);
         return;
       }
@@ -424,7 +424,7 @@ export default function QuickBooking({
                       <option key={slot} value={slot}>{slot}</option>
                     ))
                   ) : (
-                    <option value="">-- Không có lịch trực --</option>
+                    <option value="">-- No available schedules --</option>
                   )
                 ) : (
                   ['09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00'].map(slot => (
@@ -444,7 +444,7 @@ export default function QuickBooking({
           {fetchingSchedule && (
             <div style={{ gridColumn: '1 / -1', fontSize: '13px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '8px', margin: '4px 0 12px 0' }}>
               <span className="btn-spinner" style={{ width: '12px', height: '12px', borderWidth: '2px', borderTopColor: 'var(--color-primary)' }}></span>
-              Đang kiểm tra lịch làm việc của bác sĩ...
+              Checking doctor schedule...
             </div>
           )}
 

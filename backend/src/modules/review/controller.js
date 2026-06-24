@@ -34,13 +34,13 @@ const createReview = async (req, res) => {
     });
 
     if (!completedAppt) {
-      return fail(res, 'Bạn chỉ có thể đánh giá và bình luận sau khi đã hoàn thành lượt khám thực tế với bác sĩ này.', 400);
+      return fail(res, 'You can only leave a review and comment after completing an actual clinical visit with this doctor.', 400);
     }
 
     // 3. Prevent duplicate reviews by the same user for this doctor
     const existingReview = await DoctorReview.findOne({ doctorId, userId });
     if (existingReview) {
-      return fail(res, 'Bạn đã gửi đánh giá cho bác sĩ này rồi.', 400);
+      return fail(res, 'You have already submitted a review for this doctor.', 400);
     }
 
     // 4. Create the new review

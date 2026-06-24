@@ -284,13 +284,13 @@ const forgotPassword = async (req, res) => {
         try {
           await sendEmail(user.email, 'Verification OTP Code - Hopsontai Clinic', emailHtml);
           emailSent = true;
-          responseMsg = 'Mã xác thực OTP đã được gửi đến email của bạn. / Verification OTP code has been sent to your email.';
+          responseMsg = 'Verification OTP code has been sent to your email.';
         } catch (emailErr) {
           console.error('Failed to send Email OTP:', emailErr);
           return fail(res, 'Failed to send verification code via email. Please try again.', 500);
         }
       } else {
-        return fail(res, 'Tài khoản này không có email đã cấu hình. / This account does not have a configured email address.', 400);
+        return fail(res, 'This account does not have a configured email address.', 400);
       }
     } else {
       if (user.phone) {
@@ -309,7 +309,7 @@ const forgotPassword = async (req, res) => {
             console.log(`======================================================\n`);
             smsSent = true;
           }
-          responseMsg = 'Mã xác thực OTP đã được gửi đến số điện thoại của bạn. / Verification OTP code has been sent to your phone number.';
+          responseMsg = 'Verification OTP code has been sent to your phone number.';
         } catch (smsErr) {
           console.error('Failed to send SMS OTP via Twilio Verify:', smsErr);
           // Fallback simulation so user is not blocked during demo/test if Twilio trial is restricted
@@ -319,10 +319,10 @@ const forgotPassword = async (req, res) => {
           console.log(`Message: "Your Hopsontai Clinic verification OTP code is: ${code}. Valid for 5 minutes."`);
           console.log(`======================================================\n`);
           smsSent = true;
-          responseMsg = 'Mã xác thực OTP đã được gửi đến số điện thoại của bạn. / Verification OTP code has been sent to your phone number.';
+          responseMsg = 'Verification OTP code has been sent to your phone number.';
         }
       } else {
-        return fail(res, 'Tài khoản này không có số điện thoại đã cấu hình. / This account does not have a configured phone number.', 400);
+        return fail(res, 'This account does not have a configured phone number.', 400);
       }
     }
 

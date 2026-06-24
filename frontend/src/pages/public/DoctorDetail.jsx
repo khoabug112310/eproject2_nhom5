@@ -121,7 +121,7 @@ export default function DoctorDetail() {
     setSubmittingReview(true);
 
     if (!commentInput.trim()) {
-      setReviewError('Vui lòng nhập nội dung đánh giá.');
+      setReviewError('Please enter your review comment.');
       setSubmittingReview(false);
       return;
     }
@@ -133,17 +133,17 @@ export default function DoctorDetail() {
         comment: commentInput.trim(),
       });
       if (res.data?.success) {
-        setReviewSuccess('Đăng đánh giá thành công!');
+        setReviewSuccess('Review posted successfully!');
         setCommentInput('');
         setRatingInput(5);
         loadReviews();
         loadEligibility();
       } else {
-        setReviewError(res.data?.message || 'Có lỗi xảy ra khi gửi đánh giá.');
+        setReviewError(res.data?.message || 'An error occurred while submitting your review.');
       }
     } catch (err) {
       console.error(err);
-      setReviewError(err.response?.data?.message || 'Không thể gửi đánh giá. Vui lòng thử lại sau.');
+      setReviewError(err.response?.data?.message || 'Failed to submit review. Please try again later.');
     } finally {
       setSubmittingReview(false);
     }
@@ -829,7 +829,7 @@ export default function DoctorDetail() {
                 ))
               ) : (
                 <p style={{ color: '#64748b', fontSize: '14.5px', fontStyle: 'italic', textAlign: 'center', margin: '20px 0' }}>
-                  Chưa có đánh giá nào cho bác sĩ này. Hãy là người đầu tiên đánh giá!
+                  No reviews yet for this doctor. Be the first to rate!
                 </p>
               )}
             </div>
@@ -837,7 +837,7 @@ export default function DoctorDetail() {
             {/* Write a Review Section */}
             <div style={{ borderTop: '1.5px solid #edf2f7', paddingTop: '30px' }} id="write-review-section">
               <h4 style={{ fontSize: '17px', fontWeight: '800', color: '#0f172a', marginBottom: '16px' }}>
-                Để lại đánh giá của bạn
+                Leave your review
               </h4>
               
               {!isLoggedIn ? (
@@ -849,7 +849,7 @@ export default function DoctorDetail() {
                   textAlign: 'center'
                 }}>
                   <p style={{ color: '#475569', fontSize: '14.5px', margin: '0 0 16px 0', fontWeight: '600' }}>
-                    Bạn cần đăng nhập để gửi bình luận và đánh giá cho bác sĩ này.
+                    You need to log in to post comments and rate this doctor.
                   </p>
                   <button
                     onClick={() => window.dispatchEvent(new CustomEvent('open-login-modal'))}
@@ -868,13 +868,13 @@ export default function DoctorDetail() {
                     onMouseEnter={(e) => e.currentTarget.style.filter = 'brightness(1.05)'}
                     onMouseLeave={(e) => e.currentTarget.style.filter = 'none'}
                   >
-                    Đăng nhập ngay
+                    Log in now
                   </button>
                 </div>
               ) : checkingEligibility ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#64748b', fontSize: '14px' }}>
                   <span className="btn-spinner" style={{ width: '14px', height: '14px', borderWidth: '2px', borderTopColor: 'var(--color-primary)' }}></span>
-                  Đang kiểm tra điều kiện đánh giá...
+                  Verifying review eligibility...
                 </div>
               ) : eligibility.eligible ? (
                 <form onSubmit={handleReviewSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -891,7 +891,7 @@ export default function DoctorDetail() {
 
                   {/* Stars input */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <span style={{ fontSize: '14px', color: '#475569', fontWeight: '600' }}>Chọn số sao:</span>
+                    <span style={{ fontSize: '14px', color: '#475569', fontWeight: '600' }}>Select rating:</span>
                     <div style={{ display: 'flex', gap: '4px' }}>
                       {[1, 2, 3, 4, 5].map((star) => (
                         <button
@@ -918,12 +918,12 @@ export default function DoctorDetail() {
 
                   {/* Comment input */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <label style={{ fontSize: '13.5px', color: '#475569', fontWeight: '600' }}>Nội dung bình luận:</label>
+                    <label style={{ fontSize: '13.5px', color: '#475569', fontWeight: '600' }}>Comment content:</label>
                     <textarea
                       rows={4}
                       value={commentInput}
                       onChange={(e) => setCommentInput(e.target.value)}
-                      placeholder="Hãy chia sẻ trải nghiệm khám bệnh thực tế của bạn với bác sĩ này..."
+                      placeholder="Please share your actual clinic experience with this doctor..."
                       style={{
                         width: '100%',
                         padding: '12px 16px',
@@ -951,7 +951,7 @@ export default function DoctorDetail() {
                   >
                     {submittingReview ? (
                       <span className="btn-spinner" style={{ width: '12px', height: '12px' }}></span>
-                    ) : 'Gửi đánh giá'}
+                    ) : 'Submit Review'}
                   </button>
                 </form>
               ) : (
@@ -970,20 +970,20 @@ export default function DoctorDetail() {
                     <>
                       <span style={{ fontSize: '32px' }}>✓</span>
                       <p style={{ color: '#1e293b', fontSize: '15px', fontWeight: '700', margin: 0 }}>
-                        Bạn đã gửi đánh giá cho bác sĩ này.
+                        You have already reviewed this doctor.
                       </p>
                       <p style={{ color: '#64748b', fontSize: '13.5px', margin: 0 }}>
-                        Cảm ơn bạn đã phản hồi ý kiến đóng góp quý báu để nâng cao chất lượng dịch vụ của phòng khám.
+                        Thank you for your valuable feedback to help improve our clinic's service quality.
                       </p>
                     </>
                   ) : eligibility.reason === 'no_completed_appointment' ? (
                     <>
                       <span style={{ fontSize: '32px' }}>🔒</span>
                       <p style={{ color: '#1e293b', fontSize: '15px', fontWeight: '700', margin: 0 }}>
-                        Tính năng đánh giá đang bị khóa
+                        Review capability is locked
                       </p>
                       <p style={{ color: '#64748b', fontSize: '13.5px', margin: '0 0 4px 0', maxWidth: '480px', lineHeight: '1.5' }}>
-                        Để đảm bảo tính trung thực, hệ thống chỉ cho phép bệnh nhân đã hoàn thành ca khám thực tế tại phòng khám gửi phản hồi về bác sĩ này.
+                        To ensure credibility, only patients who have completed a clinic appointment with this doctor are allowed to leave reviews.
                       </p>
                       <button
                         onClick={handleBook}
@@ -1011,17 +1011,17 @@ export default function DoctorDetail() {
                           <line x1="8" y1="2" x2="8" y2="6" />
                           <line x1="3" y1="10" x2="21" y2="10" />
                         </svg>
-                        Đặt lịch khám ngay
+                        Book an appointment now
                       </button>
                     </>
                   ) : (
                     <>
                       <span style={{ fontSize: '32px' }}>⚠️</span>
                       <p style={{ color: '#1e293b', fontSize: '15px', fontWeight: '700', margin: 0 }}>
-                        Không thể gửi đánh giá
+                        Cannot submit review
                       </p>
                       <p style={{ color: '#64748b', fontSize: '13.5px', margin: 0 }}>
-                        Tính năng này chỉ khả dụng cho hồ sơ tài khoản bệnh nhân.
+                        This feature is only available for patient accounts.
                       </p>
                     </>
                   )}
