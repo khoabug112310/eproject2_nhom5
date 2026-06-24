@@ -33,13 +33,9 @@ const createReview = async (req, res) => {
       status: APPOINTMENT_STATUS.COMPLETED
     });
 
-    // NOTE: Commented out the completed appointment check to allow review submissions during testing/development.
-    // To enforce this in production, uncomment the block below.
-    /*
     if (!completedAppt) {
       return fail(res, 'Bạn chỉ có thể đánh giá và bình luận sau khi đã hoàn thành lượt khám thực tế với bác sĩ này.', 400);
     }
-    */
 
     // 3. Prevent duplicate reviews by the same user for this doctor
     const existingReview = await DoctorReview.findOne({ doctorId, userId });
