@@ -199,7 +199,10 @@ const getChatHistory = async (req, res) => {
 
     const conditions = [];
     if (sessionId) conditions.push({ guestSessionId: sessionId });
-    if (userId) conditions.push({ senderId: userId });
+    if (userId) {
+      conditions.push({ senderId: userId });
+      conditions.push({ receiverId: userId });
+    }
 
     const messages = await ChatMessage.find({ $or: conditions })
       .sort({ createdAt: 1 })
@@ -216,15 +219,21 @@ const getChatHistory = async (req, res) => {
 
 const getChatSessions = async (req, res) => {
   try {
-    // Find active chat rooms grouped by guestSessionId or senderId
+    // Find active chat rooms grouped by guestSessionId or senderId/receiverId
     const sessions = await ChatMessage.aggregate([
       {
         $group: {
           _id: {
             $cond: [
-              { $ne: ["$guestSessionId", null] },
-              { type: "guest", id: "$guestSessionId" },
-              { type: "user", id: "$senderId" }
+              { $eq: ["$senderType", "patient"] },
+              { type: "user", id: "$senderId" },
+              {
+                $cond: [
+                  { $ne: ["$receiverId", null] },
+                  { type: "user", id: "$receiverId" },
+                  { type: "guest", id: "$guestSessionId" }
+                ]
+              }
             ]
           },
           lastMessage: { $last: "$messageText" },
@@ -234,21 +243,46 @@ const getChatSessions = async (req, res) => {
         }
       },
       {
+        $lookup: {
+          from: "patients",
+          localField: "_id.id",
+          foreignField: "userId",
+          as: "patientInfo"
+        }
+      },
+      {
+        $unwind: {
+          path: "$patientInfo",
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      {
         $sort: { lastTimestamp: -1 }
       }
     ]);
 
     const mapped = sessions
       .filter(s => s._id && s._id.id)
-      .map(s => ({
-        roomType: s._id.type,
-        roomId: s._id.id,
-        roomName: s._id.type === 'guest' ? `Guest #${String(s._id.id).substring(0, 6)}` : s.senderName,
-        lastMessage: s.lastMessage,
-        lastTimestamp: s.lastTimestamp,
-        senderName: s.senderName,
-        senderType: s.senderType
-      }));
+      .map(s => {
+        const isGuest = s._id.type === 'guest';
+        let roomName = '';
+        if (isGuest) {
+          const cleanId = String(s._id.id).replace('guest_', '').substring(0, 6).toUpperCase();
+          roomName = `Khách #${cleanId}`;
+        } else {
+          roomName = s.patientInfo?.fullName || s.senderName || 'Patient';
+        }
+
+        return {
+          roomType: s._id.type,
+          roomId: s._id.id,
+          roomName: roomName,
+          lastMessage: s.lastMessage,
+          lastTimestamp: s.lastTimestamp,
+          senderName: s.senderName,
+          senderType: s.senderType
+        };
+      });
 
     const { success: ok } = require('../../utils/response');
     return ok(res, mapped, 'Chat sessions loaded successfully');
@@ -256,6 +290,42 @@ const getChatSessions = async (req, res) => {
     console.error('getChatSessions error', err);
     const { fail } = require('../../utils/response');
     return fail(res, 'Error loading chat sessions', 500, err.message);
+  }
+};
+
+const deleteChatMessage = async (req, res) => {
+  return res.status(400).json({ success: false, message: 'Deleting individual messages is not allowed' });
+};
+
+const deleteChatSession = async (req, res) => {
+  try {
+    const { sessionId, userId } = req.query;
+    if (userId || !sessionId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Only guest sessions (using sessionId) can be deleted. Deleting registered user chats is not allowed.' 
+      });
+    }
+
+    await ChatMessage.deleteMany({ guestSessionId: sessionId });
+
+    // Emit event via socket to close/clear conversation in real-time
+    try {
+      const { getIO } = require('../../socket');
+      const io = getIO();
+      const targetRoom = `room_guest_${sessionId}`;
+      io.to(targetRoom).emit('conversation_cleared', { roomId: sessionId });
+      io.to('room_staff').emit('conversation_cleared', { roomId: sessionId });
+    } catch (err) {
+      console.warn('Socket emit failed for conversation clear:', err.message);
+    }
+
+    const { success: ok } = require('../../utils/response');
+    return ok(res, null, 'Conversation deleted successfully');
+  } catch (err) {
+    console.error('deleteChatSession error', err);
+    const { fail } = require('../../utils/response');
+    return fail(res, 'Error deleting conversation', 500, err.message);
   }
 };
 
@@ -268,5 +338,7 @@ module.exports = {
   createContactInquiry, 
   uploadImage,
   getChatHistory,
-  getChatSessions
+  getChatSessions,
+  deleteChatMessage,
+  deleteChatSession
 };

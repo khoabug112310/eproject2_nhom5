@@ -199,11 +199,13 @@ export default function LoginModal({ show, onClose }) {
 
     authAPI.login(phone, password)
       .then((res) => {
-        const { token, role, username, displayName } = res.data.data;
-        localStorage.setItem('token', token);
-        localStorage.setItem('userRole', role || '');
-        localStorage.setItem('userName', username || phone || '');
-        localStorage.setItem('userDisplayName', displayName || username || phone || '');
+        const { token, role, username, displayName, userId } = res.data.data;
+        const prefix = (role === 'patient') ? '' : 'portal_';
+        localStorage.setItem(`${prefix}token`, token);
+        localStorage.setItem(`${prefix}userRole`, role || '');
+        localStorage.setItem(`${prefix}userName`, username || phone || '');
+        localStorage.setItem(`${prefix}userDisplayName`, displayName || username || phone || '');
+        localStorage.setItem(`${prefix}userId`, userId || '');
         onClose();
         
         if (role === 'admin') window.location.href = '/admin/dashboard';

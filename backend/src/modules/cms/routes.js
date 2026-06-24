@@ -12,7 +12,9 @@ const {
   createContactInquiry, 
   uploadImage,
   getChatHistory,
-  getChatSessions
+  getChatSessions,
+  deleteChatMessage,
+  deleteChatSession
 } = require('./controller');
 
 const router = express.Router();
@@ -29,5 +31,7 @@ router.delete('/posts/:id', authenticateToken, authorizeRole(USER_ROLE.ADMIN), d
 router.post('/upload', authenticateToken, authorizeRole(USER_ROLE.ADMIN), uploadImage);
 router.get('/contact-inquiries', authenticateToken, authorizeRole(USER_ROLE.ADMIN, USER_ROLE.STAFF), getContactInquiries);
 router.get('/chat/sessions', authenticateToken, authorizeRole(USER_ROLE.ADMIN, USER_ROLE.STAFF), getChatSessions);
+router.delete('/chat/message/:id', authenticateToken, authorizeRole(USER_ROLE.ADMIN, USER_ROLE.STAFF), deleteChatMessage);
+router.delete('/chat/session', authenticateToken, authorizeRole(USER_ROLE.ADMIN, USER_ROLE.STAFF), deleteChatSession);
 
 module.exports = router;
