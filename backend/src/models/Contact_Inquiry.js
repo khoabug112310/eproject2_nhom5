@@ -30,11 +30,18 @@ const contactInquirySchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Staff', // Đảm bảo bạn đã có Model tên là 'Staff' nhé
   },
+  replyMessage: {
+    type: String,
+    trim: true,
+  },
+  repliedAt: {
+    type: Date,
+  },
   submittedAt: {
     type: Date,
     default: Date.now,
   },
-}, { 
+}, {
   timestamps: true // Tự động tạo thêm 2 trường là createdAt và updatedAt
 });
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { profilesAPI, schedulingAPI, clinicalAPI, billingAPI } from '../../services/api';
+import { profilesAPI, schedulingAPI, clinicalAPI, billingAPI, cmsAPI } from '../../services/api';
 import RoleTopNav from '../../components/RoleTopNav';
 import Footer from '../../components/Footer';
 import BookingForm from './components/BookingForm';
@@ -66,15 +66,20 @@ export default function PatientDashboard() {
   const [subForm, setSubForm] = useState({
     fullName: '', dateOfBirth: '', gender: 'Khác',
     phoneNumber: '', address: '', identityCard: '', insuranceCode: '',
-    category: 'Adult',
+    category: 'Adult', birthCertificate: '', personalId: '',
+    birthCertificateImg: '', identityCardImg: ''
   });
   const [subSaving, setSubSaving] = useState(false);
   const [subError, setSubError] = useState('');
+  const [editingSubId, setEditingSubId] = useState(null);
+  const [uploadingImg, setUploadingImg] = useState(false);
 
   const [paymentProcessing, setPaymentProcessing] = useState(false);
   const [paymentMessage, setPaymentMessage]       = useState('');
 
   const [expandedInvoiceGroups, setExpandedInvoiceGroups] = useState([]);
+  const [invoiceSearchQuery, setInvoiceSearchQuery] = useState('');
+  const [invoiceStatusFilter, setInvoiceStatusFilter] = useState('All');
 
   const todayStr = new Date().toISOString().slice(0, 10);
   const yearsAgo = (years) => {
@@ -84,12 +89,43 @@ export default function PatientDashboard() {
   };
   const minDobPrimary = yearsAgo(120);
   const maxDobPrimary = yearsAgo(14);
-  const minDobChild = yearsAgo(14);
+  const minDobChild = yearsAgo(15);
   const maxDobChild = todayStr;
 
   const groupedInvoices = useMemo(() => {
     const groups = {};
-    invoices.forEach(inv => {
+    const filteredInvoices = invoices.filter(inv => {
+      // 1. Status Filter
+      if (invoiceStatusFilter !== 'All') {
+        if (invoiceStatusFilter === 'Paid' && inv.status !== 'Paid') return false;
+        if (invoiceStatusFilter === 'Unpaid' && inv.status !== 'Unpaid') return false;
+      }
+
+      // 2. Search Text Query Filter
+      if (invoiceSearchQuery.trim()) {
+        const query = invoiceSearchQuery.toLowerCase();
+        
+        const docName = inv.appointmentId?.doctorId?.fullName || '';
+        const deptName = inv.appointmentId?.departmentId?.departmentName || '';
+        const patName = inv.patientId?.fullName || '';
+        const invType = inv.invoiceType || '';
+        const invId = inv._id || '';
+
+        const matchDoc = docName.toLowerCase().includes(query);
+        const matchDept = deptName.toLowerCase().includes(query);
+        const matchPat = patName.toLowerCase().includes(query);
+        const matchType = invType.toLowerCase().includes(query);
+        const matchId = invId.toLowerCase().includes(query);
+
+        if (!matchDoc && !matchDept && !matchPat && !matchType && !matchId) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+
+    filteredInvoices.forEach(inv => {
       const patientId = inv.patientId?._id || 'unknown';
       const patientName = inv.patientId?.fullName || 'Guest';
       const isSub = !!inv.patientId?.parentId;
@@ -104,7 +140,7 @@ export default function PatientDashboard() {
       groups[patientId].list.push(inv);
     });
     return Object.values(groups);
-  }, [invoices]);
+  }, [invoices, invoiceSearchQuery, invoiceStatusFilter]);
 
   useEffect(() => {
     if (invoices.length > 0) {
@@ -195,6 +231,54 @@ export default function PatientDashboard() {
     }
   };
 
+  const handleOpenSubEdit = (sub) => {
+    setEditingSubId(sub._id);
+    setSubForm({
+      fullName: sub.fullName || '',
+      dateOfBirth: sub.dateOfBirth ? new Date(sub.dateOfBirth).toISOString().slice(0, 10) : '',
+      gender: sub.gender || 'Khác',
+      phoneNumber: sub.phoneNumber || '',
+      address: sub.address || '',
+      identityCard: sub.identityCard || '',
+      insuranceCode: sub.insuranceCode || '',
+      category: sub.category || 'Adult',
+      birthCertificate: sub.birthCertificate || '',
+      personalId: sub.personalId || '',
+      birthCertificateImg: sub.birthCertificateImg || '',
+      identityCardImg: sub.identityCardImg || ''
+    });
+    setShowAddSubModal(true);
+  };
+
+  const handleFileChange = async (e, fieldName) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      Swal.fire({ icon: 'error', title: 'Invalid File', text: 'Please select a valid image file (PNG, JPG, JPEG).' });
+      return;
+    }
+
+    setUploadingImg(true);
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      try {
+        const base64Data = reader.result;
+        const res = await cmsAPI.uploadImage(base64Data);
+        const url = res.data?.data?.url;
+        if (url) {
+          setSubForm(prev => ({ ...prev, [fieldName]: url }));
+        }
+      } catch (err) {
+        console.error(err);
+        Swal.fire({ icon: 'error', title: 'Upload Failed', text: 'Upload failed. Please try again.' });
+      } finally {
+        setUploadingImg(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleSaveSubAccount = async (e) => {
     e.preventDefault();
     if (!subForm.fullName || !subForm.dateOfBirth || !subForm.gender) {
@@ -205,24 +289,41 @@ export default function PatientDashboard() {
     // Double check DOB limits programmatically
     const dobDate = new Date(subForm.dateOfBirth);
     const today = new Date();
-    const age = (today - dobDate) / (365.25 * 24 * 60 * 60 * 1000);
+    let age = today.getFullYear() - dobDate.getFullYear();
+    const m = today.getMonth() - dobDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < dobDate.getDate())) {
+      age--;
+    }
     
     if (subForm.category === 'Child') {
-      if (age >= 14) {
-        setSubError('A child dependent must be under 14 years old.');
+      if (age >= 15) {
+        setSubError('A child dependent must be under 15 years old.');
         return;
       }
       if (age < 0) {
         setSubError('Date of birth cannot be in the future.');
         return;
       }
-    } else {
-      if (age < 14) {
-        setSubError('An adult/elderly dependent must be at least 14 years old.');
+      if (!subForm.birthCertificate?.trim() && !subForm.personalId?.trim()) {
+        setSubError('Children under 15 years old must provide a Birth Certificate or a Personal Identification Code.');
         return;
       }
-      if (age > 120) {
-        setSubError('Age cannot exceed 120 years.');
+    } else if (subForm.category === 'Elderly') {
+      if (age < 60) {
+        setSubError('An elderly dependent must be at least 60 years old.');
+        return;
+      }
+      if (!subForm.identityCard?.trim()) {
+        setSubError('Elderly patients aged 60 and above must provide a National ID Card (CCCD/CMND).');
+        return;
+      }
+    } else {
+      if (age < 15) {
+        setSubError('An adult dependent must be at least 15 years old.');
+        return;
+      }
+      if (age >= 60) {
+        setSubError('An adult dependent must be under 60 years old.');
         return;
       }
     }
@@ -230,13 +331,19 @@ export default function PatientDashboard() {
     setSubSaving(true);
     setSubError('');
     try {
-      await profilesAPI.createSubAccount(subForm);
+      if (editingSubId) {
+        await profilesAPI.updateSubAccount(editingSubId, subForm);
+        Swal.fire({ icon: 'success', title: 'Dependent updated successfully', showConfirmButton: false, timer: 1500 });
+      } else {
+        await profilesAPI.createSubAccount(subForm);
+        Swal.fire({ icon: 'success', title: 'Dependent added successfully', showConfirmButton: false, timer: 1500 });
+      }
       await refreshSubaccounts();
       setShowAddSubModal(false);
-      setSubForm({ fullName: '', dateOfBirth: '', gender: 'Khác', phoneNumber: '', address: '', identityCard: '', insuranceCode: '', category: 'Adult' });
-      Swal.fire({ icon: 'success', title: 'Dependent added successfully', showConfirmButton: false, timer: 1500 });
+      setEditingSubId(null);
+      setSubForm({ fullName: '', dateOfBirth: '', gender: 'Khác', phoneNumber: '', address: '', identityCard: '', insuranceCode: '', category: 'Adult', birthCertificate: '', personalId: '', birthCertificateImg: '', identityCardImg: '' });
     } catch (err) {
-      setSubError(err.response?.data?.message || 'An error occurred while creating dependent profile.');
+      setSubError(err.response?.data?.message || 'An error occurred while saving dependent profile.');
     } finally {
       setSubSaving(false);
     }
@@ -328,7 +435,11 @@ export default function PatientDashboard() {
     // Verify DOB limit programmatically
     const dobDate = new Date(profileForm.dateOfBirth);
     const today = new Date();
-    const age = (today - dobDate) / (365.25 * 24 * 60 * 60 * 1000);
+    let age = today.getFullYear() - dobDate.getFullYear();
+    const m = today.getMonth() - dobDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < dobDate.getDate())) {
+      age--;
+    }
     if (age < 14) {
       setProfileMessage('Primary account holder must be at least 14 years old.');
       return;
@@ -336,6 +447,12 @@ export default function PatientDashboard() {
     if (age > 120) {
       setProfileMessage('Primary account holder age cannot exceed 120 years.');
       return;
+    }
+    if (age >= 60) {
+      if (!profileForm.identityCard?.trim()) {
+        setProfileMessage('Elderly patients aged 60 and above must provide a National ID Card (CCCD/CMND).');
+        return;
+      }
     }
 
     setProfileSaving(true); setProfileMessage('');
@@ -717,8 +834,66 @@ export default function PatientDashboard() {
                 </div>
               </div>
 
+              {/* Search & Filter Controls */}
+              <div 
+                style={{
+                  display: 'flex',
+                  gap: 12,
+                  marginBottom: 20,
+                  flexWrap: 'wrap',
+                  background: 'var(--color-bg-light, #f8fafc)',
+                  padding: '14px 16px',
+                  borderRadius: 8,
+                  border: '1px solid var(--color-border)'
+                }}
+              >
+                <div style={{ flex: 1, minWidth: 200, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <label style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-muted)' }}>Search Invoices</label>
+                  <input
+                    type="text"
+                    value={invoiceSearchQuery}
+                    onChange={e => setInvoiceSearchQuery(e.target.value)}
+                    placeholder="Search by doctor, department, type or patient..."
+                    style={{
+                      padding: '8px 12px',
+                      borderRadius: 6,
+                      border: '1px solid var(--color-border)',
+                      fontSize: 13,
+                      background: 'var(--color-surface)',
+                      color: 'var(--color-text-dark)',
+                      width: '100%'
+                    }}
+                  />
+                </div>
+                <div style={{ width: 180, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <label style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-muted)' }}>Payment Status</label>
+                  <select
+                    value={invoiceStatusFilter}
+                    onChange={e => setInvoiceStatusFilter(e.target.value)}
+                    style={{
+                      padding: '8px 12px',
+                      borderRadius: 6,
+                      border: '1px solid var(--color-border)',
+                      fontSize: 13,
+                      background: 'var(--color-surface)',
+                      color: 'var(--color-text-dark)',
+                      width: '100%',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <option value="All">All Invoices</option>
+                    <option value="Paid">Paid Only</option>
+                    <option value="Unpaid">Unpaid Only</option>
+                  </select>
+                </div>
+              </div>
+
               {groupedInvoices.length === 0 ? (
-                <div className="empty-state">No invoices found.</div>
+                <div className="empty-state">
+                  {invoices.length === 0 
+                    ? "No invoices found." 
+                    : "No invoices match your search or filter criteria."}
+                </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                   {groupedInvoices.map(group => {
@@ -997,6 +1172,7 @@ export default function PatientDashboard() {
                           <th>Category</th>
                           <th>Date of Birth</th>
                           <th>Gender</th>
+                          <th>ID / Documents</th>
                           <th>Insurance Code</th>
                           <th>Address</th>
                           <th>Actions</th>
@@ -1009,22 +1185,60 @@ export default function PatientDashboard() {
                               <strong>{sub.fullName}</strong>
                             </td>
                             <td>
-                              <span className={`badge ${sub.category === 'Child' ? 'badge-info' : 'badge-primary'}`}>
-                                {sub.category === 'Child' ? 'Child' : 'Adult/Elderly'}
+                              <span className={`badge ${sub.category === 'Child' ? 'badge-info' : sub.category === 'Elderly' ? 'badge-warning' : 'badge-primary'}`}>
+                                {sub.category}
                               </span>
                             </td>
                             <td>{new Date(sub.dateOfBirth).toLocaleDateString('en-US')}</td>
                             <td>{sub.gender === 'Nam' ? 'Male' : sub.gender === 'Nữ' ? 'Female' : 'Other'}</td>
+                            <td>
+                              {sub.category === 'Child' ? (
+                                <div style={{ fontSize: 12 }}>
+                                  {sub.birthCertificate && <div>🗂️ Birth Cert: {sub.birthCertificate}</div>}
+                                  {sub.personalId && <div>🆔 Personal ID: {sub.personalId}</div>}
+                                  {sub.birthCertificateImg && (
+                                    <div style={{ marginTop: 4 }}>
+                                      <a href={sub.birthCertificateImg} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', color: 'var(--color-primary)', fontWeight: 'bold' }}>
+                                        🖼️ View Birth Cert
+                                      </a>
+                                    </div>
+                                  )}
+                                  {!sub.birthCertificate && !sub.personalId && !sub.birthCertificateImg && <span className="text-muted">—</span>}
+                                </div>
+                              ) : (
+                                <div style={{ fontSize: 12 }}>
+                                  {sub.identityCard ? <div>🆔 National ID: {sub.identityCard}</div> : null}
+                                  {sub.phoneNumber ? <div>📞 Phone: {sub.phoneNumber}</div> : null}
+                                  {sub.identityCardImg && (
+                                    <div style={{ marginTop: 4 }}>
+                                      <a href={sub.identityCardImg} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', color: 'var(--color-primary)', fontWeight: 'bold' }}>
+                                        🖼️ View ID Card
+                                      </a>
+                                    </div>
+                                  )}
+                                  {!sub.identityCard && !sub.phoneNumber && !sub.identityCardImg && <span className="text-muted">—</span>}
+                                </div>
+                              )}
+                            </td>
                             <td>{sub.insuranceCode || '—'}</td>
                             <td>{sub.address || '—'}</td>
                             <td>
-                              <button
-                                className="btn btn-xs"
-                                style={{ background: 'var(--color-danger-light)', color: 'var(--color-danger)', border: '1px solid #fecaca' }}
-                                onClick={() => handleDeleteSubAccount(sub._id)}
-                              >
-                                Delete
-                              </button>
+                              <div className="btn-cell">
+                                <button
+                                  className="btn btn-ghost btn-xs"
+                                  style={{ borderColor: 'var(--color-primary)', color: 'var(--color-primary)' }}
+                                  onClick={() => handleOpenSubEdit(sub)}
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  className="btn btn-xs"
+                                  style={{ background: 'var(--color-danger-light)', color: 'var(--color-danger)', border: '1px solid #fecaca' }}
+                                  onClick={() => handleDeleteSubAccount(sub._id)}
+                                >
+                                  Delete
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -1180,16 +1394,32 @@ export default function PatientDashboard() {
         </div>
       )}
 
-      {/* ── Add sub-account modal ── */}
+      {/* ── Add/Edit sub-account modal ── */}
       {showAddSubModal && (
         <div
           className="modal-backdrop"
-          onClick={e => { if (e.target === e.currentTarget) setShowAddSubModal(false); }}
+          onClick={e => {
+            if (e.target === e.currentTarget) {
+              setShowAddSubModal(false);
+              setEditingSubId(null);
+              setSubForm({ fullName: '', dateOfBirth: '', gender: 'Khác', phoneNumber: '', address: '', identityCard: '', insuranceCode: '', category: 'Adult', birthCertificate: '', personalId: '', birthCertificateImg: '', identityCardImg: '' });
+            }
+          }}
         >
           <div className="modal-content" style={{ maxWidth: 550 }}>
             <div className="modal-header">
-              <h3>➕ Register Family Dependent</h3>
-              <button className="close-btn" onClick={() => setShowAddSubModal(false)}>×</button>
+              <h3>{editingSubId ? '✏️ Edit Family Dependent' : '➕ Register Family Dependent'}</h3>
+              <button
+                type="button"
+                className="close-btn"
+                onClick={() => {
+                  setShowAddSubModal(false);
+                  setEditingSubId(null);
+                  setSubForm({ fullName: '', dateOfBirth: '', gender: 'Khác', phoneNumber: '', address: '', identityCard: '', insuranceCode: '', category: 'Adult', birthCertificate: '', personalId: '', birthCertificateImg: '', identityCardImg: '' });
+                }}
+              >
+                ×
+              </button>
             </div>
 
             <form onSubmit={handleSaveSubAccount}>
@@ -1209,12 +1439,17 @@ export default function PatientDashboard() {
                           dateOfBirth: '',
                           identityCard: val === 'Child' ? '' : p.identityCard,
                           phoneNumber: val === 'Child' ? '' : p.phoneNumber,
+                          birthCertificate: val !== 'Child' ? '' : p.birthCertificate,
+                          personalId: val !== 'Child' ? '' : p.personalId,
+                          birthCertificateImg: val !== 'Child' ? '' : p.birthCertificateImg,
+                          identityCardImg: val === 'Child' ? '' : p.identityCardImg,
                         }));
                       }}
                       required
                     >
-                      <option value="Adult">Adult / Elderly</option>
-                      <option value="Child">Child (Under 14 years old)</option>
+                      <option value="Adult">Adult</option>
+                      <option value="Elderly">Elderly (60+ years old)</option>
+                      <option value="Child">Child (Under 15 years old)</option>
                     </select>
                   </div>
 
@@ -1234,8 +1469,8 @@ export default function PatientDashboard() {
                     <input
                       type="date"
                       value={subForm.dateOfBirth}
-                      min={subForm.category === 'Child' ? minDobChild : minDobPrimary}
-                      max={subForm.category === 'Child' ? maxDobChild : maxDobPrimary}
+                      min={subForm.category === 'Child' ? yearsAgo(15) : subForm.category === 'Elderly' ? yearsAgo(120) : yearsAgo(60)}
+                      max={subForm.category === 'Child' ? todayStr : subForm.category === 'Elderly' ? yearsAgo(60) : yearsAgo(15)}
                       onChange={e => setSubForm(p => ({ ...p, dateOfBirth: e.target.value }))}
                       required
                     />
@@ -1254,27 +1489,94 @@ export default function PatientDashboard() {
                     </select>
                   </div>
 
-                  {subForm.category !== 'Child' && (
+                  {subForm.category === 'Child' ? (
+                    <>
+                      <div className="form-group">
+                        <label>Birth Certificate Number / Info *</label>
+                        <input
+                          type="text"
+                          value={subForm.birthCertificate || ''}
+                          onChange={e => setSubForm(p => ({ ...p, birthCertificate: e.target.value }))}
+                          placeholder="e.g. Birth certificate number or info"
+                        />
+                      </div>
+
+                      <div className="form-group">
+                        <label>Personal Identification Code *</label>
+                        <input
+                          type="text"
+                          value={subForm.personalId || ''}
+                          onChange={e => setSubForm(p => ({ ...p, personalId: e.target.value }))}
+                          placeholder="e.g. 001306012345 (12 digits)"
+                        />
+                      </div>
+
+                      <div className="form-group">
+                        <label>Birth Certificate Image</label>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={e => handleFileChange(e, 'birthCertificateImg')}
+                          disabled={uploadingImg}
+                        />
+                        {uploadingImg && <div style={{ fontSize: 12, color: 'var(--color-primary)', marginTop: 4 }}>Uploading...</div>}
+                        {subForm.birthCertificateImg && (
+                          <div style={{ marginTop: 8 }}>
+                            <img src={subForm.birthCertificateImg} alt="Birth Certificate Preview" style={{ maxWidth: 100, maxHeight: 100, borderRadius: 6, border: '1px solid var(--color-border)' }} />
+                            <button type="button" className="btn btn-xs" style={{ display: 'block', marginTop: 4, background: 'var(--color-danger-light)', color: 'var(--color-danger)', border: '1px solid #fecaca' }} onClick={() => setSubForm(p => ({ ...p, birthCertificateImg: '' }))}>Remove Image</button>
+                          </div>
+                        )}
+                      </div>
+
+                      <p style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: -6 }}>
+                        * Children under 15 years old must provide a Birth Certificate or a Personal Identification Code.
+                      </p>
+                    </>
+                  ) : (
                     <>
                       <div className="form-group">
                         <label>Phone Number (Optional)</label>
                         <input
                           type="text"
-                          value={subForm.phoneNumber}
+                          value={subForm.phoneNumber || ''}
                           onChange={e => setSubForm(p => ({ ...p, phoneNumber: e.target.value }))}
                           placeholder="e.g. 0901 234 567"
                         />
                       </div>
 
                       <div className="form-group">
-                        <label>National ID / Identity Card (Optional)</label>
+                        <label>National ID / CCCD {subForm.category === 'Elderly' ? '*' : '(Optional)'}</label>
                         <input
                           type="text"
-                          value={subForm.identityCard}
+                          value={subForm.identityCard || ''}
                           onChange={e => setSubForm(p => ({ ...p, identityCard: e.target.value }))}
-                          placeholder="National ID card number"
+                          placeholder="National ID card number (CCCD/CMND)"
+                          required={subForm.category === 'Elderly'}
                         />
                       </div>
+
+                      <div className="form-group">
+                        <label>National ID Image</label>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={e => handleFileChange(e, 'identityCardImg')}
+                          disabled={uploadingImg}
+                        />
+                        {uploadingImg && <div style={{ fontSize: 12, color: 'var(--color-primary)', marginTop: 4 }}>Uploading...</div>}
+                        {subForm.identityCardImg && (
+                          <div style={{ marginTop: 8 }}>
+                            <img src={subForm.identityCardImg} alt="Identity Card Preview" style={{ maxWidth: 100, maxHeight: 100, borderRadius: 6, border: '1px solid var(--color-border)' }} />
+                            <button type="button" className="btn btn-xs" style={{ display: 'block', marginTop: 4, background: 'var(--color-danger-light)', color: 'var(--color-danger)', border: '1px solid #fecaca' }} onClick={() => setSubForm(p => ({ ...p, identityCardImg: '' }))}>Remove Image</button>
+                          </div>
+                        )}
+                      </div>
+
+                      {subForm.category === 'Elderly' && (
+                        <p style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: -6 }}>
+                          * Elderly patients aged 60 and above must provide a National ID Card (CCCD/CMND).
+                        </p>
+                      )}
                     </>
                   )}
 
@@ -1301,9 +1603,19 @@ export default function PatientDashboard() {
               </div>
 
               <div className="modal-footer">
-                <button type="button" className="btn btn-ghost" onClick={() => setShowAddSubModal(false)}>Cancel</button>
-                <button type="submit" className="btn btn-primary" disabled={subSaving}>
-                  {subSaving ? 'Saving...' : 'Add Dependent'}
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={() => {
+                    setShowAddSubModal(false);
+                    setEditingSubId(null);
+                    setSubForm({ fullName: '', dateOfBirth: '', gender: 'Khác', phoneNumber: '', address: '', identityCard: '', insuranceCode: '', category: 'Adult', birthCertificate: '', personalId: '', birthCertificateImg: '', identityCardImg: '' });
+                  }}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary" disabled={subSaving || uploadingImg}>
+                  {subSaving ? 'Saving...' : (editingSubId ? 'Save Changes' : 'Add Dependent')}
                 </button>
               </div>
             </form>

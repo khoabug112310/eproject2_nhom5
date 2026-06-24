@@ -18,4 +18,5 @@ module.exports = {
   Contact_Inquiry: require('./Contact_Inquiry'),
   ChatMessage: require('./ChatMessage'),
   DoctorReview: require('./DoctorReview'),
+  Notification: require('./Notification'),
 };

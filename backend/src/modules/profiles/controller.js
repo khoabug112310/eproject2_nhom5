@@ -7,6 +7,31 @@ const Patient = require('../../models/Patient');
 const Doctor = require('../../models/Doctor');
 const Staff = require('../../models/Staff');
 
+const validatePatientAgeRequirements = (dob, body, existingPatient = {}) => {
+  if (!dob) return null;
+  const birthDate = new Date(dob);
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const m = today.getMonth() - birthDate.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+
+  if (age < 15) {
+    const bc = body.birthCertificate !== undefined ? body.birthCertificate : existingPatient.birthCertificate;
+    const pid = body.personalId !== undefined ? body.personalId : existingPatient.personalId;
+    if (!(bc && bc.trim()) && !(pid && pid.trim())) {
+      return 'Children under 15 years old must provide a Birth Certificate or a Personal Identification Code.';
+    }
+  } else if (age >= 60) {
+    const idCard = body.identityCard !== undefined ? body.identityCard : existingPatient.identityCard;
+    if (!idCard || !idCard.trim() || idCard.startsWith('REG-') || idCard.startsWith('ADM-') || idCard.startsWith('QUICK-')) {
+      return 'Elderly patients aged 60 and above must provide a National ID Card (CCCD/CMND).';
+    }
+  }
+  return null;
+};
+
 const getAllUsers = async (req, res) => {
   try {
     const users = await User.find().populate('roleId').lean();
@@ -46,8 +71,14 @@ const getUserById = async (req, res) => {
     if (doc) return ok(res, doc, 'Doctor information loaded successfully');
     
     // Otherwise check Patient profile id
-    const pat = await Patient.findById(id).lean();
-    if (pat) return ok(res, pat, 'Patient information loaded successfully');
+    const pat = await Patient.findById(id).populate('parentId').lean();
+    if (pat) {
+      if (pat.parentId) {
+        pat.phoneNumber = pat.phoneNumber || pat.parentId.phoneNumber || '';
+        pat.address = pat.address && pat.address.trim() ? pat.address.trim() : (pat.parentId.address || '');
+      }
+      return ok(res, pat, 'Patient information loaded successfully');
+    }
 
     // Otherwise check User
     const user = await User.findById(id).populate('roleId').lean();
@@ -68,13 +99,40 @@ const updateUser = async (req, res) => {
     // Check if it is a patient record
     let patient = await Patient.findById(id);
     if (patient) {
+      const dob = body.dateOfBirth ? new Date(body.dateOfBirth) : patient.dateOfBirth;
+      const validationError = validatePatientAgeRequirements(dob, body, patient);
+      if (validationError) {
+        return res.status(400).json({ success: false, message: validationError });
+      }
+
       if (body.fullName) patient.fullName = body.fullName;
       if (body.dateOfBirth) patient.dateOfBirth = new Date(body.dateOfBirth);
       if (body.gender) patient.gender = body.gender;
-      if (body.identityCard) patient.identityCard = body.identityCard;
-      if (body.phoneNumber) patient.phoneNumber = body.phoneNumber;
+      if (body.identityCard !== undefined) patient.identityCard = body.identityCard || undefined;
+      if (body.identityCardImg !== undefined) patient.identityCardImg = body.identityCardImg || undefined;
+      if (body.birthCertificate !== undefined) patient.birthCertificate = body.birthCertificate || undefined;
+      if (body.birthCertificateImg !== undefined) patient.birthCertificateImg = body.birthCertificateImg || undefined;
+      if (body.personalId !== undefined) patient.personalId = body.personalId || undefined;
+      let parentPatient = null;
+      if (patient.parentId) {
+        parentPatient = await Patient.findById(patient.parentId);
+      }
+
+      if (body.phoneNumber !== undefined) {
+        if (parentPatient) {
+          patient.phoneNumber = (body.phoneNumber && body.phoneNumber.trim() && body.phoneNumber.trim() !== parentPatient.phoneNumber) ? body.phoneNumber.trim() : undefined;
+        } else {
+          patient.phoneNumber = body.phoneNumber || undefined;
+        }
+      }
       if (body.email !== undefined) patient.email = body.email || undefined;
-      if (body.address !== undefined) patient.address = body.address;
+      if (body.address !== undefined) {
+        if (parentPatient) {
+          patient.address = (body.address && body.address.trim() && body.address.trim() !== parentPatient.address) ? body.address.trim() : '';
+        } else {
+          patient.address = body.address;
+        }
+      }
       if (body.insuranceCode !== undefined) patient.insuranceCode = body.insuranceCode;
       if (body.emergencyContact !== undefined) patient.emergencyContact = body.emergencyContact;
       await patient.save();
@@ -200,7 +258,7 @@ const getPatients = async (req, res) => {
     const { Appointment, Invoice, Medical_Record } = require('../../models');
 
     // 1. Fetch all patients
-    let patients = await Patient.find().populate('userId').lean();
+    let patients = await Patient.find().populate('userId').populate('parentId').lean();
 
     // Group patients by phone number to identify duplicates
     const phoneMap = {};
@@ -254,28 +312,38 @@ const getPatients = async (req, res) => {
 
     // 2. Re-fetch patients if we merged any to get the clean list
     if (mergedAny) {
-      patients = await Patient.find().populate('userId').lean();
+      patients = await Patient.find().populate('userId').populate('parentId').lean();
     }
 
     // 3. Categorize patients
     const normal = [];
+    const dependents = [];
     const quickBooking = [];
 
     for (const p of patients) {
       if (p.userId && p.userId.isRegistered === true) {
         normal.push(p);
+      } else if (p.parentId) {
+        const parentInfo = p.parentId;
+        const mappedP = {
+          ...p,
+          phoneNumber: p.phoneNumber || (parentInfo && parentInfo.phoneNumber) || '',
+          address: p.address && p.address.trim() ? p.address.trim() : ((parentInfo && parentInfo.address) || '')
+        };
+        dependents.push(mappedP);
       } else {
         quickBooking.push(p);
       }
     }
 
-    // Sort both arrays by fullName
+    // Sort all arrays by fullName
     const sortByFullName = (a, b) => (a.fullName || '').localeCompare(b.fullName || '');
     normal.sort(sortByFullName);
+    dependents.sort(sortByFullName);
     quickBooking.sort(sortByFullName);
 
     const { success: ok } = require('../../utils/response');
-    return ok(res, { normal, quickBooking }, 'Patient list loaded successfully');
+    return ok(res, { normal, dependents, quickBooking }, 'Patient list loaded successfully');
   } catch (err) {
     console.error('getPatients error', err);
     const { fail } = require('../../utils/response');
@@ -1026,9 +1094,14 @@ const createMyPatientProfile = async (req, res) => {
     const existing = await Patient.findOne({ userId: req.user.id });
     if (existing) return fail(res, 'Profile already exists — use PUT to update', 409);
 
-    const { fullName, dateOfBirth, gender, phoneNumber, address, identityCard, insuranceCode, email } = req.body;
-    if (!fullName || !dateOfBirth || !gender || !phoneNumber || !identityCard) {
-      return res.status(400).json({ success: false, message: 'fullName, dateOfBirth, gender, phoneNumber, and identityCard are required' });
+    const { fullName, dateOfBirth, gender, phoneNumber, address, identityCard, insuranceCode, email, birthCertificate, personalId, birthCertificateImg, identityCardImg } = req.body;
+    if (!fullName || !dateOfBirth || !gender || !phoneNumber) {
+      return res.status(400).json({ success: false, message: 'fullName, dateOfBirth, gender, and phoneNumber are required' });
+    }
+
+    const validationError = validatePatientAgeRequirements(dateOfBirth, req.body);
+    if (validationError) {
+      return res.status(400).json({ success: false, message: validationError });
     }
 
     const patient = await Patient.create({
@@ -1037,10 +1110,14 @@ const createMyPatientProfile = async (req, res) => {
       dateOfBirth: new Date(dateOfBirth),
       gender,
       phoneNumber,
-      identityCard,
+      identityCard: identityCard || undefined,
+      birthCertificate: birthCertificate || undefined,
+      personalId: personalId || undefined,
       address: address || '',
       insuranceCode: insuranceCode || undefined,
       email: email || undefined,
+      birthCertificateImg: birthCertificateImg || undefined,
+      identityCardImg: identityCardImg || undefined,
     });
     return ok(res, patient, 'Profile created successfully', 201);
   } catch (err) {
@@ -1056,11 +1133,17 @@ const updateMyPatientProfile = async (req, res) => {
     const { fail } = require('../../utils/response');
     let patient = await Patient.findOne({ userId: req.user.id });
 
-    const { fullName, dateOfBirth, gender, phoneNumber, address, identityCard, insuranceCode, email } = req.body;
+    const { fullName, dateOfBirth, gender, phoneNumber, address, identityCard, insuranceCode, email, birthCertificate, personalId, birthCertificateImg, identityCardImg } = req.body;
+
+    const targetDob = dateOfBirth ? new Date(dateOfBirth) : (patient ? patient.dateOfBirth : null);
+    const validationError = validatePatientAgeRequirements(targetDob, req.body, patient || {});
+    if (validationError) {
+      return res.status(400).json({ success: false, message: validationError });
+    }
 
     if (!patient) {
-      if (!fullName || !dateOfBirth || !gender || !phoneNumber || !identityCard) {
-        return res.status(400).json({ success: false, message: 'fullName, dateOfBirth, gender, phoneNumber, and identityCard are required' });
+      if (!fullName || !dateOfBirth || !gender || !phoneNumber) {
+        return res.status(400).json({ success: false, message: 'fullName, dateOfBirth, gender, and phoneNumber are required' });
       }
       patient = await Patient.create({
         userId: req.user.id,
@@ -1068,10 +1151,14 @@ const updateMyPatientProfile = async (req, res) => {
         dateOfBirth: new Date(dateOfBirth),
         gender,
         phoneNumber,
-        identityCard,
+        identityCard: identityCard || undefined,
+        birthCertificate: birthCertificate || undefined,
+        personalId: personalId || undefined,
         address: address || '',
         insuranceCode: insuranceCode || undefined,
         email: email || undefined,
+        birthCertificateImg: birthCertificateImg || undefined,
+        identityCardImg: identityCardImg || undefined,
       });
       return ok(res, patient, 'Profile created successfully', 201);
     }
@@ -1081,9 +1168,13 @@ const updateMyPatientProfile = async (req, res) => {
     if (gender !== undefined)         patient.gender        = gender;
     if (phoneNumber !== undefined)    patient.phoneNumber   = phoneNumber;
     if (address !== undefined)        patient.address       = address;
-    if (identityCard !== undefined)   patient.identityCard  = identityCard;
+    if (identityCard !== undefined)   patient.identityCard  = identityCard || undefined;
+    if (birthCertificate !== undefined) patient.birthCertificate = birthCertificate || undefined;
+    if (personalId !== undefined)     patient.personalId    = personalId || undefined;
     if (insuranceCode !== undefined)  patient.insuranceCode = insuranceCode || undefined;
     if (email !== undefined)          patient.email         = email || undefined;
+    if (birthCertificateImg !== undefined) patient.birthCertificateImg = birthCertificateImg || undefined;
+    if (identityCardImg !== undefined) patient.identityCardImg = identityCardImg || undefined;
 
     await patient.save();
     return ok(res, patient, 'Profile updated successfully');
@@ -1101,8 +1192,16 @@ const getSubAccounts = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Primary patient profile not found' });
     }
     const list = await Patient.find({ parentId: primaryPatient._id }).sort({ fullName: 1 }).lean();
+    
+    // Fallback: If sub-account phone/address are not set, default to primary patient's info
+    const mappedList = list.map(sub => ({
+      ...sub,
+      phoneNumber: sub.phoneNumber || primaryPatient.phoneNumber || '',
+      address: sub.address && sub.address.trim() ? sub.address.trim() : (primaryPatient.address || ''),
+    }));
+
     const { success: ok } = require('../../utils/response');
-    return ok(res, list, 'Sub-accounts loaded successfully');
+    return ok(res, mappedList, 'Sub-accounts loaded successfully');
   } catch (err) {
     console.error('getSubAccounts error', err);
     const { fail } = require('../../utils/response');
@@ -1116,20 +1215,33 @@ const createSubAccount = async (req, res) => {
     if (!primaryPatient) {
       return res.status(404).json({ success: false, message: 'Primary patient profile not found' });
     }
-    const { fullName, dateOfBirth, gender, phoneNumber, address, identityCard, insuranceCode, category } = req.body;
+    const { fullName, dateOfBirth, gender, phoneNumber, address, identityCard, insuranceCode, category, birthCertificate, personalId, birthCertificateImg, identityCardImg } = req.body;
     if (!fullName || !dateOfBirth || !gender) {
       return res.status(400).json({ success: false, message: 'fullName, dateOfBirth, and gender are required' });
     }
+
+    const validationError = validatePatientAgeRequirements(dateOfBirth, req.body);
+    if (validationError) {
+      return res.status(400).json({ success: false, message: validationError });
+    }
+
+    const finalPhone = (phoneNumber && phoneNumber.trim() && phoneNumber.trim() !== primaryPatient.phoneNumber) ? phoneNumber.trim() : undefined;
+    const finalAddress = (address && address.trim() && address.trim() !== primaryPatient.address) ? address.trim() : '';
+
     const sub = await Patient.create({
       parentId: primaryPatient._id,
       fullName,
       dateOfBirth: new Date(dateOfBirth),
       gender,
       category: category || 'Adult',
-      phoneNumber: phoneNumber || undefined,
+      phoneNumber: finalPhone,
       identityCard: identityCard || undefined,
-      address: address || '',
+      birthCertificate: birthCertificate || undefined,
+      personalId: personalId || undefined,
+      address: finalAddress,
       insuranceCode: insuranceCode || undefined,
+      birthCertificateImg: birthCertificateImg || undefined,
+      identityCardImg: identityCardImg || undefined,
     });
     const { success: ok } = require('../../utils/response');
     return ok(res, sub, 'Sub-account created successfully', 201);
@@ -1151,15 +1263,30 @@ const updateSubAccount = async (req, res) => {
     if (!sub) {
       return res.status(404).json({ success: false, message: 'Sub-account not found' });
     }
-    const { fullName, dateOfBirth, gender, phoneNumber, address, identityCard, insuranceCode, category } = req.body;
+    const { fullName, dateOfBirth, gender, phoneNumber, address, identityCard, insuranceCode, category, birthCertificate, personalId, birthCertificateImg, identityCardImg } = req.body;
+
+    const targetDob = dateOfBirth ? new Date(dateOfBirth) : sub.dateOfBirth;
+    const validationError = validatePatientAgeRequirements(targetDob, req.body, sub);
+    if (validationError) {
+      return res.status(400).json({ success: false, message: validationError });
+    }
+
     if (fullName !== undefined) sub.fullName = fullName;
     if (dateOfBirth !== undefined) sub.dateOfBirth = new Date(dateOfBirth);
     if (gender !== undefined) sub.gender = gender;
     if (category !== undefined) sub.category = category;
-    if (phoneNumber !== undefined) sub.phoneNumber = phoneNumber || undefined;
-    if (address !== undefined) sub.address = address;
+    if (phoneNumber !== undefined) {
+      sub.phoneNumber = (phoneNumber && phoneNumber.trim() && phoneNumber.trim() !== primaryPatient.phoneNumber) ? phoneNumber.trim() : undefined;
+    }
+    if (address !== undefined) {
+      sub.address = (address && address.trim() && address.trim() !== primaryPatient.address) ? address.trim() : '';
+    }
     if (identityCard !== undefined) sub.identityCard = identityCard || undefined;
+    if (birthCertificate !== undefined) sub.birthCertificate = birthCertificate || undefined;
+    if (personalId !== undefined) sub.personalId = personalId || undefined;
     if (insuranceCode !== undefined) sub.insuranceCode = insuranceCode || undefined;
+    if (birthCertificateImg !== undefined) sub.birthCertificateImg = birthCertificateImg || undefined;
+    if (identityCardImg !== undefined) sub.identityCardImg = identityCardImg || undefined;
     await sub.save();
     const { success: ok } = require('../../utils/response');
     return ok(res, sub, 'Sub-account updated successfully');
@@ -1192,7 +1319,7 @@ const deleteSubAccount = async (req, res) => {
 
 const createPatientByStaff = async (req, res) => {
   try {
-    const { fullName, dateOfBirth, gender, phoneNumber, identityCard, address, insuranceCode, email } = req.body;
+    const { fullName, dateOfBirth, gender, phoneNumber, identityCard, address, insuranceCode, email, birthCertificate, personalId, birthCertificateImg, identityCardImg } = req.body;
     if (!fullName || !phoneNumber) {
       return res.status(400).json({ success: false, message: 'Full name and phone number are required' });
     }
@@ -1217,8 +1344,15 @@ const createPatientByStaff = async (req, res) => {
     }
 
     let patient = await Patient.findOne({ userId: user._id });
-    const dob = dateOfBirth ? new Date(dateOfBirth) : new Date('1900-01-01');
-    const idCard = identityCard || `REG-${Date.now()}-${phoneNumber}`;
+    const dob = dateOfBirth ? new Date(dateOfBirth) : (patient ? patient.dateOfBirth : new Date('1900-01-01'));
+    const idCard = identityCard || (patient ? patient.identityCard : `REG-${Date.now()}-${phoneNumber}`);
+
+    // Validate requirements
+    const checkBody = { ...req.body, identityCard: idCard };
+    const validationError = validatePatientAgeRequirements(dob, checkBody, patient || {});
+    if (validationError) {
+      return res.status(400).json({ success: false, message: validationError });
+    }
 
     if (!patient) {
       patient = await Patient.create({
@@ -1227,19 +1361,27 @@ const createPatientByStaff = async (req, res) => {
         dateOfBirth: dob,
         gender: gender || 'Khác',
         identityCard: idCard,
+        birthCertificate: birthCertificate || undefined,
+        personalId: personalId || undefined,
         phoneNumber,
         address: address || '',
         insuranceCode: insuranceCode || undefined,
         email: email || undefined,
+        birthCertificateImg: birthCertificateImg || undefined,
+        identityCardImg: identityCardImg || undefined,
       });
     } else {
       if (fullName) patient.fullName = fullName;
       if (dateOfBirth) patient.dateOfBirth = dob;
       if (gender) patient.gender = gender;
-      if (identityCard) patient.identityCard = identityCard;
+      if (identityCard) patient.identityCard = idCard;
+      if (birthCertificate !== undefined) patient.birthCertificate = birthCertificate || undefined;
+      if (personalId !== undefined) patient.personalId = personalId || undefined;
       if (address !== undefined) patient.address = address;
       if (insuranceCode !== undefined) patient.insuranceCode = insuranceCode || undefined;
       if (email !== undefined) patient.email = email || undefined;
+      if (birthCertificateImg !== undefined) patient.birthCertificateImg = birthCertificateImg || undefined;
+      if (identityCardImg !== undefined) patient.identityCardImg = identityCardImg || undefined;
       await patient.save();
     }
 
@@ -1251,6 +1393,48 @@ const createPatientByStaff = async (req, res) => {
   }
 };
 
-module.exports = { getAllUsers, getUserById, updateUser, createDoctor, getPatients, getAdminStats, queryClinicAI, editUserAdmin, deleteUserAdmin, deleteAppointmentAdmin, updateTimelineStepAdmin, getMyPatientProfile, createMyPatientProfile, updateMyPatientProfile, getSubAccounts, createSubAccount, updateSubAccount, deleteSubAccount, createPatientByStaff };
+const Notification = require('../../models/Notification');
+
+const getMyNotifications = async (req, res) => {
+  try {
+    const userId = req.user.id || req.user._id;
+    const items = await Notification.find({ userId }).sort({ createdAt: -1 }).limit(50).lean();
+    const { success: ok } = require('../../utils/response');
+    return ok(res, items, 'Notifications loaded successfully');
+  } catch (err) {
+    console.error('getMyNotifications error', err);
+    const { fail } = require('../../utils/response');
+    return fail(res, 'Error loading notifications', 500, err.message);
+  }
+};
+
+const markNotificationRead = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id || req.user._id;
+    const inq = await Notification.findOneAndUpdate({ _id: id, userId }, { isRead: true }, { new: true });
+    const { success: ok } = require('../../utils/response');
+    return ok(res, inq, 'Notification marked as read');
+  } catch (err) {
+    console.error('markNotificationRead error', err);
+    const { fail } = require('../../utils/response');
+    return fail(res, 'Error updating notification status', 500, err.message);
+  }
+};
+
+const markAllNotificationsRead = async (req, res) => {
+  try {
+    const userId = req.user.id || req.user._id;
+    await Notification.updateMany({ userId, isRead: false }, { isRead: true });
+    const { success: ok } = require('../../utils/response');
+    return ok(res, null, 'All notifications marked as read');
+  } catch (err) {
+    console.error('markAllNotificationsRead error', err);
+    const { fail } = require('../../utils/response');
+    return fail(res, 'Error updating notification statuses', 500, err.message);
+  }
+};
+
+module.exports = { getAllUsers, getUserById, updateUser, createDoctor, getPatients, getAdminStats, queryClinicAI, editUserAdmin, deleteUserAdmin, deleteAppointmentAdmin, updateTimelineStepAdmin, getMyPatientProfile, createMyPatientProfile, updateMyPatientProfile, getSubAccounts, createSubAccount, updateSubAccount, deleteSubAccount, createPatientByStaff, getMyNotifications, markNotificationRead, markAllNotificationsRead };
 
 
