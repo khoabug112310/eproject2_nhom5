@@ -183,7 +183,7 @@ export default function Home() {
           </section>
 
           {/* Why Choose Us — feature band */}
-          <section className="home-features">
+          <section className="home-features" style={{ marginBottom: 0 }}>
             <div className="home-section-head">
               <span className="home-eyebrow">Why choose us</span>
               <h2>Healthcare built around you</h2>
@@ -206,9 +206,9 @@ export default function Home() {
               ))}
             </div>
           </section>
-
+ 
           {/* How it works — steps */}
-          <section className="home-steps">
+          <section className="home-steps" style={{ marginBottom: 0 }}>
             <div className="home-section-head">
               <span className="home-eyebrow">How it works</span>
               <h2>Booking made simple</h2>
@@ -229,9 +229,9 @@ export default function Home() {
               ))}
             </div>
           </section>
-
+ 
           {/* QuickBooking Inline Card Section */}
-          <div className="card" ref={bookingRef} id="booking-section">
+          <div className="card" ref={bookingRef} id="booking-section" style={{ maxWidth: '800px', width: '100%', alignSelf: 'center', padding: '24px 32px', marginBottom: 0 }}>
             <QuickBooking
               doctors={doctors}
               departments={departments}
@@ -240,7 +240,7 @@ export default function Home() {
               isInline={true}
             />
           </div>
-
+ 
           {/* News & Latest Posts Section - Enclosed in a beautiful matching container card */}
           <section style={{
             background: 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)',
@@ -248,7 +248,7 @@ export default function Home() {
             borderRadius: '24px',
             padding: '40px 32px',
             boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.02), 0 4px 6px -2px rgba(0, 0, 0, 0.01)',
-            marginBottom: '30px'
+            marginBottom: 0
           }}>
             <div style={{ textAlign: 'center', marginBottom: '36px' }}>
               <span style={{

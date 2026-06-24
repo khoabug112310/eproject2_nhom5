@@ -533,7 +533,7 @@ export default function QuickBooking({
                 value={symptoms}
                 onChange={e => setSymptoms(e.target.value)}
                 maxLength={1000}
-                rows={isModal ? 2 : 4}
+                rows={isModal || isInline ? 2 : 4}
                 style={{
                   width: '100%',
                   padding: '12px 16px 12px 38px',
@@ -547,7 +547,7 @@ export default function QuickBooking({
                   outline: 'none',
                   boxSizing: 'border-box',
                   resize: 'vertical',
-                  minHeight: isModal ? '60px' : '100px',
+                  minHeight: isModal || isInline ? '60px' : '100px',
                   boxShadow: 'var(--shadow-sm)'
                 }}
                 onFocus={e => {
@@ -567,7 +567,7 @@ export default function QuickBooking({
             justifyContent: 'center',
             width: '100%',
             gridColumn: '1 / -1',
-            marginTop: isModal ? '12px' : '24px'
+            marginTop: isModal || isInline ? '12px' : '24px'
           }}>
             <button type="submit" disabled={loading} className="booking-submit-btn" style={{ padding: '12px 32px' }}>
               {loading ? (
