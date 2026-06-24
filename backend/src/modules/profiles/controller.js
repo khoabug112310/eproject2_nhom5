@@ -542,6 +542,27 @@ const queryClinicAI = async (req, res) => {
     const env = require('../../config/env');
     const apiKey = env.GEMINI_API_KEY || process.env.GEMINI_API_KEY || '';
 
+    if (!apiKey) {
+      const fallbackReport = `### 📊 AI Clinic Analytics (Dev Fallback Mode)
+
+> [!NOTE]
+> Bạn chưa cấu hình \`GEMINI_API_KEY\` trong tệp \`.env\`. Dưới đây là báo cáo thống kê nhanh được hệ thống tự động tổng hợp:
+> *Vui lòng cấu hình khóa Gemini để nhận phân tích chuyên sâu từ AI.*
+
+- **Tổng tài khoản:** ${usersCount} (Bác sĩ: ${doctorsCount}, Nhân viên: ${staffCount})
+- **Tài khoản bị khoá:** ${inactiveCount}
+- **Tin tức y tế (CMS):** ${postsCount} bài viết (Đăng: ${publishedPostsCount}, Nháp: ${draftPostsCount})
+- **Doanh thu tháng này:** ${revenueMonth.toLocaleString('vi-VN')} VND
+  - *Doanh thu khám:* ${consultationRev.toLocaleString('vi-VN')} VND
+  - *Doanh thu bán thuốc:* ${pharmacyRev.toLocaleString('vi-VN')} VND
+- **Giờ cao điểm:** ${peakTime} (${peakCount} lượt đặt lịch)
+- **Thời gian xác nhận trung bình:** ${avgConfirmationTime} phút
+- **Tỷ lệ đặt lịch thành công:** ${successRate}% (Hủy: ${cancellationRate}%)`;
+      
+      const { success: ok } = require('../../utils/response');
+      return ok(res, { text: fallbackReport }, 'AI system analysis completed in simulation mode');
+    }
+
     // 3. Construct System Prompt
     const systemPrompt = `You are the AI Analysis Assistant integrated into the Hopsontai Clinic management system.
 Below are the clinic's current statistics for you to analyze:
