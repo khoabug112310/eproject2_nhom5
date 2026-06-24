@@ -6,6 +6,93 @@ import DoctorScheduleModal from '../../components/DoctorScheduleModal';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
+const parseAnyDateString = (str) => {
+  if (!str) return null;
+  const trimmed = str.trim();
+  if (!trimmed) return null;
+
+  // 1. Try YYYY-MM-DD
+  const yyyymmdd = trimmed.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (yyyymmdd) {
+    const y = parseInt(yyyymmdd[1], 10);
+    const m = parseInt(yyyymmdd[2], 10) - 1;
+    const d = parseInt(yyyymmdd[3], 10);
+    const parsed = new Date(y, m, d);
+    if (!isNaN(parsed.getTime())) return parsed;
+  }
+
+  // 2. Try DD/MM/YYYY or DD-MM-YYYY
+  const ddmmyyyy = trimmed.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+  if (ddmmyyyy) {
+    const d = parseInt(ddmmyyyy[1], 10);
+    const m = parseInt(ddmmyyyy[2], 10) - 1;
+    const y = parseInt(ddmmyyyy[3], 10);
+    const parsed = new Date(y, m, d);
+    if (!isNaN(parsed.getTime())) return parsed;
+  }
+
+  // 3. Try standard Date.parse
+  const parsed = new Date(trimmed);
+  if (!isNaN(parsed.getTime())) {
+    return parsed;
+  }
+
+  return null;
+};
+
+const parseMonthYear = (str) => {
+  if (!str) return null;
+  const trimmed = str.trim().toLowerCase();
+
+  // 1. Try MM/YYYY or M/YYYY or MM-YYYY or M-YYYY (e.g. "6/2026", "06-2026")
+  const m1 = trimmed.match(/^(\d{1,2})[/-](\d{4})$/);
+  if (m1) {
+    const month = parseInt(m1[1], 10);
+    const year = parseInt(m1[2], 10);
+    if (month >= 1 && month <= 12) {
+      return { month: month - 1, year };
+    }
+  }
+
+  // 2. Try YYYY-MM or YYYY-M or YYYY/MM (e.g. "2026-06", "2026/6")
+  const m2 = trimmed.match(/^(\d{4})[/-](\d{1,2})$/);
+  if (m2) {
+    const year = parseInt(m2[1], 10);
+    const month = parseInt(m2[2], 10);
+    if (month >= 1 && month <= 12) {
+      return { month: month - 1, year };
+    }
+  }
+
+  // 3. Try English written formats like "June 2026", "Jun 2026", "2026 June"
+  const monthNames = [
+    ['jan', 'january', 0],
+    ['feb', 'february', 1],
+    ['mar', 'march', 2],
+    ['apr', 'april', 3],
+    ['may', 'may', 4],
+    ['jun', 'june', 5],
+    ['jul', 'july', 6],
+    ['aug', 'august', 7],
+    ['sep', 'september', 8],
+    ['oct', 'october', 9],
+    ['nov', 'november', 10],
+    ['dec', 'december', 11]
+  ];
+
+  const yearMatch = trimmed.match(/\b(\d{4})\b/);
+  if (yearMatch) {
+    const year = parseInt(yearMatch[1], 10);
+    for (const [shortName, fullName, mIndex] of monthNames) {
+      if (trimmed.includes(shortName) || trimmed.includes(fullName)) {
+        return { month: mIndex, year };
+      }
+    }
+  }
+
+  return null;
+};
+
 function StatusPill({ status }) {
   const map = {
     Pending: 'status-pending',
@@ -32,6 +119,25 @@ const isToday = (dateStr) => {
   const d = new Date(dateStr);
   const t = new Date();
   return d.getFullYear() === t.getFullYear() && d.getMonth() === t.getMonth() && d.getDate() === t.getDate();
+};
+
+const isSameDate = (d1, d2) => {
+  if (!d1 || !d2) return false;
+  const a = new Date(d1);
+  const b = new Date(d2);
+  return a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate();
+};
+
+const getLocalYYYYMMDD = (dateInput) => {
+  if (!dateInput) return '';
+  const d = new Date(dateInput);
+  if (isNaN(d.getTime())) return '';
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
 
 const FILTERS = [
@@ -75,6 +181,24 @@ export default function StaffDashboard() {
   // doctor schedule modal
   const [scheduleAppt, setScheduleAppt] = useState(null);
   const [apptDateFilter, setApptDateFilter] = useState('');
+  const [rosterDateSearch, setRosterDateSearch] = useState('');
+
+  useEffect(() => {
+    if (rosterDateSearch.trim()) {
+      const parsed = parseAnyDateString(rosterDateSearch);
+      if (parsed && !isNaN(parsed.getTime())) {
+        setCurrentCalendarDate(parsed);
+        setSelectedDate(parsed);
+      } else {
+        const parsedMY = parseMonthYear(rosterDateSearch);
+        if (parsedMY) {
+          const parsedDate = new Date(parsedMY.year, parsedMY.month, 1);
+          setCurrentCalendarDate(parsedDate);
+          setSelectedDate(parsedDate);
+        }
+      }
+    }
+  }, [rosterDateSearch]);
 
   // appointment detail drawer
   const [detailAppt, setDetailAppt] = useState(null);
@@ -92,9 +216,11 @@ export default function StaffDashboard() {
   const [schedulesLoading, setSchedulesLoading] = useState(false);
   const [scheduleSearchQuery, setScheduleSearchQuery] = useState('');
   const [scheduleDeptFilter, setScheduleDeptFilter] = useState('');
+  const [scheduleDoctorFilter, setScheduleDoctorFilter] = useState('');
   const [currentCalendarDate, setCurrentCalendarDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [monthSearchVal, setMonthSearchVal] = useState(new Date().toISOString().slice(0, 7));
+  const [expandedOffShiftDocs, setExpandedOffShiftDocs] = useState([]);
 
   const handleMonthSearchChange = (e) => {
     const val = e.target.value; // "YYYY-MM"
@@ -109,12 +235,45 @@ export default function StaffDashboard() {
     }
   };
 
+  useEffect(() => {
+    if (currentCalendarDate) {
+      const yr = currentCalendarDate.getFullYear();
+      const mo = String(currentCalendarDate.getMonth() + 1).padStart(2, '0');
+      setMonthSearchVal(`${yr}-${mo}`);
+    }
+  }, [currentCalendarDate]);
+
+
   // Contact feedback states
   const [contactInquiries, setContactInquiries] = useState([]);
   const [contactsLoading, setContactsLoading] = useState(false);
   const [expandedPhones, setExpandedPhones] = useState({});
   const [expandedDoctors, setExpandedDoctors] = useState({});
   const [expandedRosterShifts, setExpandedRosterShifts] = useState([]);
+
+  // Generate list of unique doctors currently loaded in the schedules list (filtered by department if applicable)
+  const uniqueDoctorsFromSchedules = useMemo(() => {
+    const map = new Map();
+    schedulesList.forEach(s => {
+      if (s.doctorId && s.doctorId._id) {
+        const deptId = typeof s.doctorId.departmentId === 'object' ? s.doctorId.departmentId?._id : s.doctorId.departmentId;
+        if (!scheduleDeptFilter || deptId === scheduleDeptFilter) {
+          map.set(s.doctorId._id, s.doctorId);
+        }
+      }
+    });
+    return Array.from(map.values()).sort((a, b) => (a.fullName || '').localeCompare(b.fullName || ''));
+  }, [schedulesList, scheduleDeptFilter]);
+
+  // Reset selected doctor filter if that doctor is no longer in the filtered doctors list
+  useEffect(() => {
+    if (scheduleDoctorFilter) {
+      const docExists = uniqueDoctorsFromSchedules.some(d => d._id === scheduleDoctorFilter);
+      if (!docExists) {
+        setScheduleDoctorFilter('');
+      }
+    }
+  }, [scheduleDeptFilter, uniqueDoctorsFromSchedules, scheduleDoctorFilter]);
 
   const filteredSchedules = useMemo(() => {
     return schedulesList.filter(s => {
@@ -124,9 +283,11 @@ export default function StaffDashboard() {
       const deptId = typeof s.doctorId?.departmentId === 'object' ? s.doctorId.departmentId?._id : s.doctorId?.departmentId;
       const matchesDept = !scheduleDeptFilter || deptId === scheduleDeptFilter;
 
-      return matchesSearch && matchesDept;
+      const matchesDoc = !scheduleDoctorFilter || s.doctorId?._id === scheduleDoctorFilter;
+
+      return matchesSearch && matchesDept && matchesDoc;
     });
-  }, [schedulesList, scheduleSearchQuery, scheduleDeptFilter]);
+  }, [schedulesList, scheduleSearchQuery, scheduleDeptFilter, scheduleDoctorFilter]);
 
   const scheduleStats = useMemo(() => {
     let totalSlots = 0;
@@ -151,6 +312,42 @@ export default function StaffDashboard() {
       fullCount,
     };
   }, [schedulesList]);
+
+  // Compute a sorted list of unique dates having active (non-canceled) appointments matching current schedule filters
+  const bookingDatesList = useMemo(() => {
+    const datesMap = new Map();
+    appointments.forEach(appt => {
+      if (appt.status === 'Canceled') return;
+      if (!appt.requestedDate) return;
+
+      const docName = appt.doctorId?.fullName || '';
+      const matchesSearch = !scheduleSearchQuery.trim() || docName.toLowerCase().includes(scheduleSearchQuery.toLowerCase().trim());
+
+      const deptId = typeof appt.departmentId === 'object' ? appt.departmentId?._id : appt.departmentId;
+      const matchesDept = !scheduleDeptFilter || deptId === scheduleDeptFilter;
+
+      const matchesDoc = !scheduleDoctorFilter || appt.doctorId?._id === scheduleDoctorFilter;
+
+      if (matchesSearch && matchesDept && matchesDoc) {
+        const dateKey = getLocalYYYYMMDD(appt.requestedDate);
+        if (dateKey) {
+          datesMap.set(dateKey, (datesMap.get(dateKey) || 0) + 1);
+        }
+      }
+    });
+
+    return Array.from(datesMap.entries())
+      .map(([dateStr, count]) => {
+        const [yr, mo, dy] = dateStr.split('-').map(Number);
+        const dateObj = new Date(yr, mo - 1, dy);
+        return {
+          dateStr,
+          dateObj,
+          count
+        };
+      })
+      .sort((a, b) => a.dateObj.getTime() - b.dateObj.getTime());
+  }, [appointments, scheduleSearchQuery, scheduleDeptFilter, scheduleDoctorFilter]);
 
   // Walk-in modal states
   const [walkInModalOpen, setWalkInModalOpen] = useState(false);
@@ -387,12 +584,32 @@ export default function StaffDashboard() {
   const filtered = useMemo(() => {
     let list = filterStatus === 'All' ? appointments : appointments.filter(a => a.status === filterStatus);
 
-    // 1. Filter by Date Picker
+    // 1. Filter by Date Text Input / Paste / Month-Year
     if (apptDateFilter) {
-      list = list.filter(a => {
-        const dStr = new Date(a.requestedDate).toISOString().split('T')[0];
-        return dStr === apptDateFilter;
-      });
+      const parsedFilter = parseAnyDateString(apptDateFilter);
+      if (parsedFilter) {
+        const filterStr = getLocalYYYYMMDD(parsedFilter);
+        list = list.filter(a => {
+          const dStr = getLocalYYYYMMDD(a.requestedDate);
+          return dStr === filterStr;
+        });
+      } else {
+        const parsedMY = parseMonthYear(apptDateFilter);
+        if (parsedMY) {
+          list = list.filter(a => {
+            const d = new Date(a.requestedDate);
+            return d.getFullYear() === parsedMY.year && d.getMonth() === parsedMY.month;
+          });
+        } else {
+          const q = apptDateFilter.toLowerCase().trim();
+          list = list.filter(a => {
+            const dStr = new Date(a.requestedDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }).toLowerCase();
+            const dStr2 = new Date(a.requestedDate).toLocaleDateString('vi-VN').toLowerCase();
+            const dStr3 = getLocalYYYYMMDD(a.requestedDate).toLowerCase();
+            return dStr.includes(q) || dStr2.includes(q) || dStr3.includes(q);
+          });
+        }
+      }
     }
 
     // 2. Filter by text search
@@ -405,7 +622,7 @@ export default function StaffDashboard() {
         const docName = a.doctorId?.fullName?.toLowerCase() || '';
 
         // Also support searching date via text search (e.g. "2026-06-23" or "Jun 23")
-        const dateStr = new Date(a.requestedDate).toISOString().split('T')[0];
+        const dateStr = getLocalYYYYMMDD(a.requestedDate);
         const formattedDate = new Date(a.requestedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toLowerCase();
 
         return patientName.includes(q) ||
@@ -593,6 +810,7 @@ export default function StaffDashboard() {
       setWalkInModalOpen(false);
       fetchData();
       fetchPatients();
+      fetchSchedules();
     } catch (err) {
       console.error(err);
       flash(err?.response?.data?.message || err.message || 'An error occurred during registration.', 'danger');
@@ -810,6 +1028,7 @@ export default function StaffDashboard() {
       await schedulingAPI.updateAppointment(appt._id, { status: 'Confirmed' });
       flash('Appointment confirmed. Consultation invoice created.');
       fetchData();
+      fetchSchedules();
     } catch (err) {
       flash(err?.response?.data?.message || 'Could not confirm.', 'danger');
     } finally {
@@ -831,6 +1050,7 @@ export default function StaffDashboard() {
       await schedulingAPI.updateAppointment(appt._id, { status: 'Canceled' });
       flash('Appointment cancelled.');
       fetchData();
+      fetchSchedules();
     } catch (err) {
       flash(err?.response?.data?.message || 'Could not cancel.', 'danger');
     } finally {
@@ -844,6 +1064,7 @@ export default function StaffDashboard() {
       await schedulingAPI.updateAppointment(apptId, { attendance: attendanceValue });
       flash(`Attendance status updated to ${attendanceValue}.`);
       fetchData();
+      fetchSchedules();
     } catch (err) {
       flash(err?.response?.data?.message || 'Could not update attendance status.', 'danger');
     } finally {
@@ -862,6 +1083,7 @@ export default function StaffDashboard() {
       flash('Appointment successfully transferred and confirmed.');
       setScheduleAppt(null);
       fetchData();
+      fetchSchedules();
     } catch (err) {
       flash(err?.response?.data?.message || 'Could not update appointment.', 'danger');
     } finally {
@@ -1038,9 +1260,69 @@ export default function StaffDashboard() {
               </div>
             </>
           ) : activeView === 'schedules' ? (
-            <div style={{ marginTop: 20, padding: 12, background: 'var(--color-bg)', borderRadius: 10, fontSize: 12, color: 'var(--color-text-muted)' }}>
-              <strong style={{ display: 'block', marginBottom: 4, color: 'var(--color-text)' }}>💡 Roster Reference</strong>
-              Use this view to verify doctor availability before counter bookings or manual slot allocation.
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 20 }}>
+              <div style={{ padding: 12, background: 'var(--color-bg)', borderRadius: 10, fontSize: 12, color: 'var(--color-text-muted)', margin: 0 }}>
+                <strong style={{ display: 'block', marginBottom: 4, color: 'var(--color-text)' }}>💡 Roster Reference</strong>
+                Use this view to verify doctor availability before counter bookings or manual slot allocation.
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <h4 style={{ margin: '0 0 4px 0', fontSize: 13, color: 'var(--color-text)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span>📅</span> Booking Dates ({bookingDatesList.length})
+                </h4>
+                {bookingDatesList.length === 0 ? (
+                  <div style={{ padding: 12, fontSize: 12, background: '#f8fafc', borderRadius: 8, border: '1px solid var(--color-border)', textAlign: 'center', color: 'var(--color-text-muted)' }}>
+                    No dates with bookings.
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 260, overflowY: 'auto', paddingRight: 4 }}>
+                    {bookingDatesList.map(item => {
+                      const isDateSelected = selectedDate && isSameDate(item.dateObj, selectedDate);
+                      return (
+                        <button
+                          key={item.dateStr}
+                          type="button"
+                          onClick={() => {
+                            setCurrentCalendarDate(item.dateObj);
+                            setSelectedDate(item.dateObj);
+                            setMonthSearchVal(item.dateStr.slice(0, 7));
+                          }}
+                          style={{
+                            width: '100%',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            padding: '8px 12px',
+                            background: isDateSelected ? 'var(--color-primary-light)' : '#fff',
+                            border: isDateSelected ? '1px solid var(--color-primary)' : '1px solid var(--color-border)',
+                            borderRadius: 8,
+                            cursor: 'pointer',
+                            fontSize: 12,
+                            textAlign: 'left',
+                            boxShadow: '0 1px 2px rgba(0,0,0,0.02)',
+                            transition: 'all 0.15s ease',
+                            margin: 0
+                          }}
+                        >
+                          <span style={{ fontWeight: isDateSelected ? '700' : '600', color: isDateSelected ? 'var(--color-primary-dark)' : 'var(--color-text)' }}>
+                            {item.dateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                          </span>
+                          <span style={{
+                            background: isDateSelected ? 'var(--color-primary)' : 'var(--color-secondary-light)',
+                            color: isDateSelected ? '#fff' : 'var(--color-secondary-dark)',
+                            fontSize: 10,
+                            fontWeight: 'bold',
+                            padding: '2px 5px',
+                            borderRadius: 4
+                          }}>
+                            👥 {item.count}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
           ) : (
             <div style={{ marginTop: 20, padding: 12, background: 'var(--color-bg)', borderRadius: 10, fontSize: 12, color: 'var(--color-text-muted)' }}>
@@ -1120,10 +1402,11 @@ export default function StaffDashboard() {
                     {/* Date search filter */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <input
-                        type="date"
+                        type="text"
+                        placeholder="Filter by date (e.g. Jul 30, 2026)"
                         value={apptDateFilter}
                         onChange={e => setApptDateFilter(e.target.value)}
-                        style={{ margin: 0, height: 38, padding: '6px 12px', fontSize: 13, border: '1px solid var(--color-border)', borderRadius: 'var(--radius-input)' }}
+                        style={{ margin: 0, height: 38, padding: '6px 12px', fontSize: 13, border: '1px solid var(--color-border)', borderRadius: 'var(--radius-input)', minWidth: 220 }}
                         title="Filter by appointment date"
                       />
                       {apptDateFilter && (
@@ -1188,11 +1471,16 @@ export default function StaffDashboard() {
                               <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                                 <strong style={{ fontSize: 13.5 }}>{p?.fullName || '—'}</strong>
                                 <span style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
-                                  {p?.phoneNumber || (p?.parentId?.phoneNumber ? `Guardian: ${p.parentId.phoneNumber}` : '—')}
+                                  {p?.phoneNumber || (p?.parentId ? `Guardian: ${p.parentId.fullName || '—'} (${p.parentId.phoneNumber || '—'})` : '—')}
                                 </span>
-                                {walkin && (
-                                  <span className="badge badge-warning" style={{ fontSize: 10, width: 'fit-content', marginTop: 2 }}>Walk-in</span>
-                                )}
+                                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 2 }}>
+                                  {p?.parentId && (
+                                    <span className="badge badge-info" style={{ fontSize: 10 }}>Dependent</span>
+                                  )}
+                                  {walkin && (
+                                    <span className="badge badge-warning" style={{ fontSize: 10 }}>Walk-in</span>
+                                  )}
+                                </div>
                               </div>
                             </td>
 
@@ -1607,6 +1895,42 @@ export default function StaffDashboard() {
                     ))}
                   </select>
 
+                  {/* Filter doctor */}
+                  <select
+                    value={scheduleDoctorFilter}
+                    onChange={e => setScheduleDoctorFilter(e.target.value)}
+                    style={{ minWidth: 160, margin: 0, height: 38 }}
+                  >
+                    <option value="">All Doctors</option>
+                    {uniqueDoctorsFromSchedules.map(doc => (
+                      <option key={doc._id} value={doc._id}>Dr. {doc.fullName}</option>
+                    ))}
+                  </select>
+
+                  {/* Date Search (Jump to Date) */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <label style={{ fontSize: 10, fontWeight: 'bold', color: 'var(--color-text-muted)', margin: 0 }}>Jump to Date</label>
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                      <input
+                        type="text"
+                        placeholder="e.g. Jul 30, 2026"
+                        value={rosterDateSearch}
+                        onChange={e => setRosterDateSearch(e.target.value)}
+                        style={{ margin: 0, padding: '4px 10px', height: 38, border: '1px solid var(--color-border)', borderRadius: 'var(--radius-input)', fontSize: 13, minWidth: 160 }}
+                      />
+                      {rosterDateSearch && (
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-sm"
+                          style={{ padding: '4px 10px', height: 38, fontSize: 12, margin: 0 }}
+                          onClick={() => setRosterDateSearch('')}
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
                   {/* Month Search (Jump to Month) */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                     <label style={{ fontSize: 10, fontWeight: 'bold', color: 'var(--color-text-muted)', margin: 0 }}>Jump to Month</label>
@@ -1641,12 +1965,7 @@ export default function StaffDashboard() {
                 const gridCells = [...blanks, ...monthDays];
                 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-                const isSameDate = (d1, d2) => {
-                  if (!d1 || !d2) return false;
-                  return d1.getFullYear() === d2.getFullYear() &&
-                    d1.getMonth() === d2.getMonth() &&
-                    d1.getDate() === d2.getDate();
-                };
+
 
                 return (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -1703,16 +2022,31 @@ export default function StaffDashboard() {
                         }
 
                         const dayShifts = filteredSchedules.filter(s => isSameDate(new Date(s.workDate), dayDate));
-                        const dayBookings = dayShifts.reduce((sum, s) => sum + (s.currentBooked || 0), 0);
+                        const dayAppts = appointments.filter(appt => {
+                          if (appt.status === 'Canceled') return false;
+                          if (!isSameDate(new Date(appt.requestedDate), dayDate)) return false;
+
+                          const docName = appt.doctorId?.fullName || '';
+                          const matchesSearch = !scheduleSearchQuery.trim() || docName.toLowerCase().includes(scheduleSearchQuery.toLowerCase().trim());
+
+                          const deptId = typeof appt.departmentId === 'object' ? appt.departmentId?._id : appt.departmentId;
+                          const matchesDept = !scheduleDeptFilter || deptId === scheduleDeptFilter;
+
+                          const matchesDoc = !scheduleDoctorFilter || appt.doctorId?._id === scheduleDoctorFilter;
+
+                          return matchesSearch && matchesDept && matchesDoc;
+                        });
                         const isSelected = isSameDate(dayDate, selectedDate);
                         const isTodayDate = isSameDate(dayDate, new Date());
 
                         return (
                           <div
-                            key={dayDate.toISOString()}
+                            key={dayDate.toDateString()}
                             onClick={() => {
                               setSelectedDate(dayDate);
-                              setMonthSearchVal(dayDate.toISOString().slice(0, 7));
+                              const yr = dayDate.getFullYear();
+                              const mo = String(dayDate.getMonth() + 1).padStart(2, '0');
+                              setMonthSearchVal(`${yr}-${mo}`);
                             }}
                             style={{
                               minHeight: 85,
@@ -1759,7 +2093,7 @@ export default function StaffDashboard() {
                                   🟢 {dayShifts.length} Shift{dayShifts.length !== 1 ? 's' : ''}
                                 </span>
                               )}
-                              {dayBookings > 0 && (
+                              {dayAppts.length > 0 && (
                                 <span style={{
                                   background: 'var(--color-secondary-light)',
                                   color: 'var(--color-secondary-dark)',
@@ -1770,7 +2104,7 @@ export default function StaffDashboard() {
                                   width: 'fit-content',
                                   border: '1px solid var(--color-secondary)'
                                 }}>
-                                  👥 {dayBookings}
+                                  👥 {dayAppts.length}
                                 </span>
                               )}
                             </div>
@@ -1787,11 +2121,16 @@ export default function StaffDashboard() {
                             📅 Details for {selectedDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                           </h3>
                           {(() => {
-                            const shiftsForDay = filteredSchedules.filter(s => isSameDate(new Date(s.workDate), selectedDate));
-                            const totalBookingsForDay = shiftsForDay.reduce((sum, s) => sum + (s.currentBooked || 0), 0);
+                            const apptsForDay = appointments.filter(appt => 
+                              appt.status !== 'Canceled' && 
+                              isSameDate(new Date(appt.requestedDate), selectedDate) &&
+                              (!scheduleSearchQuery.trim() || (appt.doctorId?.fullName || '').toLowerCase().includes(scheduleSearchQuery.toLowerCase().trim())) &&
+                              (!scheduleDeptFilter || (typeof appt.departmentId === 'object' ? appt.departmentId?._id : appt.departmentId) === scheduleDeptFilter) &&
+                              (!scheduleDoctorFilter || appt.doctorId?._id === scheduleDoctorFilter)
+                            );
                             return (
                               <span className="badge badge-info" style={{ fontSize: 12, padding: '4px 8px' }}>
-                                👥 {totalBookingsForDay} Patient(s) Booked Today
+                                👥 {apptsForDay.length} Patient(s) Booked Today
                               </span>
                             );
                           })()}
@@ -1799,34 +2138,101 @@ export default function StaffDashboard() {
 
                         {(() => {
                           const shiftsForDay = filteredSchedules.filter(s => isSameDate(new Date(s.workDate), selectedDate));
-                          if (shiftsForDay.length === 0) {
+                          
+                          // Find all non-canceled, matching appointments on this day
+                          const apptsForDay = appointments.filter(appt => {
+                            if (appt.status === 'Canceled') return false;
+                            if (!isSameDate(new Date(appt.requestedDate), selectedDate)) return false;
+                            
+                            const docName = appt.doctorId?.fullName || '';
+                            const matchesSearch = !scheduleSearchQuery.trim() || docName.toLowerCase().includes(scheduleSearchQuery.toLowerCase().trim());
+                            
+                            const deptId = typeof appt.departmentId === 'object' ? appt.departmentId?._id : appt.departmentId;
+                            const matchesDept = !scheduleDeptFilter || deptId === scheduleDeptFilter;
+                            
+                            const matchesDoc = !scheduleDoctorFilter || appt.doctorId?._id === scheduleDoctorFilter;
+                            
+                            return matchesSearch && matchesDept && matchesDoc;
+                          });
+
+                          // Unlinked appointments (no shift on this day for the doctor or scheduleId doesn't match)
+                          const unlinkedAppts = apptsForDay.filter(appt => {
+                            const belongsToShift = shiftsForDay.some(s => {
+                              if (appt.scheduleId && (appt.scheduleId._id === s._id || appt.scheduleId === s._id)) return true;
+                              return appt.doctorId?._id === s.doctorId?._id;
+                            });
+                            return !belongsToShift;
+                          });
+
+                          if (shiftsForDay.length === 0 && unlinkedAppts.length === 0) {
                             return (
                               <div className="empty-state" style={{ padding: '20px 0', marginTop: 12 }}>
-                                No doctor schedules active on this date.
+                                No doctor schedules or appointments active on this date.
                               </div>
                             );
                           }
 
+                          // Group unlinked appointments by doctor
+                          const unlinkedGroups = {};
+                          unlinkedAppts.forEach(appt => {
+                            const docId = appt.doctorId?._id || 'unassigned';
+                            if (!unlinkedGroups[docId]) {
+                              unlinkedGroups[docId] = {
+                                doctor: appt.doctorId,
+                                department: appt.departmentId,
+                                appointments: []
+                              };
+                            }
+                            unlinkedGroups[docId].appointments.push(appt);
+                          });
+
+                          // Group active shifts by doctor
+                          const activeShiftGroups = {};
+                          shiftsForDay.forEach(s => {
+                            const docId = s.doctorId?._id || 'unassigned';
+                            if (!activeShiftGroups[docId]) {
+                              activeShiftGroups[docId] = {
+                                doctor: s.doctorId,
+                                shifts: []
+                              };
+                            }
+                            activeShiftGroups[docId].shifts.push(s);
+                          });
+
                           return (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                              {shiftsForDay.map(s => {
-                                const isFull = (s.currentBooked || 0) >= (s.maxPatients || 0);
-                                const percent = Math.min(100, Math.round(((s.currentBooked || 0) / (s.maxPatients || 1)) * 100));
+                              {/* 1. Render active shifts grouped by doctor */}
+                              {Object.keys(activeShiftGroups).map(docId => {
+                                const group = activeShiftGroups[docId];
+                                const doc = group.doctor;
+                                const shifts = group.shifts;
 
-                                const deptId = typeof s.doctorId?.departmentId === 'object' ? s.doctorId.departmentId?._id : s.doctorId?.departmentId;
+                                const deptId = typeof doc?.departmentId === 'object' ? doc.departmentId?._id : doc?.departmentId;
                                 const deptObj = depts.find(d => d._id === deptId);
                                 const deptName = deptObj ? (deptObj.departmentName || deptObj.name) : 'General';
 
-                                const shiftAppts = appointments.filter(appt => {
-                                  if (appt.scheduleId && (appt.scheduleId._id === s._id || appt.scheduleId === s._id)) return true;
-                                  return appt.doctorId?._id === s.doctorId?._id && isSameDate(new Date(appt.requestedDate), selectedDate);
-                                });
+                                const isExpanded = expandedRosterShifts.includes(docId);
 
-                                const isExpanded = expandedRosterShifts.includes(s._id);
+                                // Aggregate stats for the doctor on this day
+                                const totalBooked = shifts.reduce((sum, s) => sum + (s.currentBooked || 0), 0);
+                                const totalMax = shifts.reduce((sum, s) => sum + (s.maxPatients || 0), 0);
+                                const totalAttended = shifts.reduce((sum, s) => sum + (s.actualAttended || 0), 0);
+
+                                const isAnyAvailable = shifts.some(s => s.status === 'Available');
+                                const percent = Math.min(100, Math.round((totalBooked / (totalMax || 1)) * 100));
+
+                                // Find all appointments for this doctor on this day that belong to their active shifts
+                                const doctorAppts = apptsForDay.filter(appt => {
+                                  if (appt.doctorId?._id !== docId) return false;
+                                  return shifts.some(s => {
+                                    if (appt.scheduleId && (appt.scheduleId._id === s._id || appt.scheduleId === s._id)) return true;
+                                    return true; // fallback match for doctor on requestedDate (both are true here)
+                                  });
+                                });
 
                                 return (
                                   <div
-                                    key={s._id}
+                                    key={docId}
                                     style={{
                                       border: '1px solid var(--color-border)',
                                       borderRadius: 12,
@@ -1847,22 +2253,40 @@ export default function StaffDashboard() {
                                       }}
                                       onClick={() => {
                                         setExpandedRosterShifts(prev =>
-                                          isExpanded ? prev.filter(id => id !== s._id) : [...prev, s._id]
+                                          isExpanded ? prev.filter(id => id !== docId) : [...prev, docId]
                                         );
                                       }}
                                     >
                                       <div>
-                                        <h4 style={{ margin: 0, fontSize: 15 }}>Dr. {s.doctorId?.fullName || '—'}</h4>
+                                        <h4 style={{ margin: 0, fontSize: 15 }}>Dr. {doc?.fullName || '—'}</h4>
                                         <p style={{ margin: 0, fontSize: 12, color: 'var(--color-text-muted)', marginTop: 2 }}>
-                                          🎓 {s.doctorId?.specialization || 'General Practitioner'} | 🗂️ {deptName}
+                                          🎓 {doc?.specialization || 'General Practitioner'} | 🗂️ {deptName}
                                         </p>
                                       </div>
-                                      <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                                        <span className="monospace" style={{ fontSize: 13, background: '#fff', padding: '3px 8px', borderRadius: 6, border: '1px solid var(--color-border)' }}>
-                                          🕒 {s.startTime || '—'} - {s.endTime || '—'}
+                                      <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+                                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                                          {shifts.map(s => (
+                                            <span key={s._id} className="monospace" style={{ fontSize: 12, background: '#fff', padding: '3px 8px', borderRadius: 6, border: '1px solid var(--color-border)' }}>
+                                              🕒 {s.startTime || '—'} - {s.endTime || '—'}
+                                            </span>
+                                          ))}
+                                        </div>
+                                        <span style={{ 
+                                          fontSize: 12, 
+                                          fontWeight: '600', 
+                                          color: totalBooked > 0 ? 'var(--color-primary-dark)' : 'var(--color-text-muted)',
+                                          background: totalBooked > 0 ? 'var(--color-primary-light)' : '#f1f5f9',
+                                          padding: '3px 8px',
+                                          borderRadius: 6,
+                                          border: '1px solid var(--color-border)',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          gap: 4
+                                        }}>
+                                          👥 Booked: {totalBooked} / {totalMax}
                                         </span>
-                                        <span className={`badge ${s.status === 'Available' ? 'badge-success' : 'badge-danger'}`} style={{ fontSize: 11, padding: '3px 8px' }}>
-                                          {s.status === 'Available' ? 'Available' : 'Full / Closed'}
+                                        <span className={`badge ${isAnyAvailable ? 'badge-success' : 'badge-danger'}`} style={{ fontSize: 11, padding: '3px 8px' }}>
+                                          {isAnyAvailable ? 'Available' : 'Full / Closed'}
                                         </span>
                                         <span style={{ fontSize: 14, fontWeight: 'bold', color: 'var(--color-text-muted)', marginLeft: 4 }}>
                                           {isExpanded ? '▲' : '▼'}
@@ -1872,40 +2296,76 @@ export default function StaffDashboard() {
 
                                     {isExpanded && (
                                       <div style={{ marginTop: 16, borderTop: '1px solid var(--color-border)', paddingTop: 16 }}>
-                                        <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', marginBottom: 16 }}>
-                                          <div style={{ minWidth: 200, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-                                              <span style={{ fontWeight: 600 }}>Capacity / Booked Slots</span>
-                                              <span style={{ color: isFull ? 'var(--color-danger)' : 'var(--color-text-muted)', fontWeight: 700 }}>{percent}% ({s.currentBooked || 0} / {s.maxPatients || 0})</span>
-                                            </div>
-                                            <div style={{ width: '100%', height: 6, background: '#e2e8f0', borderRadius: 3, overflow: 'hidden' }}>
+                                        {/* Shifts Details Row */}
+                                        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 16 }}>
+                                          {shifts.map((s, idx) => {
+                                            const sPercent = Math.min(100, Math.round(((s.currentBooked || 0) / (s.maxPatients || 1)) * 100));
+                                            const sIsFull = (s.currentBooked || 0) >= (s.maxPatients || 0);
+                                            return (
                                               <div
+                                                key={s._id}
                                                 style={{
-                                                  width: `${percent}%`,
-                                                  height: '100%',
-                                                  background: isFull ? 'var(--color-danger)' : 'var(--color-primary)',
-                                                  borderRadius: 3,
-                                                  transition: 'width 0.3s ease'
+                                                  flex: '1 1 200px',
+                                                  background: '#fff',
+                                                  border: '1px solid var(--color-border)',
+                                                  borderRadius: 8,
+                                                  padding: 12,
+                                                  display: 'flex',
+                                                  flexDirection: 'column',
+                                                  gap: 8
                                                 }}
-                                              />
-                                            </div>
-                                          </div>
-                                          <div style={{ display: 'flex', alignItems: 'center', fontSize: 13 }}>
-                                            <strong>Actual Attended: </strong>
-                                            <span style={{ marginLeft: 6, background: 'var(--color-primary-light)', color: 'var(--color-primary)', fontWeight: 'bold', padding: '2px 8px', borderRadius: 4 }}>
-                                              {s.actualAttended || 0} patient(s)
-                                            </span>
-                                          </div>
+                                              >
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                  <span style={{ fontWeight: 600, fontSize: 13 }}>
+                                                    Shift {shifts.length > 1 ? idx + 1 : ''}: {s.startTime || '—'} - {s.endTime || '—'}
+                                                  </span>
+                                                  <span className={`badge ${s.status === 'Available' ? 'badge-success' : 'badge-danger'}`} style={{ fontSize: 10, padding: '2px 6px' }}>
+                                                    {s.status}
+                                                  </span>
+                                                </div>
+                                                
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
+                                                    <span style={{ color: 'var(--color-text-muted)' }}>Capacity / Booked Slots</span>
+                                                    <span style={{ color: sIsFull ? 'var(--color-danger)' : 'var(--color-text-muted)', fontWeight: 700 }}>
+                                                      {sPercent}% ({s.currentBooked || 0} / {s.maxPatients || 0})
+                                                    </span>
+                                                  </div>
+                                                  <div style={{ width: '100%', height: 6, background: '#e2e8f0', borderRadius: 3, overflow: 'hidden' }}>
+                                                    <div
+                                                      style={{
+                                                        width: `${sPercent}%`,
+                                                        height: '100%',
+                                                        background: sIsFull ? 'var(--color-danger)' : 'var(--color-primary)',
+                                                        borderRadius: 3
+                                                      }}
+                                                    />
+                                                  </div>
+                                                </div>
+                                                <div style={{ fontSize: 12, display: 'flex', alignItems: 'center' }}>
+                                                  <strong>Actual Attended: </strong>
+                                                  <span style={{ marginLeft: 6, background: 'var(--color-primary-light)', color: 'var(--color-primary)', fontWeight: 'bold', padding: '1px 6px', borderRadius: 4, fontSize: 11 }}>
+                                                    {s.actualAttended || 0} patient(s)
+                                                  </span>
+                                                </div>
+                                              </div>
+                                            );
+                                          })}
                                         </div>
 
                                         {/* Booked Patients list */}
                                         <div style={{ background: '#fff', borderRadius: 8, border: '1px solid var(--color-border)', overflow: 'hidden' }}>
-                                          <div style={{ background: '#f1f5f9', padding: '8px 12px', fontSize: 12, fontWeight: 700, borderBottom: '1px solid var(--color-border)' }}>
-                                            Booked Patients ({shiftAppts.length})
+                                          <div style={{ background: '#f1f5f9', padding: '8px 12px', fontSize: 12, fontWeight: 700, borderBottom: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <span>Booked Patients ({doctorAppts.length})</span>
+                                            {shifts.length > 1 && (
+                                              <span style={{ fontSize: 11, color: 'var(--color-text-muted)', fontWeight: 'normal' }}>
+                                                Total Attended: {totalAttended} patient(s)
+                                              </span>
+                                            )}
                                           </div>
-                                          {shiftAppts.length === 0 ? (
+                                          {doctorAppts.length === 0 ? (
                                             <div style={{ padding: 12, fontSize: 12, color: 'var(--color-text-muted)', textAlign: 'center' }}>
-                                              No patients registered for this shift.
+                                              No patients registered for this doctor on this day.
                                             </div>
                                           ) : (
                                             <div className="table-responsive">
@@ -1917,30 +2377,181 @@ export default function StaffDashboard() {
                                                     <th>Time</th>
                                                     <th>Status</th>
                                                     <th>Symptoms / Reason</th>
+                                                    <th>Actions</th>
                                                   </tr>
                                                 </thead>
                                                 <tbody>
-                                                  {shiftAppts.map(appt => (
-                                                    <tr key={appt._id}>
-                                                      <td>
-                                                        <strong style={{ color: 'var(--color-primary-dark)' }}>{appt.patientId?.fullName || '—'}</strong>
-                                                      </td>
-                                                      <td>{appt.patientId?.phoneNumber || '—'}</td>
-                                                      <td className="monospace" style={{ fontWeight: 600 }}>{appt.requestedTime || '—'}</td>
-                                                      <td>
-                                                        <StatusPill status={appt.status} />
-                                                      </td>
-                                                      <td>
-                                                        <span style={{ fontStyle: appt.symptoms ? 'normal' : 'italic', color: appt.symptoms ? 'inherit' : 'var(--color-text-muted)' }}>
-                                                          {appt.symptoms || 'No symptoms described'}
-                                                        </span>
-                                                      </td>
-                                                    </tr>
-                                                  ))}
+                                                  {doctorAppts.map(appt => {
+                                                    // Find the shift this appointment is linked to
+                                                    const apptShift = shifts.find(s => {
+                                                      if (appt.scheduleId && (appt.scheduleId._id === s._id || appt.scheduleId === s._id)) return true;
+                                                      return false;
+                                                    }) || shifts[0];
+
+                                                    return (
+                                                      <tr key={appt._id}>
+                                                        <td>
+                                                          <strong style={{ color: 'var(--color-primary-dark)' }}>{appt.patientId?.fullName || '—'}</strong>
+                                                        </td>
+                                                        <td>{appt.patientId?.phoneNumber || '—'}</td>
+                                                        <td>
+                                                          <span className="monospace" style={{ fontWeight: 600 }}>{appt.requestedTime || '—'}</span>
+                                                          {shifts.length > 1 && apptShift && (
+                                                            <div style={{ fontSize: 10, color: 'var(--color-text-muted)', marginTop: 2 }}>
+                                                              🕒 {apptShift.startTime} - {apptShift.endTime}
+                                                            </div>
+                                                          )}
+                                                        </td>
+                                                        <td>
+                                                          <StatusPill status={appt.status} />
+                                                        </td>
+                                                        <td>
+                                                          <span style={{ fontStyle: appt.symptoms ? 'normal' : 'italic', color: appt.symptoms ? 'inherit' : 'var(--color-text-muted)' }}>
+                                                            {appt.symptoms || 'No symptoms described'}
+                                                          </span>
+                                                        </td>
+                                                        <td>
+                                                          <button
+                                                            type="button"
+                                                            className="btn btn-outline btn-xs"
+                                                            onClick={() => setScheduleAppt(appt)}
+                                                            title="Reassign doctor / reschedule"
+                                                          >
+                                                            📅 Transfer / Schedule
+                                                          </button>
+                                                        </td>
+                                                      </tr>
+                                                    );
+                                                  })}
                                                 </tbody>
                                               </table>
                                             </div>
                                           )}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+
+
+                              {/* 2. Render unlinked/off-shift appointments grouped by doctor */}
+                              {Object.keys(unlinkedGroups).map(docId => {
+                                const group = unlinkedGroups[docId];
+                                const doc = group.doctor;
+                                const deptObj = depts.find(d => d._id === (typeof group.department === 'object' ? group.department?._id : group.department));
+                                const deptName = deptObj ? (deptObj.departmentName || deptObj.name) : 'General';
+                                const isExpanded = expandedOffShiftDocs.includes(docId);
+                                
+                                return (
+                                  <div
+                                    key={`offshift-${docId}`}
+                                    style={{
+                                      border: '1px solid #fed7d7', // light red border to highlight off-shift
+                                      borderRadius: 12,
+                                      background: '#fff5f5', // light red background
+                                      padding: 16,
+                                      boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
+                                    }}
+                                  >
+                                    <div
+                                      style={{
+                                        display: 'flex',
+                                        justifyContent: 'space-between',
+                                        alignItems: 'center',
+                                        flexWrap: 'wrap',
+                                        gap: 12,
+                                        cursor: 'pointer',
+                                        userSelect: 'none'
+                                      }}
+                                      onClick={() => {
+                                        setExpandedOffShiftDocs(prev =>
+                                          isExpanded ? prev.filter(id => id !== docId) : [...prev, docId]
+                                        );
+                                      }}
+                                    >
+                                      <div>
+                                        <h4 style={{ margin: 0, fontSize: 15, color: '#c53030' }}>
+                                          Dr. {doc?.fullName || 'Unassigned Doctor'}
+                                        </h4>
+                                        <p style={{ margin: 0, fontSize: 12, color: '#742a2a', marginTop: 2 }}>
+                                          🎓 {doc?.specialization || 'General Practitioner'} | 🗂️ {deptName}
+                                        </p>
+                                      </div>
+                                      <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                                        <span style={{ 
+                                          fontSize: 12, 
+                                          fontWeight: '600', 
+                                          color: '#c53030',
+                                          background: '#fff',
+                                          padding: '3px 8px',
+                                          borderRadius: 6,
+                                          border: '1px solid #feb2b2',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          gap: 4
+                                        }}>
+                                          ⚠️ Bookings (No Shift): {group.appointments.length}
+                                        </span>
+                                        <span style={{ fontSize: 14, fontWeight: 'bold', color: '#c53030', marginLeft: 4 }}>
+                                          {isExpanded ? '▲' : '▼'}
+                                        </span>
+                                      </div>
+                                    </div>
+
+                                    {isExpanded && (
+                                      <div style={{ marginTop: 16, borderTop: '1px solid #feb2b2', paddingTop: 16 }}>
+                                        <div style={{ color: '#742a2a', fontSize: 12, marginBottom: 12, fontStyle: 'italic' }}>
+                                          Note: There is no active work schedule shift configured for this doctor on this date.
+                                        </div>
+                                        
+                                        <div style={{ background: '#fff', borderRadius: 8, border: '1px solid #feb2b2', overflow: 'hidden' }}>
+                                          <div style={{ background: '#fff5f5', padding: '8px 12px', fontSize: 12, fontWeight: 700, borderBottom: '1px solid #feb2b2', color: '#c53030' }}>
+                                            Booked Patients ({group.appointments.length})
+                                          </div>
+                                          <div className="table-responsive">
+                                            <table className="custom-table" style={{ margin: 0, width: '100%', fontSize: 12 }}>
+                                              <thead>
+                                                <tr>
+                                                  <th>Patient</th>
+                                                  <th>Phone</th>
+                                                  <th>Time</th>
+                                                  <th>Status</th>
+                                                  <th>Symptoms / Reason</th>
+                                                  <th>Actions</th>
+                                                </tr>
+                                              </thead>
+                                              <tbody>
+                                                {group.appointments.map(appt => (
+                                                  <tr key={appt._id}>
+                                                    <td>
+                                                      <strong style={{ color: 'var(--color-primary-dark)' }}>{appt.patientId?.fullName || '—'}</strong>
+                                                    </td>
+                                                    <td>{appt.patientId?.phoneNumber || '—'}</td>
+                                                    <td className="monospace" style={{ fontWeight: 600 }}>{appt.requestedTime || '—'}</td>
+                                                    <td>
+                                                      <StatusPill status={appt.status} />
+                                                    </td>
+                                                    <td>
+                                                      <span style={{ fontStyle: appt.symptoms ? 'normal' : 'italic', color: appt.symptoms ? 'inherit' : 'var(--color-text-muted)' }}>
+                                                        {appt.symptoms || 'No symptoms described'}
+                                                      </span>
+                                                    </td>
+                                                    <td>
+                                                      <button
+                                                        type="button"
+                                                        className="btn btn-outline btn-xs"
+                                                        onClick={() => setScheduleAppt(appt)}
+                                                        title="Reassign doctor / reschedule"
+                                                      >
+                                                        📅 Transfer / Schedule
+                                                      </button>
+                                                    </td>
+                                                  </tr>
+                                                ))}
+                                              </tbody>
+                                            </table>
+                                          </div>
                                         </div>
                                       </div>
                                     )}
@@ -2211,11 +2822,14 @@ export default function StaffDashboard() {
             </div>
             <div className="modal-body">
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16, fontSize: 14 }}>
-                <p style={{ margin: 0 }}>
+                <p style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
                   <strong>Patient:</strong> {detailAppt.patientId?.fullName || '—'}
+                  {detailAppt.patientId?.parentId && (
+                    <span className="badge badge-info" style={{ fontSize: 9, padding: '2px 4px' }}>Dependent</span>
+                  )}
                 </p>
                 <p style={{ margin: 0 }}>
-                  <strong>Phone:</strong> {detailAppt.patientId?.phoneNumber || (detailAppt.patientId?.parentId?.phoneNumber ? `${detailAppt.patientId.parentId.phoneNumber} (Guardian)` : '—')}
+                  <strong>Phone:</strong> {detailAppt.patientId?.phoneNumber || (detailAppt.patientId?.parentId ? `${detailAppt.patientId.parentId.phoneNumber || '—'} (Guardian: ${detailAppt.patientId.parentId.fullName || '—'})` : '—')}
                 </p>
                 <p style={{ margin: 0 }}><strong>Date:</strong> {new Date(detailAppt.requestedDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
                 <p style={{ margin: 0 }}><strong>Time:</strong> {detailAppt.requestedTime || '—'}</p>

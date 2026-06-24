@@ -624,11 +624,19 @@ export default function PatientDashboard() {
                   <div className="table-responsive">
                     <table className="custom-table">
                       <thead>
-                        <tr><th>Date</th><th>Time</th><th>Department</th><th>Doctor</th><th>Status</th></tr>
+                        <tr><th>Patient</th><th>Date</th><th>Time</th><th>Department</th><th>Doctor</th><th>Status</th></tr>
                       </thead>
                       <tbody>
                         {appointments.slice(0, 5).map(a => (
                           <tr key={a._id} style={{ cursor: 'pointer' }} onClick={() => setSelectedAppointment(a)}>
+                            <td>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <strong style={{ color: 'var(--color-primary-dark)', fontSize: 13.5 }}>{a.patientId?.fullName || '—'}</strong>
+                                {a.patientId?.parentId && (
+                                  <span className="badge badge-info" style={{ fontSize: 9, padding: '2px 4px' }}>Dependent</span>
+                                )}
+                              </div>
+                            </td>
                             <td>{new Date(a.requestedDate).toLocaleDateString('en-US')}</td>
                             <td className="monospace">{a.requestedTime || '—'}</td>
                             <td>{a.departmentId?.departmentName || 'General'}</td>
@@ -684,13 +692,21 @@ export default function PatientDashboard() {
                   <table className="custom-table">
                     <thead>
                       <tr>
-                        <th>Date</th><th>Time</th><th>Department</th>
+                        <th>Patient</th><th>Date</th><th>Time</th><th>Department</th>
                         <th>Doctor</th><th>Status</th><th></th>
                       </tr>
                     </thead>
                     <tbody>
                       {appointments.map(a => (
                         <tr key={a._id}>
+                          <td>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <strong style={{ color: 'var(--color-primary-dark)', fontSize: 13.5 }}>{a.patientId?.fullName || '—'}</strong>
+                              {a.patientId?.parentId && (
+                                <span className="badge badge-info" style={{ fontSize: 9, padding: '2px 4px' }}>Dependent</span>
+                              )}
+                            </div>
+                          </td>
                           <td>{new Date(a.requestedDate).toLocaleDateString('en-US')}</td>
                           <td className="monospace">{a.requestedTime || '—'}</td>
                           <td>{a.departmentId?.departmentName || 'General'}</td>
@@ -1272,6 +1288,12 @@ export default function PatientDashboard() {
 
             <div className="modal-body">
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 20px', marginBottom: 16 }}>
+                <p style={{ margin: '0 0 4px 0', gridColumn: '1 / -1', borderBottom: '1px dashed var(--color-border)', paddingBottom: 8 }}>
+                  <strong>Patient:</strong> {selectedAppointment.patientId?.fullName || '—'}
+                  {selectedAppointment.patientId?.parentId && (
+                    <span className="badge badge-info" style={{ marginLeft: 6, fontSize: 10, padding: '2px 4px' }}>Dependent</span>
+                  )}
+                </p>
                 <p style={{ margin: 0 }}><strong>Date:</strong> {new Date(selectedAppointment.requestedDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
                 <p style={{ margin: 0 }}><strong>Time:</strong> {selectedAppointment.requestedTime || '—'}</p>
                 <p style={{ margin: 0 }}><strong>Status:</strong> <StatusPill status={selectedAppointment.status} /></p>
