@@ -14,7 +14,7 @@ export default function QuickBookingModal({ show, onClose, initialDoctorId = '',
 
   return (
     <div className="modal-overlay" onMouseDown={onClose} role="dialog" aria-modal="true" style={{ zIndex: 1000 }}>
-      <div onMouseDown={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: '500px', position: 'relative' }}>
+      <div onMouseDown={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: '640px', position: 'relative' }}>
         {/* Close Button */}
         <button 
           type="button" 

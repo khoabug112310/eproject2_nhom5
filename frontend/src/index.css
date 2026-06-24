@@ -718,6 +718,33 @@ h1, h2, h3, h4, h5, h6 {
   }
 }
 
+/* Quick Booking Modal Specific Styles */
+.quick-booking--modal {
+  padding: 24px 28px !important;
+}
+
+.quick-booking--modal .quick-booking-header {
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: 12px;
+  margin-bottom: 16px;
+}
+
+.quick-booking--modal .quick-booking-body form {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px 16px;
+}
+
+@media (max-width: 640px) {
+  .quick-booking--modal {
+    padding: 16px 20px !important;
+  }
+  .quick-booking--modal .quick-booking-body form {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}
+
 /* Patient Dashboard Styles */
 .patient-dashboard {
   display: flex;
