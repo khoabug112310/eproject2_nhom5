@@ -336,7 +336,7 @@ export default function QuickBooking({
       )}
 
       <div className={`quick-booking-body ${open ? 'open' : 'collapsed'}`} style={{ marginTop: '12px' }}>
-        <form onSubmit={handleSubmit} className="form-grid-2">
+        <form onSubmit={handleSubmit} className="form-grid-2" style={isInline ? { maxWidth: '800px', margin: '0 auto' } : {}}>
           <div className="booking-field-group">
             <label className="booking-label">
               Department <span style={{ color: '#ef4444' }}>*</span>

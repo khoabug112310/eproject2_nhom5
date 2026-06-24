@@ -231,7 +231,7 @@ export default function Home() {
           </section>
  
           {/* QuickBooking Inline Card Section */}
-          <div className="card" ref={bookingRef} id="booking-section" style={{ maxWidth: '800px', width: '100%', alignSelf: 'center', padding: '24px 32px', marginBottom: 0 }}>
+          <div className="card" ref={bookingRef} id="booking-section" style={{ padding: '40px 32px', marginBottom: 0 }}>
             <QuickBooking
               doctors={doctors}
               departments={departments}
