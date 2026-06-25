@@ -154,12 +154,12 @@ export default function QuickBooking({
             setDoctorSchedules(schedules);
           } else {
             setDoctorSchedules([]);
-            setScheduleError('Doctor has no schedule on the selected date. Please choose another date.');
+            setScheduleError('The doctor is not scheduled to work on the selected date. Please choose another date.');
           }
         })
         .catch(err => {
           console.error('Error fetching schedules:', err);
-          setScheduleError('Unable to check doctor schedule.');
+          setScheduleError('Unable to verify doctor schedule.');
         })
         .finally(() => {
           setFetchingSchedule(false);
@@ -262,13 +262,13 @@ export default function QuickBooking({
     // Validate working hours / doctor schedule
     if (doctor) {
       if (doctorSchedules.length === 0) {
-        setError('Doctor has no schedule on the selected date. Please choose another date or doctor.');
+        setError('The doctor has no available schedules for the selected date. Please choose another date or doctor.');
         setLoading(false);
         return;
       }
       const isValid = doctorSchedules.some(sched => time >= sched.startTime && time <= sched.endTime);
       if (!isValid) {
-        setError('Appointment time must be within the doctor\'s working hours.');
+        setError('The selected time must be within the doctor\'s working hours.');
         setLoading(false);
         return;
       }
@@ -344,7 +344,7 @@ export default function QuickBooking({
   }
 
   return (
-    <div className={`quick-booking ${isInline ? 'quick-booking--inline' : ''}`} id="booking-section">
+    <div className={`quick-booking ${isInline ? 'quick-booking--inline' : ''} ${isModal ? 'quick-booking--modal' : ''}`} id="booking-section">
       <div className="quick-booking-header">
         <div className="quick-booking-title-group">
           <h3>Quick Appointment Booking</h3>
@@ -463,7 +463,7 @@ export default function QuickBooking({
                       <option key={slot} value={slot}>{slot}</option>
                     ))
                   ) : (
-                    <option value="">-- No available shifts --</option>
+                    <option value="">-- No available schedules --</option>
                   )
                 ) : (
                   ['09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00'].map(slot => (
@@ -483,7 +483,7 @@ export default function QuickBooking({
           {fetchingSchedule && (
             <div style={{ gridColumn: '1 / -1', fontSize: '13px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '8px', margin: '4px 0 12px 0' }}>
               <span className="btn-spinner" style={{ width: '12px', height: '12px', borderWidth: '2px', borderTopColor: 'var(--color-primary)' }}></span>
-              Checking doctor's schedule...
+              Checking doctor schedule...
             </div>
           )}
           {scheduleError && (
@@ -571,7 +571,7 @@ export default function QuickBooking({
                 value={symptoms}
                 onChange={e => setSymptoms(e.target.value)}
                 maxLength={1000}
-                rows={4}
+                rows={isModal ? 2 : 4}
                 style={{
                   width: '100%',
                   padding: '12px 16px 12px 38px',
@@ -585,7 +585,7 @@ export default function QuickBooking({
                   outline: 'none',
                   boxSizing: 'border-box',
                   resize: 'vertical',
-                  minHeight: '100px',
+                  minHeight: isModal ? '60px' : '100px',
                   boxShadow: 'var(--shadow-sm)'
                 }}
                 onFocus={e => {
@@ -605,7 +605,7 @@ export default function QuickBooking({
             justifyContent: 'center',
             width: '100%',
             gridColumn: '1 / -1',
-            marginTop: '24px'
+            marginTop: isModal ? '12px' : '24px'
           }}>
             <button type="submit" disabled={loading} className="booking-submit-btn" style={{ padding: '12px 32px' }}>
               {loading ? (

@@ -3,7 +3,20 @@ const express = require('express');
 const { authenticateToken, optionalAuthenticate } = require('../../middlewares/auth');
 const { authorizeRole } = require('../../middlewares/rbac');
 const { USER_ROLE } = require('../../constants/enums');
-const { getPosts, createPost, updatePost, deletePost, getContactInquiries, createContactInquiry, uploadImage, resolveContactInquiry, getChatHistory, getChatSessions } = require('./controller');
+const { 
+  getPosts, 
+  createPost, 
+  updatePost, 
+  deletePost, 
+  getContactInquiries, 
+  createContactInquiry, 
+  uploadImage,
+  resolveContactInquiry,
+  getChatHistory,
+  getChatSessions,
+  deleteChatMessage,
+  deleteChatSession
+} = require('./controller');
 
 const router = express.Router();
 
@@ -20,5 +33,7 @@ router.post('/upload', authenticateToken, authorizeRole(USER_ROLE.ADMIN), upload
 router.get('/contact-inquiries', authenticateToken, authorizeRole(USER_ROLE.ADMIN, USER_ROLE.STAFF), getContactInquiries);
 router.put('/contact-inquiries/:id/resolve', authenticateToken, authorizeRole(USER_ROLE.ADMIN, USER_ROLE.STAFF), resolveContactInquiry);
 router.get('/chat/sessions', authenticateToken, authorizeRole(USER_ROLE.ADMIN, USER_ROLE.STAFF), getChatSessions);
+router.delete('/chat/message/:id', authenticateToken, authorizeRole(USER_ROLE.ADMIN, USER_ROLE.STAFF), deleteChatMessage);
+router.delete('/chat/session', authenticateToken, authorizeRole(USER_ROLE.ADMIN, USER_ROLE.STAFF), deleteChatSession);
 
 module.exports = router;

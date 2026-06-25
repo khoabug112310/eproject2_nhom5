@@ -48,18 +48,46 @@ cd backend
 npm install
 ```
 
-Configure `.env` file:
-```
+Tạo tệp `.env` trong thư mục `backend` bằng cách sao chép từ tệp `.env.example` hoặc tạo mới với nội dung sau:
+```env
 NODE_ENV=development
 PORT=4000
-DB_HOST=localhost
-DB_USER=root
-DB_PASSWORD=
-DB_NAME=eproject_clinic
-DB_PORT=3306
-JWT_SECRET=your_secret_key_here
+MONGODB_URI=mongodb://localhost:27017/eproject_clinic
+JWT_SECRET=your_jwt_secret_key
+JWT_EXPIRE=7d
 FRONTEND_URL=http://localhost:5173
+
+# Cấu hình gửi email OTP (Nodemailer SMTP)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=
+SMTP_PASS=
+
+# Cấu hình Twilio SMS OTP
+TWILIO_ACCOUNT_SID=
+TWILIO_AUTH_TOKEN=
+TWILIO_PHONE_NUMBER=
+TWILIO_VERIFY_SERVICE_SID=
+
+# CẤU HÌNH BẮT BUỘC ĐỂ DÙNG CHATBOT AI GEMINI:
+# Dán API Key Gemini của bạn dưới đây:
+GEMINI_API_KEY=
 ```
+
+> [!IMPORTANT]
+> **Lưu ý cấu hình Chatbot AI & Admin Analysis:**
+> Để sử dụng toàn bộ tính năng phân tích và tư vấn bằng AI (Gemini 2.5 Flash), bạn nên điền khóa `GEMINI_API_KEY` trong tệp `.env`.
+> 
+> * **Nếu không điền khóa `GEMINI_API_KEY` (Chế độ giả lập AI):**
+>   * **Chatbot tư vấn (Trang chủ):** Sẽ tự động trả lời bằng tin nhắn mẫu hướng dẫn liên hệ hotline hoặc sử dụng chức năng "Đặt lịch nhanh" thay vì gọi API Gemini (không lo bị crash hay lỗi).
+>   * **AI Phân tích (Dashboard Admin):** Sẽ tự động chuyển sang chế độ hiển thị báo cáo số liệu thống kê thô (Doanh thu, tỉ lệ đặt lịch, bài viết, số lượng tài khoản) trực quan dưới dạng văn bản thay vì báo lỗi 500.
+
+> [!TIP]
+> **Chế độ Giả lập OTP (Email & SMS OTP Simulation):**
+> * **Nếu không điền thông tin Gmail/Twilio:** Hệ thống sẽ tự động chuyển sang **chế độ giả lập dành cho nhà phát triển (Dev Simulation Mode)**.
+> * **Cách lấy mã OTP để test:** Khi thực hiện chức năng *Quên mật khẩu*, mã xác thực OTP (6 chữ số) sẽ được **in trực tiếp ra màn hình terminal chạy Backend** và trả về trong API response. Hãy mở terminal của Backend lên để lấy mã và nhập vào giao diện web!
+
+
 
 Run backend:
 ```bash

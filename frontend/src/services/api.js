@@ -7,9 +7,17 @@ const apiClient = axios.create({
   baseURL: API_BASE_URL,
 });
 
+const getAuthStorageKey = (baseKey) => {
+  const path = window.location.pathname;
+  if (path.startsWith('/staff') || path.startsWith('/admin') || path.startsWith('/doctor') || path.startsWith('/accountant')) {
+    return `portal_${baseKey}`;
+  }
+  return baseKey;
+};
+
 // Interceptor to attach JWT token
 apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem(getAuthStorageKey('token'));
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -21,10 +29,11 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response && (error.response.status === 401 || error.response.status === 403)) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('userRole');
-      localStorage.removeItem('userName');
-      localStorage.removeItem('userDisplayName');
+      const prefix = (window.location.pathname.startsWith('/staff') || window.location.pathname.startsWith('/admin') || window.location.pathname.startsWith('/doctor') || window.location.pathname.startsWith('/accountant')) ? 'portal_' : '';
+      localStorage.removeItem(`${prefix}token`);
+      localStorage.removeItem(`${prefix}userRole`);
+      localStorage.removeItem(`${prefix}userName`);
+      localStorage.removeItem(`${prefix}userDisplayName`);
       if (window.location.pathname !== '/' || !window.location.search.includes('login=true')) {
         window.location.href = '/?login=true';
       }
@@ -169,6 +178,10 @@ export const cmsAPI = {
     apiClient.get('/cms/chat/history', { params }),
   getChatSessions: () =>
     apiClient.get('/cms/chat/sessions'),
+  deleteChatMessage: (id) =>
+    apiClient.delete(`/cms/chat/message/${id}`),
+  deleteChatSession: (params) =>
+    apiClient.delete('/cms/chat/session', { params }),
 };
 
 // Public Booking API
@@ -183,6 +196,8 @@ export const reviewAPI = {
     apiClient.get(`/reviews/doctor/${doctorId}`),
   submitReview: (data) =>
     apiClient.post('/reviews', data),
+  checkEligibility: (doctorId) =>
+    apiClient.get(`/reviews/eligibility/${doctorId}`),
 };
 
 export default apiClient;

@@ -134,11 +134,13 @@ export default function RegisterModal({ show, onClose }) {
       setMessage('Account registered successfully.');
       // Auto login after registration
       const lg = await authAPI.login(phone, password);
-      const { token, role, username, displayName } = lg.data.data;
-      localStorage.setItem('token', token);
-      localStorage.setItem('userRole', role || '');
-      localStorage.setItem('userName', username || phone || '');
-      localStorage.setItem('userDisplayName', displayName || username || phone || '');
+      const { token, role, username, displayName, userId } = lg.data.data;
+      const prefix = (role === 'patient') ? '' : 'portal_';
+      localStorage.setItem(`${prefix}token`, token);
+      localStorage.setItem(`${prefix}userRole`, role || '');
+      localStorage.setItem(`${prefix}userName`, username || phone || '');
+      localStorage.setItem(`${prefix}userDisplayName`, displayName || username || phone || '');
+      localStorage.setItem(`${prefix}userId`, userId || '');
       
       onClose();
       // redirect by role

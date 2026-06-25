@@ -34,13 +34,13 @@ const createReview = async (req, res) => {
     });
 
     if (!completedAppt) {
-      return fail(res, 'Bạn chỉ có thể đánh giá và bình luận sau khi đã hoàn thành lượt khám thực tế với bác sĩ này.', 400);
+      return fail(res, 'You can only leave a review and comment after completing an actual clinical visit with this doctor.', 400);
     }
 
     // 3. Prevent duplicate reviews by the same user for this doctor
     const existingReview = await DoctorReview.findOne({ doctorId, userId });
     if (existingReview) {
-      return fail(res, 'Bạn đã gửi đánh giá cho bác sĩ này rồi.', 400);
+      return fail(res, 'You have already submitted a review for this doctor.', 400);
     }
 
     // 4. Create the new review
@@ -75,7 +75,46 @@ const getDoctorReviews = async (req, res) => {
   }
 };
 
+const checkReviewEligibility = async (req, res) => {
+  try {
+    const { doctorId } = req.params;
+    const userId = req.user?.id || req.user?._id;
+
+    if (!userId) {
+      return ok(res, { eligible: false, reason: 'unauthenticated' });
+    }
+
+    const patient = await Patient.findOne({ userId });
+    if (!patient) {
+      return ok(res, { eligible: false, reason: 'no_patient_profile' });
+    }
+
+    // 1. Check if patient has a Completed appointment with this doctor
+    const completedAppt = await Appointment.findOne({
+      patientId: patient._id,
+      doctorId,
+      status: APPOINTMENT_STATUS.COMPLETED
+    });
+
+    if (!completedAppt) {
+      return ok(res, { eligible: false, reason: 'no_completed_appointment' });
+    }
+
+    // 2. Check if already reviewed
+    const existingReview = await DoctorReview.findOne({ doctorId, userId });
+    if (existingReview) {
+      return ok(res, { eligible: false, reason: 'already_reviewed' });
+    }
+
+    return ok(res, { eligible: true });
+  } catch (error) {
+    console.error('checkReviewEligibility error', error);
+    return fail(res, 'Server error checking eligibility', 500, error.message);
+  }
+};
+
 module.exports = {
   createReview,
-  getDoctorReviews
+  getDoctorReviews,
+  checkReviewEligibility
 };

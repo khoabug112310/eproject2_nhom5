@@ -199,6 +199,11 @@ export default function StaffDashboard() {
   }, [activeView]);
 
   useEffect(() => {
+    if (activeTab !== 'chat') {
+      setChatSocket(null);
+      return;
+    }
+
     const socketUrl = 'http://localhost:4000';
     const socketConn = io(socketUrl, {
       withCredentials: true
@@ -212,7 +217,7 @@ export default function StaffDashboard() {
       fetchSessions();
       setSelectedSession(curr => {
         if (curr) {
-          const isMatch = (curr.roomId === msg.guestSessionId || curr.roomId === msg.senderId);
+          const isMatch = (curr.roomId === msg.guestSessionId || curr.roomId === msg.senderId || curr.roomId === msg.receiverId);
           if (isMatch) {
             setChatMessages(prev => {
               if (prev.some(m => m._id === msg._id)) return prev;
@@ -224,12 +229,28 @@ export default function StaffDashboard() {
       });
     });
 
+    socketConn.on('conversation_cleared', ({ roomId }) => {
+      fetchSessions();
+      setSelectedSession(curr => {
+        if (curr && curr.roomId === roomId) {
+          setChatMessages([]);
+          return null;
+        }
+        return curr;
+      });
+    });
+
+    socketConn.on('message_deleted', ({ messageId }) => {
+      setChatMessages(prev => prev.filter(m => m._id !== messageId));
+      fetchSessions();
+    });
+
     setChatSocket(socketConn);
 
     return () => {
       socketConn.disconnect();
     };
-  }, []);
+  }, [activeTab]);
 
   useEffect(() => {
     if (chatEndRef.current) {
@@ -287,6 +308,72 @@ export default function StaffDashboard() {
       staffId: user?.id,
       staffName: user?.displayName || user?.username || 'Staff'
     });
+  };
+
+  const handleDeleteConversation = async () => {
+    if (!selectedSession) return;
+    if (selectedSession.roomType !== 'guest') {
+      Swal.fire('Error', 'Only guest conversations can be deleted.', 'error');
+      return;
+    }
+
+    const result = await Swal.fire({
+      title: 'Delete this conversation?',
+      text: `The chat history of ${selectedSession.roomName} will be permanently deleted.`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#64748b',
+      confirmButtonText: 'Yes, delete',
+      cancelButtonText: 'Cancel',
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      const params = {};
+      if (selectedSession.roomType === 'guest') {
+        params.sessionId = selectedSession.roomId;
+      } else {
+        params.userId = selectedSession.roomId;
+      }
+
+      const res = await cmsAPI.deleteChatSession(params);
+      if (res.data && res.data.success) {
+        setSelectedSession(null);
+        setChatMessages([]);
+        fetchSessions();
+      }
+    } catch (err) {
+      console.error('Error deleting conversation:', err);
+      Swal.fire('Error', 'Could not delete conversation.', 'error');
+    }
+  };
+
+  const handleDeleteMessage = async (messageId) => {
+    const result = await Swal.fire({
+      title: 'Delete this message?',
+      text: 'This message will be removed from the conversation.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#64748b',
+      confirmButtonText: 'Yes, delete',
+      cancelButtonText: 'Cancel',
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      const res = await cmsAPI.deleteChatMessage(messageId);
+      if (res.data && res.data.success) {
+        setChatMessages(prev => prev.filter(m => m._id !== messageId));
+        fetchSessions();
+      }
+    } catch (err) {
+      console.error('Error deleting message:', err);
+      Swal.fire('Error', 'Could not delete message.', 'error');
+    }
   };
 
   useEffect(() => {
@@ -1899,6 +1986,31 @@ export default function StaffDashboard() {
                           Type: {selectedSession.roomType} | Room ID: {selectedSession.roomId}
                         </p>
                       </div>
+                      {selectedSession.roomType === 'guest' && (
+                        <button
+                          type="button"
+                          onClick={handleDeleteConversation}
+                          style={{
+                            marginLeft: 'auto',
+                            background: 'none',
+                            border: 'none',
+                            color: '#ef4444',
+                            fontSize: '13px',
+                            fontWeight: '600',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '6px 12px',
+                            borderRadius: '8px',
+                            transition: 'all 0.2s'
+                          }}
+                          onMouseEnter={(e) => e.target.style.backgroundColor = '#fef2f2'}
+                          onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+                        >
+                          🗑️ Delete Conversation
+                        </button>
+                      )}
                     </div>
 
                     <div className="staff-chat-messages-area">
@@ -1922,7 +2034,7 @@ export default function StaffDashboard() {
                                 ))}
                               </div>
                             </div>
-                            <span className="staff-chat-msg-meta">
+                            <span className="staff-chat-msg-meta" style={{ display: 'flex', alignItems: 'center' }}>
                               {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             </span>
                           </div>

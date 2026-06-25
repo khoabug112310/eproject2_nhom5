@@ -6,7 +6,14 @@ import { cmsAPI } from '../services/api';
 export default function ChatbotWidget() {
   const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState([]);
+  const [messages, setMessages] = useState([
+    {
+      id: 'greeting',
+      sender: 'bot',
+      text: 'Hello! I am the virtual assistant of Hopsontai Clinic. How can I help you today?',
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    }
+  ]);
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [hasNewMessage, setHasNewMessage] = useState(false);
@@ -14,6 +21,12 @@ export default function ChatbotWidget() {
   const [isStaffOnline, setIsStaffOnline] = useState(false);
   
   const messagesEndRef = useRef(null);
+  const isOpenRef = useRef(isOpen);
+
+  // Sync isOpen to isOpenRef to prevent stale closure in socket listener without re-triggering connection
+  useEffect(() => {
+    isOpenRef.current = isOpen;
+  }, [isOpen]);
 
   // Scroll to bottom
   useEffect(() => {
@@ -22,63 +35,21 @@ export default function ChatbotWidget() {
     }
   }, [messages, isTyping]);
 
-  // Load chat history
-  const loadHistory = async () => {
-    try {
-      const params = {};
-      if (user && user.role !== 'staff' && user.role !== 'admin') {
-        params.userId = user.id;
-      }
-      const guestSessionId = localStorage.getItem('guestSessionId');
-      if (guestSessionId) {
-        params.sessionId = guestSessionId;
-      }
-      
-      const res = await cmsAPI.getChatHistory(params);
-      if (res.data && res.data.success && res.data.data.length > 0) {
-        const mapped = res.data.data.map(msg => {
-          const textLower = msg.messageText.toLowerCase();
-          let cta = null;
-          if (msg.senderType === 'ai' && (textLower.includes('book') || textLower.includes('appointment') || textLower.includes('schedule') || textLower.includes('đặt lịch'))) {
-            cta = {
-              label: '🗓️ Book an Appointment Now',
-              action: 'open_booking'
-            };
-          }
-          return {
-            id: msg._id,
-            sender: (msg.senderType === 'patient' || msg.senderType === 'guest') ? 'user' : 'bot',
-            text: msg.messageText,
-            cta,
-            time: new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-          };
-        });
-        setMessages(mapped);
-      } else {
-        // Default greeting
-        setMessages([
-          {
-            id: 'greeting',
-            sender: 'bot',
-            text: 'Hello! I am the virtual assistant of Hopsontai Clinic. How can I help you today?',
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-          }
-        ]);
-      }
-    } catch (err) {
-      console.error('Error fetching chat history:', err);
-    }
-  };
-
   // Socket.io initialization
   useEffect(() => {
-    let guestSessionId = localStorage.getItem('guestSessionId');
-    if (!guestSessionId) {
-      guestSessionId = 'guest_' + Math.random().toString(36).substring(2, 15);
-      localStorage.setItem('guestSessionId', guestSessionId);
-    }
+    // Generate a fresh session ID on every refresh/load so chat starts fresh from the beginning
+    const guestSessionId = 'guest_' + Math.random().toString(36).substring(2, 15);
+    localStorage.setItem('guestSessionId', guestSessionId);
 
-    loadHistory();
+    // Reset messages list on load or user change
+    setMessages([
+      {
+        id: 'greeting',
+        sender: 'bot',
+        text: 'Hello! I am the virtual assistant of Hopsontai Clinic. How can I help you today?',
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      }
+    ]);
 
     const socketUrl = 'http://localhost:4000';
     const socketConn = io(socketUrl, {
@@ -114,7 +85,7 @@ export default function ChatbotWidget() {
           };
         }
 
-        if (!isOpen) {
+        if (!isOpenRef.current) {
           setHasNewMessage(true);
         }
 
@@ -128,12 +99,27 @@ export default function ChatbotWidget() {
       });
     });
 
+    socketConn.on('message_deleted', ({ messageId }) => {
+      setMessages(prev => prev.filter(m => m.id !== messageId));
+    });
+
+    socketConn.on('conversation_cleared', () => {
+      setMessages([
+        {
+          id: 'greeting',
+          sender: 'bot',
+          text: 'Hello! I am the virtual assistant of Hopsontai Clinic. How can I help you today?',
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }
+      ]);
+    });
+
     setSocket(socketConn);
 
     return () => {
       socketConn.disconnect();
     };
-  }, [user, isOpen]);
+  }, [user]);
 
   const quickReplies = [
     { text: '🗓️ Book an appointment', query: 'book_appointment' },
@@ -207,7 +193,7 @@ export default function ChatbotWidget() {
               <h4>Hopsontai Assistant</h4>
               <div className="chatbot-status">
                 <span className={`status-dot ${isStaffOnline ? 'online' : 'offline'}`}></span>
-                <span>{isStaffOnline ? 'Support Staff Online' : 'AI Assistant (Staff Offline)'}</span>
+                <span>{isStaffOnline ? 'Support Staff Online' : 'AI Assistant'}</span>
               </div>
             </div>
           </div>

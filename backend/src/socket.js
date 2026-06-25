@@ -162,6 +162,7 @@ const initSocket = (server) => {
               senderName: 'Hopsontai Assistant (AI)',
               senderType: 'ai',
               guestSessionId: sessionId || null,
+              receiverId: userId || null,
               messageText: 'Currently, no support staff is online. Please submit a Quick Booking request or call our hotline at 091-444-4444.'
             });
             setTimeout(() => {
@@ -181,6 +182,7 @@ const initSocket = (server) => {
             senderName: 'Hopsontai Assistant (AI)',
             senderType: 'ai',
             guestSessionId: sessionId || null,
+            receiverId: userId || null,
             messageText: aiResponseText
           });
 
@@ -195,6 +197,7 @@ const initSocket = (server) => {
             senderName: 'Hopsontai Assistant (AI)',
             senderType: 'ai',
             guestSessionId: sessionId || null,
+            receiverId: userId || null,
             messageText: 'I am experiencing connection issues. Please try again or call our hotline: 091-444-4444.'
           });
           io.to(roomName).emit('new_message', errorMsg);
@@ -206,6 +209,7 @@ const initSocket = (server) => {
     socket.on('staff_reply', async ({ text, targetRoom, staffId, staffName }) => {
       if (!text || !text.trim() || !targetRoom) return;
 
+      const userId = targetRoom.startsWith('room_user_') ? targetRoom.replace('room_user_', '') : null;
       const guestId = targetRoom.startsWith('room_guest_') ? targetRoom.replace('room_guest_', '') : null;
       
       // Save staff response to database
@@ -214,6 +218,7 @@ const initSocket = (server) => {
         senderName: staffName,
         senderType: 'staff',
         guestSessionId: guestId,
+        receiverId: userId,
         messageText: text.trim()
       });
 

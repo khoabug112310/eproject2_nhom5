@@ -7,6 +7,11 @@ const chatMessageSchema = new mongoose.Schema({
     ref: 'User',
     default: null
   },
+  receiverId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
+  },
   senderName: {
     type: String,
     default: 'Guest'

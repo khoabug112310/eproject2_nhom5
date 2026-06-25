@@ -13,11 +13,13 @@ export default function Login() {
     setLoading(true);
     try {
       const res = await authAPI.login(phone, password);
-      const { token, role, username, displayName } = res.data.data;
-      localStorage.setItem('token', token);
-      localStorage.setItem('userRole', role || '');
-      localStorage.setItem('userName', username || phone || '');
-      localStorage.setItem('userDisplayName', displayName || username || phone || '');
+      const { token, role, username, displayName, userId } = res.data.data;
+      const prefix = (role === 'patient') ? '' : 'portal_';
+      localStorage.setItem(`${prefix}token`, token);
+      localStorage.setItem(`${prefix}userRole`, role || '');
+      localStorage.setItem(`${prefix}userName`, username || phone || '');
+      localStorage.setItem(`${prefix}userDisplayName`, displayName || username || phone || '');
+      localStorage.setItem(`${prefix}userId`, userId || '');
       if (role === 'admin') window.location.href = '/admin/dashboard';
       else if (role === 'doctor') window.location.href = '/doctor/schedule';
       else if (role === 'staff') window.location.href = '/staff/dashboard';
