@@ -347,10 +347,10 @@ export default function AccountantDashboard() {
   }
 
   return (
-    <div className="role-dashboard-shell work-dashboard">
+    <div className="role-dashboard-shell work-dashboard" style={{ backgroundColor: '#ffffff' }}>
       <RoleTopNav role="accountant" />
 
-      <div className="dashboard-layout">
+      <div className="dashboard-layout" style={{ maxWidth: '100%', width: '100%', padding: '0 28px 24px 28px', display: 'flex', flex: 1, alignItems: 'stretch', gap: 0 }}>
         {/* Sidebar Nav */}
         <aside className="dashboard-sidebar">
           <div className="patient-quick-info">
@@ -384,14 +384,14 @@ export default function AccountantDashboard() {
         </aside>
 
         {/* Workspace */}
-        <main className="dashboard-main-content">
+        <main className="dashboard-main-content" style={{ paddingLeft: '0', paddingRight: '0', paddingTop: '0', background: '#ffffff', flex: 1, width: '100%', maxWidth: 'none', margin: 0, alignItems: 'stretch' }}>
           {successMessage && <div className="alert alert-success">{successMessage}</div>}
           {errorMessage && <div className="alert alert-danger">{errorMessage}</div>}
 
           {/* Tab: Invoices */}
           {activeTab === 'invoices' && (
-            <div className="dashboard-card">
-              <div className="card-header flex-column md-row">
+            <div className="dashboard-card" style={{ width: '100%', paddingLeft: 0, paddingRight: 0, borderLeft: 'none', borderRight: 'none' }}>
+              <div className="card-header flex-column md-row" style={{ paddingLeft: '10px', paddingRight: '10px' }}>
                 <h2>Patient billing management</h2>
 
                 <div className="work-page-toolbar search-filter-bar">
@@ -418,7 +418,7 @@ export default function AccountantDashboard() {
                 </div>
               ) : (
                 <div className="table-responsive" style={{ overflowX: 'auto' }}>
-                  <table className="custom-table" style={{ fontSize: '18px', width: '100%' }}>
+                  <table className="custom-table" style={{ fontSize: '18px', width: '100%', tableLayout: 'fixed' }}>
                     <thead>
                       <tr>
                         <th style={{ fontSize: '16px', padding: '12px 10px' }}>Invoice ID</th>
@@ -478,7 +478,7 @@ export default function AccountantDashboard() {
 
           {/* Tab: Daily Reports */}
           {activeTab === 'reports' && (
-            <div className="dashboard-card" id="print-area">
+            <div className="dashboard-card" id="print-area" style={{ width: '100%', paddingLeft: 0, paddingRight: 0, borderLeft: 'none', borderRight: 'none' }}>
               <h2 style={{ textAlign: 'center', marginBottom: '8px' }}>CLINIC DAILY REVENUE REPORT</h2>
               <div style={{ textAlign: 'center', marginBottom: '16px' }}>
                 <input 
@@ -562,7 +562,7 @@ export default function AccountantDashboard() {
                 </div>
               ) : (
                 <div className="table-responsive" style={{ marginTop: 15, overflowX: 'auto' }}>
-                  <table className="custom-table" style={{ fontSize: '18px', width: '100%' }}>
+                  <table className="custom-table" style={{ fontSize: '18px', width: '100%', tableLayout: 'fixed' }}>
                     <thead>
                       <tr>
                         <th style={{ fontSize: '16px', padding: '12px 10px' }}>Invoice</th>
@@ -599,7 +599,7 @@ export default function AccountantDashboard() {
 
           {/* Tab: Monthly Reports */}
           {activeTab === 'monthly_reports' && (
-            <div className="dashboard-card" id="print-area">
+            <div className="dashboard-card" id="print-area-monthly" style={{ width: '100%', paddingLeft: 0, paddingRight: 0, borderLeft: 'none', borderRight: 'none' }}>
               <h2 style={{ textAlign: 'center', marginBottom: '8px' }}>MONTHLY REVENUE SUMMARY REPORT</h2>
               <div style={{ textAlign: 'center', marginBottom: '16px', display: 'flex', justifyContent: 'center', gap: '8px' }}>
                 <select 

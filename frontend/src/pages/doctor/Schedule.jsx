@@ -49,6 +49,7 @@ export default function DoctorSchedule() {
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [filterFromDate, setFilterFromDate] = useState(getTodayYMD());
   const [filterToDate, setFilterToDate] = useState(getTodayYMD());
+  const [filterStatus, setFilterStatus] = useState('All');
   const [patientSearchQuery, setPatientSearchQuery] = useState('');
   const getTodayStr = () => {
     const d = new Date();
@@ -451,6 +452,11 @@ export default function DoctorSchedule() {
         }
       }
 
+      if (isMatch && filterStatus !== 'All') {
+        if (filterStatus === 'Waiting' && a.status === 'Completed') isMatch = false;
+        if (filterStatus === 'Examined' && a.status !== 'Completed') isMatch = false;
+      }
+
       return isMatch;
     });
 
@@ -726,7 +732,7 @@ export default function DoctorSchedule() {
     <div className="role-dashboard-shell work-dashboard">
       <RoleTopNav role="doctor" />
 
-      <div className="dashboard-layout" style={{ maxWidth: '100%', padding: '24px 40px' }}>
+      <div className="dashboard-layout" style={{ maxWidth: '100%', width: '100%', padding: '0 28px 24px 28px', display: 'flex', flex: 1, alignItems: 'stretch', gap: 0 }}>
         {/* Sidebar Nav */}
         <aside className="dashboard-sidebar">
           <div className="patient-quick-info">
@@ -761,18 +767,19 @@ export default function DoctorSchedule() {
         </aside>
 
         {/* Main Workspace */}
-        <main className="dashboard-main-content">
+        <main className="dashboard-main-content" style={{ paddingLeft: '0', paddingRight: '0', paddingTop: '0', background: '#ffffff', flex: 1, width: '100%', maxWidth: 'none', margin: 0, alignItems: 'stretch' }}>
           {successMessage && <div className="alert alert-success">{successMessage}</div>}
           {errorMessage && <div className="alert alert-danger">{errorMessage}</div>}
 
           {/* Tab: Appointments Queue */}
           {activeTab === 'appointments' && !activeAppt && (
-              <div className="dashboard-card">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <div className="dashboard-card" style={{ width: '100%', paddingLeft: 0, paddingRight: 0, borderLeft: 'none', borderRight: 'none' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', paddingLeft: '10px', paddingRight: '10px', flexWrap: 'wrap', gap: '16px' }}>
                 <div>
-                  <h2>{isDefaultView ? 'Patients to examine' : `Exam History`}</h2>
+                  <h2 style={{ margin: 0 }}>{isDefaultView ? 'Patients to examine' : `Exam History`}</h2>
                 </div>
-                 <div style={{ display: 'flex', gap: '20px', alignItems: 'center', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '24px', flexWrap: 'wrap' }}>
+                  {/* Search */}
                   <div style={{ display: 'flex', alignItems: 'center' }}>
                     <span style={{ fontSize: '18px', marginRight: '8px' }}>🔍</span>
                     <input 
@@ -783,29 +790,47 @@ export default function DoctorSchedule() {
                       onChange={(e) => setPatientSearchQuery(e.target.value)}
                     />
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <label style={{ fontSize: '14px', fontWeight: 'bold', margin: 0 }}>From:</label>
-                    <input 
-                      type="date" 
-                      style={{ padding: '8px 12px', borderRadius: '4px', border: '1px solid #ccc', fontSize: '15px' }}
-                      value={filterFromDate}
-                      onChange={(e) => setFilterFromDate(e.target.value)}
-                    />
+                  
+                  {/* From and To */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <label style={{ fontSize: '14px', fontWeight: 'bold', margin: 0 }}>From:</label>
+                      <input 
+                        type="date" 
+                        style={{ padding: '8px 12px', borderRadius: '4px', border: '1px solid #ccc', fontSize: '15px' }}
+                        value={filterFromDate}
+                        onChange={(e) => setFilterFromDate(e.target.value)}
+                      />
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <label style={{ fontSize: '14px', fontWeight: 'bold', margin: 0 }}>To:</label>
+                      <input 
+                        type="date" 
+                        style={{ padding: '8px 12px', borderRadius: '4px', border: '1px solid #ccc', fontSize: '15px' }}
+                        value={filterToDate}
+                        onChange={(e) => setFilterToDate(e.target.value)}
+                      />
+                    </div>
                   </div>
+
+                  {/* Status */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <label style={{ fontSize: '14px', fontWeight: 'bold', margin: 0 }}>To:</label>
-                    <input 
-                      type="date" 
-                      style={{ padding: '8px 12px', borderRadius: '4px', border: '1px solid #ccc', fontSize: '15px' }}
-                      value={filterToDate}
-                      onChange={(e) => setFilterToDate(e.target.value)}
-                    />
+                    <label style={{ fontSize: '14px', fontWeight: 'bold', margin: 0 }}>Status:</label>
+                    <select 
+                      style={{ padding: '8px 12px', borderRadius: '4px', border: '1px solid #ccc', fontSize: '15px', minWidth: '110px' }}
+                      value={filterStatus}
+                      onChange={(e) => setFilterStatus(e.target.value)}
+                    >
+                      <option value="All">All</option>
+                      <option value="Waiting">Waiting</option>
+                      <option value="Examined">Examined</option>
+                    </select>
                   </div>
                 </div>
               </div>
 
               <div className="table-responsive" style={{ minHeight: '250px', maxHeight: '600px', overflowY: 'auto', width: '100%' }}>
-                <table className="custom-table" style={{ fontSize: '18px', width: '100%' }}>
+                <table className="custom-table" style={{ fontSize: '18px', width: '100%', tableLayout: 'fixed' }}>
                   <thead>
                     <tr>
                       <th style={{ fontSize: '16px', padding: '14px 10px' }}>Patient</th>

@@ -83,7 +83,7 @@ export default function Home() {
 
           {/* Doctors Grid Section - Redesigned to be highly professional and visually stunning */}
           <section style={{
-            background: 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)',
+            backgroundColor: '#ffffff',
             border: '1px solid #e2e8f0',
             borderRadius: '24px',
             padding: '40px 32px',
