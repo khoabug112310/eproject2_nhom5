@@ -83,6 +83,11 @@ const register = async (req, res) => {
         user.email = email;
       }
 
+      const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d).{6,}$/;
+      if (!passwordRegex.test(password)) {
+        return fail(res, 'Password must be at least 6 characters long and contain both letters and numbers.', 400);
+      }
+
       user.passwordHash = password;
       user.isRegistered = true;
       if (email) user.email = email;
@@ -111,6 +116,11 @@ const register = async (req, res) => {
 
     // Create new user
     if (!password) return fail(res, 'Password required for new registration', 400);
+
+    const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d).{6,}$/;
+    if (!passwordRegex.test(password)) {
+      return fail(res, 'Password must be at least 6 characters long and contain both letters and numbers.', 400);
+    }
 
     // Validate email uniqueness if provided
     if (email) {
@@ -284,14 +294,12 @@ const forgotPassword = async (req, res) => {
 
     if (isEmailInput) {
       if (user.email) {
-        try {
-          await sendEmail(user.email, 'Verification OTP Code - Hopsontai Clinic', emailHtml);
-          emailSent = true;
-          responseMsg = 'Verification OTP code has been sent to your email.';
-        } catch (emailErr) {
-          console.error('Failed to send Email OTP:', emailErr);
-          return fail(res, 'Failed to send verification code via email. Please try again.', 500);
-        }
+        // Send email in the background to respond immediately
+        sendEmail(user.email, 'Verification OTP Code - Hopsontai Clinic', emailHtml).catch(emailErr => {
+          console.error('Background Email OTP sending failed:', emailErr);
+        });
+        emailSent = true;
+        responseMsg = 'Verification OTP code has been sent to your email.';
       } else {
         return fail(res, 'This account does not have a configured email address.', 400);
       }
@@ -343,6 +351,11 @@ const resetPassword = async (req, res) => {
     const { phone, code, newPassword } = req.body;
     if (!phone || !code || !newPassword) {
       return fail(res, 'Please provide all required info: phone number/email, verification code, and new password.', 400);
+    }
+
+    const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d).{6,}$/;
+    if (!passwordRegex.test(newPassword)) {
+      return fail(res, 'Password must be at least 6 characters long and contain both letters and numbers.', 400);
     }
 
     const user = await User.findOne({ $or: [{ username: phone }, { phone: phone }, { email: phone }] });
@@ -417,6 +430,10 @@ const verifyOtp = async (req, res) => {
           const verifyResult = await checkVerifyOTP(user.phone, code);
           if (verifyResult && verifyResult.success) {
             isValid = true;
+            // Save to database so next step resetPassword can verify locally (Twilio code is single-use and cannot be checked twice)
+            user.resetCode = code;
+            user.resetCodeExpires = new Date(Date.now() + 5 * 60 * 1000);
+            await user.save();
           }
         } catch (verifyErr) {
           console.error('Twilio Verify Check API failed during validation:', verifyErr);

@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { schedulingAPI, profilesAPI, clinicalAPI, cmsAPI } from '../../services/api';
 import Swal from 'sweetalert2';
 import RoleTopNav from '../../components/RoleTopNav';
@@ -421,7 +421,7 @@ export default function StaffDashboard() {
   }, [activeView]);
 
   useEffect(() => {
-    if (activeTab !== 'chat') {
+    if (activeView !== 'chat') {
       setChatSocket(null);
       return;
     }
@@ -472,7 +472,7 @@ export default function StaffDashboard() {
     return () => {
       socketConn.disconnect();
     };
-  }, [activeTab]);
+  }, [activeView]);
 
   useEffect(() => {
     if (chatEndRef.current) {

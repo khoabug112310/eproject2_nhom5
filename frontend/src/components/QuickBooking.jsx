@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { schedulingAPI, clinicalAPI, bookingAPI } from '../services/api';
+import Swal from 'sweetalert2';
 
 export default function QuickBooking({ 
   departments = [], 
@@ -104,6 +105,10 @@ export default function QuickBooking({
   useEffect(() => {
     if (initialDoctorId) setDoctor(initialDoctorId);
   }, [initialDoctorId]);
+
+  useEffect(() => {
+    if (initialDepartmentId) setDepartment(initialDepartmentId);
+  }, [initialDepartmentId]);
 
   const [doctorSchedules, setDoctorSchedules] = useState([]);
   const [fetchingSchedule, setFetchingSchedule] = useState(false);
@@ -295,14 +300,19 @@ export default function QuickBooking({
         };
         const resp = await schedulingAPI.bookAppointment(payload);
         if (resp.data && resp.data.success) {
-          setSuccess('Appointment booked successfully! Our customer care team will contact you shortly.');
+          Swal.fire({
+            icon: 'success',
+            title: 'Booking Successful!',
+            text: 'Our care team will contact you shortly to confirm your appointment.',
+            confirmButtonColor: 'var(--color-primary, #3b82f6)',
+            confirmButtonText: 'OK'
+          });
           setDepartment(''); setDoctor(''); setTime('09:00'); setDate(getMinBookingDate());
           if (!isPatientLoggedIn) {
             setName('');
             setPhone('');
           }
           if (onSuccess) onSuccess(); // Trigger callback to close the modal in the outer layout
-          setTimeout(() => setSuccess(null), 5000);
           // Trigger event to refresh stats in real-time
           window.dispatchEvent(new CustomEvent('booking-success'));
         } else {
@@ -321,14 +331,19 @@ export default function QuickBooking({
         };
         const resp = await bookingAPI.submitQuickBooking(payload);
         if (resp.data && resp.data.success) {
-          setSuccess('Your booking request has been sent! The clinic will contact you as soon as possible.');
+          Swal.fire({
+            icon: 'success',
+            title: 'Booking Successful!',
+            text: 'Your booking request has been sent! Our care team will contact you shortly to confirm.',
+            confirmButtonColor: 'var(--color-primary, #3b82f6)',
+            confirmButtonText: 'OK'
+          });
           setDepartment(''); setDoctor(''); setTime('09:00'); setDate(getMinBookingDate());
           if (!isPatientLoggedIn) {
             setName('');
             setPhone('');
           }
           if (onSuccess) onSuccess(); // Trigger callback to close the modal in the outer layout
-          setTimeout(() => setSuccess(null), 5000);
           // Trigger event to refresh stats in real-time
           window.dispatchEvent(new CustomEvent('booking-success'));
         } else {
