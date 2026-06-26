@@ -448,10 +448,11 @@ Hello Administrator! I am the AI assistant integrated directly to monitor clinic
     }
   };
 
-  const handleDoctorAssigned = async (docId) => {
+  const handleDoctorAssigned = async (reassignPayload) => {
     try {
       setSubmitting(true);
-      await schedulingAPI.updateAppointment(appointmentToAssignDoctor._id, { doctorId: docId });
+      const updateData = typeof reassignPayload === 'object' ? reassignPayload : { doctorId: reassignPayload };
+      await schedulingAPI.updateAppointment(appointmentToAssignDoctor._id, updateData);
       setShowDoctorScheduleModal(false);
       
       if (appointmentToAssignDoctor.status === 'Pending') {
@@ -2585,12 +2586,13 @@ Ready to analyze your clinic data. Select a category or type a specific question
         </div>
       )}
         {/* Modals for Create/Edit */}
-      <DoctorScheduleModal
-        isOpen={showDoctorScheduleModal}
-        onClose={() => setShowDoctorScheduleModal(false)}
-        appointmentData={appointmentToAssignDoctor}
-        onConfirm={handleDoctorAssigned}
-      />
+      {showDoctorScheduleModal && (
+        <DoctorScheduleModal
+          appointment={appointmentToAssignDoctor}
+          onClose={() => setShowDoctorScheduleModal(false)}
+          onConfirm={handleDoctorAssigned}
+        />
+      )}
     </div>
   );
 }

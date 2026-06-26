@@ -223,7 +223,6 @@ const getChatHistory = async (req, res) => {
       return res.status(400).json({ success: false, message: 'sessionId or userId is required' });
     }
 
-<<<<<<< HEAD
     const conditions = [];
     if (sessionId) conditions.push({ guestSessionId: sessionId });
     if (userId) {

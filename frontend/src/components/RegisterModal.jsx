@@ -1,6 +1,20 @@
 import React, { useEffect, useState } from 'react';
 import { authAPI } from '../services/api';
 
+const EyeIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'block' }}>
+    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+    <circle cx="12" cy="12" r="3" />
+  </svg>
+);
+
+const EyeOffIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'block' }}>
+    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+    <line x1="1" y1="1" x2="23" y2="23" />
+  </svg>
+);
+
 export default function RegisterModal({ show, onClose }) {
   const [step, setStep] = useState(1);
   const [phone, setPhone] = useState('');
@@ -12,6 +26,9 @@ export default function RegisterModal({ show, onClose }) {
   const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');
   const [isError, setIsError] = useState(false);
+  const [isExistingPatient, setIsExistingPatient] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   useEffect(() => {
     if (show) {
@@ -23,6 +40,9 @@ export default function RegisterModal({ show, onClose }) {
       setDateOfBirth(''); 
       setGender(''); 
       setEmail('');
+      setIsExistingPatient(false);
+      setShowPassword(false);
+      setShowConfirmPassword(false);
       setMessage('');
       setIsError(false);
     }
@@ -63,14 +83,17 @@ export default function RegisterModal({ show, onClose }) {
       const existingName = err?.response?.data?.data?.fullName || '';
       if (status === 409) {
         // Account exists in profiles but is not active
+        setIsExistingPatient(true);
         if (existingName) {
           setMessage(`Hello ${existingName}, this phone number already exists in our patient records. Please set a new password to activate your online account.`);
+          setFullName(existingName); // Prefill full name
         } else {
           setMessage('This phone number already exists in our patient records. Please set a new password to activate your online account.');
         }
         setStep(2);
       } else if (status === 400) {
         // New registration required
+        setIsExistingPatient(false);
         setStep(3);
       } else {
         setMessage(msg);
@@ -84,6 +107,14 @@ export default function RegisterModal({ show, onClose }) {
     setMessage('');
     setIsError(false);
 
+    // Validate password strength
+    const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d).{6,}$/;
+    if (!passwordRegex.test(password)) {
+      setMessage('Password must be at least 6 characters long and contain both letters and numbers.');
+      setIsError(true);
+      return;
+    }
+
     // Validate password match
     if (password !== confirmPassword) {
       setMessage('Passwords do not match. Please check again.');
@@ -91,8 +122,8 @@ export default function RegisterModal({ show, onClose }) {
       return;
     }
 
-    // Validate age for step 3 registration
-    if (step === 3) {
+    // Validate age and gender for both Step 2 and Step 3
+    if (step === 2 || step === 3) {
       if (!dateOfBirth) {
         setMessage('Please select your date of birth.');
         setIsError(true);
@@ -232,6 +263,50 @@ export default function RegisterModal({ show, onClose }) {
         {step === 2 && (
           <form onSubmit={handleActivate}>
             <div className="form-group-outline">
+              <label htmlFor="reg-activate-name">Full name <span style={{ color: '#ef4444' }}>*</span></label>
+              <input
+                id="reg-activate-name"
+                type="text"
+                placeholder="e.g. John Smith"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                required
+                disabled={isExistingPatient && !!fullName}
+                style={isExistingPatient && !!fullName ? { backgroundColor: '#e2e8f0', cursor: 'not-allowed', color: '#64748b' } : {}}
+              />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div className="form-group-outline">
+                <label htmlFor="reg-activate-dob">Date of birth <span style={{ color: '#ef4444' }}>*</span></label>
+                <input 
+                  id="reg-activate-dob"
+                  type="date" 
+                  value={dateOfBirth} 
+                  onChange={(e) => setDateOfBirth(e.target.value)} 
+                  min={minDate}
+                  max={maxDate}
+                  required
+                />
+              </div>
+
+              <div className="form-group-outline">
+                <label htmlFor="reg-activate-gender">Gender <span style={{ color: '#ef4444' }}>*</span></label>
+                <select
+                  id="reg-activate-gender"
+                  value={gender}
+                  onChange={(e) => setGender(e.target.value)}
+                  required
+                >
+                  <option value="">-- Select gender --</option>
+                  <option value="Nam">Male</option>
+                  <option value="Nữ">Female</option>
+                  <option value="Khác">Other</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="form-group-outline">
               <label htmlFor="reg-activate-email">Email</label>
               <input
                 id="reg-activate-email"
@@ -241,28 +316,47 @@ export default function RegisterModal({ show, onClose }) {
                 onChange={(e) => setEmail(e.target.value)}
               />
             </div>
+            
             <div className="form-group-outline">
               <label htmlFor="reg-activate-password">New password <span style={{ color: '#ef4444' }}>*</span></label>
-              <input
-                id="reg-activate-password"
-                type="password"
-                placeholder="Set your password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
+              <div style={{ position: 'relative', display: 'block', width: '100%' }}>
+                <input
+                  id="reg-activate-password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Set your password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  style={{ paddingRight: '40px' }}
+                />
+                {password && (
+                  <button type="button" onClick={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', outline: 'none' }}>
+                    {showPassword ? <EyeOffIcon /> : <EyeIcon />}
+                  </button>
+                )}
+              </div>
             </div>
+            
             <div className="form-group-outline">
-              <label htmlFor="reg-activate-confirm-password">Confirm new password</label>
-              <input
-                id="reg-activate-confirm-password"
-                type="password"
-                placeholder="Re-enter your new password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                required
-              />
+              <label htmlFor="reg-activate-confirm-password">Confirm new password <span style={{ color: '#ef4444' }}>*</span></label>
+              <div style={{ position: 'relative', display: 'block', width: '100%' }}>
+                <input
+                  id="reg-activate-confirm-password"
+                  type={showConfirmPassword ? "text" : "password"}
+                  placeholder="Re-enter your new password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                  style={{ paddingRight: '40px' }}
+                />
+                {confirmPassword && (
+                  <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', outline: 'none' }}>
+                    {showConfirmPassword ? <EyeOffIcon /> : <EyeIcon />}
+                  </button>
+                )}
+              </div>
             </div>
+
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '20px' }}>
               <button
                 type="button"
@@ -338,25 +432,42 @@ export default function RegisterModal({ show, onClose }) {
 
             <div className="form-group-outline">
               <label htmlFor="reg-password">Password</label>
-              <input
-                id="reg-password"
-                type="password"
-                placeholder="Set your access password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
+              <div style={{ position: 'relative', display: 'block', width: '100%' }}>
+                <input
+                  id="reg-password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Set your access password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  style={{ paddingRight: '40px' }}
+                />
+                {password && (
+                  <button type="button" onClick={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', outline: 'none' }}>
+                    {showPassword ? <EyeOffIcon /> : <EyeIcon />}
+                  </button>
+                )}
+              </div>
             </div>
+            
             <div className="form-group-outline">
               <label htmlFor="reg-confirm-password">Confirm password</label>
-              <input
-                id="reg-confirm-password"
-                type="password"
-                placeholder="Re-enter your access password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                required
-              />
+              <div style={{ position: 'relative', display: 'block', width: '100%' }}>
+                <input
+                  id="reg-confirm-password"
+                  type={showConfirmPassword ? "text" : "password"}
+                  placeholder="Re-enter your access password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                  style={{ paddingRight: '40px' }}
+                />
+                {confirmPassword && (
+                  <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', outline: 'none' }}>
+                    {showConfirmPassword ? <EyeOffIcon /> : <EyeIcon />}
+                  </button>
+                )}
+              </div>
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '20px' }}>

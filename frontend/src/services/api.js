@@ -29,13 +29,16 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response && (error.response.status === 401 || error.response.status === 403)) {
-      const prefix = (window.location.pathname.startsWith('/staff') || window.location.pathname.startsWith('/admin') || window.location.pathname.startsWith('/doctor') || window.location.pathname.startsWith('/accountant')) ? 'portal_' : '';
-      localStorage.removeItem(`${prefix}token`);
-      localStorage.removeItem(`${prefix}userRole`);
-      localStorage.removeItem(`${prefix}userName`);
-      localStorage.removeItem(`${prefix}userDisplayName`);
-      if (window.location.pathname !== '/' || !window.location.search.includes('login=true')) {
-        window.location.href = '/?login=true';
+      const isLoginRequest = error.config && error.config.url && error.config.url.includes('/auth/login');
+      if (!isLoginRequest) {
+        const prefix = (window.location.pathname.startsWith('/staff') || window.location.pathname.startsWith('/admin') || window.location.pathname.startsWith('/doctor') || window.location.pathname.startsWith('/accountant')) ? 'portal_' : '';
+        localStorage.removeItem(`${prefix}token`);
+        localStorage.removeItem(`${prefix}userRole`);
+        localStorage.removeItem(`${prefix}userName`);
+        localStorage.removeItem(`${prefix}userDisplayName`);
+        if (window.location.pathname !== '/' || !window.location.search.includes('login=true')) {
+          window.location.href = '/?login=true';
+        }
       }
     }
     return Promise.reject(error);
