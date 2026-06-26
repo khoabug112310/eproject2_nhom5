@@ -3,6 +3,8 @@ import { billingAPI, clinicalAPI } from '../../services/api';
 import RoleTopNav from '../../components/RoleTopNav';
 import Swal from 'sweetalert2';
 import '../../styles/work-dashboard.css';
+import ExcelJS from 'exceljs';
+import { saveAs } from 'file-saver';
 
 export default function AccountantDashboard() {
   const [invoices, setInvoices] = useState([]);
@@ -149,16 +151,31 @@ export default function AccountantDashboard() {
 
   const handleProcessPayment = async (inv) => {
     const result = await Swal.fire({
-      title: 'Confirm payment collection',
-      text: 'Do you confirm that cash/bank transfer has actually been received for this invoice?',
+      title: 'Select Payment Method',
+      html: `
+        <div style="text-align: left; margin-top: 15px;">
+          <label style="display: block; margin-bottom: 10px; font-size: 16px; cursor: pointer;">
+            <input type="radio" name="paymentMethod" value="Cash" checked style="margin-right: 8px; transform: scale(1.2);"> Cash (Tiền mặt)
+          </label>
+          <label style="display: block; font-size: 16px; cursor: pointer;">
+            <input type="radio" name="paymentMethod" value="Bank Transfer" style="margin-right: 8px; transform: scale(1.2);"> Bank Transfer / Credit Card (Chuyển khoản / Quẹt thẻ)
+          </label>
+        </div>
+      `,
       icon: 'question',
       showCancelButton: true,
       confirmButtonColor: '#10b981',
       cancelButtonColor: '#64748b',
-      confirmButtonText: 'Confirm',
-      cancelButtonText: 'Cancel'
+      confirmButtonText: 'Confirm Payment',
+      cancelButtonText: 'Cancel',
+      preConfirm: () => {
+        const selected = document.querySelector('input[name="paymentMethod"]:checked');
+        return selected ? selected.value : 'Cash';
+      }
     });
+    
     if (!result.isConfirmed) return;
+    const paymentMethod = result.value;
     setSubmitting(true);
     setErrorMessage('');
     setSuccessMessage('');
@@ -167,10 +184,10 @@ export default function AccountantDashboard() {
         // Only pay those that are still Unpaid
         const unpaidOriginals = invoices.filter(i => inv.originalIds.includes(i._id) && i.status === 'Unpaid');
         for (const o of unpaidOriginals) {
-          await billingAPI.processPayment(o._id);
+          await billingAPI.processPayment(o._id, paymentMethod);
         }
       } else {
-        await billingAPI.processPayment(inv._id);
+        await billingAPI.processPayment(inv._id, paymentMethod);
       }
       setSuccessMessage('The invoice has been marked as PAID successfully!');
       fetchInvoices();
@@ -179,6 +196,62 @@ export default function AccountantDashboard() {
       }
     } catch (err) {
       setErrorMessage(err?.response?.data?.message || 'Error processing the invoice payment.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleRemovePharmacy = async (pharmacyInvoiceId) => {
+    try {
+      const result = await Swal.fire({
+        title: 'Remove Prescription?',
+        text: "The patient refused the medicines. This will remove all prescription items from this invoice.",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'Yes, remove them'
+      });
+      
+      if (result.isConfirmed) {
+        setSubmitting(true);
+        await billingAPI.deleteInvoice(pharmacyInvoiceId);
+        
+        fetchInvoices();
+        setSelectedInvoice(null);
+        Swal.fire('Removed!', 'Prescription items have been removed.', 'success');
+      }
+    } catch (err) {
+      console.error(err);
+      Swal.fire('Error', 'Failed to remove prescription', 'error');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleRemovePrescriptionItem = async (detailId, medicineName) => {
+    try {
+      const result = await Swal.fire({
+        title: 'Remove Item?',
+        text: `Are you sure you want to remove "${medicineName}" from the prescription?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'Yes, remove it'
+      });
+      
+      if (result.isConfirmed) {
+        setSubmitting(true);
+        await billingAPI.deleteInvoiceDetail(detailId);
+        
+        fetchInvoices();
+        setSelectedInvoice(null);
+        Swal.fire('Removed!', 'Prescription item has been removed.', 'success');
+      }
+    } catch (err) {
+      console.error(err);
+      Swal.fire('Error', 'Failed to remove prescription item', 'error');
     } finally {
       setSubmitting(false);
     }
@@ -216,6 +289,7 @@ export default function AccountantDashboard() {
         computedTotal: 0,
         paidAt: inv.paidAt,
         processedBy: inv.processedBy,
+        paymentMethod: inv.paymentMethod,
         isCombined: true
       };
     }
@@ -224,10 +298,12 @@ export default function AccountantDashboard() {
     group.originalIds.push(inv._id);
     if (inv.status === 'Unpaid') group.status = 'Unpaid';
     if (!group.paidAt && inv.paidAt) group.paidAt = inv.paidAt;
+    if (inv.paymentMethod) group.paymentMethod = inv.paymentMethod;
 
     if (inv.invoiceType === 'Consultation') {
       group.consultationTotal += inv.totalAmount;
     } else if (inv.invoiceType === 'Pharmacy') {
+      group.pharmacyInvoiceId = inv._id;
       if (inv.details) {
         group.details = group.details.concat(inv.details);
         inv.details.forEach(d => group.medicinesTotal += d.subTotal);
@@ -272,6 +348,13 @@ export default function AccountantDashboard() {
   const targetDailyStr = targetDailyDate.toDateString();
   const todayInvoices = groupedInvoicesList.filter(inv => inv.status === 'Paid' && inv.paidAt && new Date(inv.paidAt).toDateString() === targetDailyStr);
   const totalRevenue = todayInvoices.reduce((sum, inv) => sum + (inv.computedTotal || inv.totalAmount), 0);
+  const dailyBankTotal = todayInvoices
+    .filter(inv => inv.paymentMethod === 'Bank Transfer')
+    .reduce((sum, inv) => sum + (inv.computedTotal || inv.totalAmount), 0);
+  const dailyCashTotal = todayInvoices
+    .filter(inv => inv.paymentMethod !== 'Bank Transfer')
+    .reduce((sum, inv) => sum + (inv.computedTotal || inv.totalAmount), 0);
+
   const consultationRev = todayInvoices.reduce((sum, inv) => sum + (inv.consultationTotal || 0), 0);
   const pharmacyOnlyRev = todayInvoices.reduce((sum, inv) => sum + (inv.medicinesTotal || 0), 0);
   const servicesRev = todayInvoices.reduce((sum, inv) => sum + (inv.servicesTotal || 0), 0);
@@ -333,6 +416,274 @@ export default function AccountantDashboard() {
 
   const daysPassedThisMonth = Math.max(1, new Date().getDate());
   const avgPatientsPerDay = Math.round(currentMonthInvoices.length / daysPassedThisMonth);
+
+  const handleExportDailyExcel = async () => {
+    const workbook = new ExcelJS.Workbook();
+    
+    // ===== Sheet 1: Transactions =====
+    const wsData = workbook.addWorksheet('Transactions');
+    wsData.columns = [
+      { header: 'Date', key: 'ngay', width: 15, style: { alignment: { horizontal: 'center', vertical: 'middle' } } },
+      { header: 'Invoice', key: 'invoice', width: 15, style: { numFmt: '@', alignment: { horizontal: 'center', vertical: 'middle' } } },
+      { header: 'Patient', key: 'patient', width: 25, style: { alignment: { horizontal: 'left', vertical: 'middle' } } },
+      { header: 'Consultation fees', key: 'consultation', width: 20, style: { numFmt: '#,##0" ₫"', alignment: { horizontal: 'right', vertical: 'middle' } } },
+      { header: 'Pharmacy sales', key: 'pharmacy', width: 20, style: { numFmt: '#,##0" ₫"', alignment: { horizontal: 'right', vertical: 'middle' } } },
+      { header: 'Other revenue', key: 'other', width: 20, style: { numFmt: '#,##0" ₫"', alignment: { horizontal: 'right', vertical: 'middle' } } },
+      { header: 'DETAILS BY PAYMENT', key: 'paymentMethod', width: 35, style: { alignment: { horizontal: 'center', vertical: 'middle' } } },
+      { header: 'Total Amount', key: 'total', width: 20, style: { numFmt: '#,##0" ₫"', alignment: { horizontal: 'right', vertical: 'middle' } } },
+      { header: 'Payment time', key: 'time', width: 15, style: { alignment: { horizontal: 'center', vertical: 'middle' } } }
+    ];
+
+    wsData.pageSetup = { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 };
+
+    wsData.columns.forEach(col => {
+      col.font = { name: 'Segoe UI' };
+    });
+
+
+    wsData.getRow(1).font = { name: 'Segoe UI', bold: true, color: { argb: 'FFFFFFFF' } };
+    wsData.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F4E78' } };
+    wsData.getRow(1).alignment = { horizontal: 'center' };
+
+    todayInvoices.forEach(inv => {
+      wsData.addRow({
+        ngay: new Date(inv.paidAt).toLocaleDateString('en-GB'),
+        invoice: inv._id.substring(18).toUpperCase(),
+        patient: inv.patientId?.fullName || '',
+        consultation: inv.consultationTotal || 0,
+        pharmacy: inv.medicinesTotal || 0,
+        other: inv.servicesTotal || 0,
+        paymentMethod: inv.paymentMethod === 'Bank Transfer' ? 'Bank Transfer / Credit Card' : 'Cash',
+        total: inv.computedTotal || inv.totalAmount,
+        time: new Date(inv.paidAt).toLocaleTimeString('en-US')
+      });
+    });
+
+    // Force cell alignments and formats after adding rows
+    wsData.eachRow((row, rowNumber) => {
+      if (rowNumber === 1) return; // skip header
+      row.getCell('ngay').alignment = { horizontal: 'center', vertical: 'middle' };
+      row.getCell('invoice').alignment = { horizontal: 'center', vertical: 'middle' };
+      row.getCell('invoice').numFmt = '@'; // Force text format
+      row.getCell('patient').alignment = { horizontal: 'left', vertical: 'middle' };
+      row.getCell('consultation').alignment = { horizontal: 'right', vertical: 'middle' };
+      row.getCell('pharmacy').alignment = { horizontal: 'right', vertical: 'middle' };
+      row.getCell('other').alignment = { horizontal: 'right', vertical: 'middle' };
+      row.getCell('paymentMethod').alignment = { horizontal: 'center', vertical: 'middle' };
+      row.getCell('total').alignment = { horizontal: 'right', vertical: 'middle' };
+      row.getCell('time').alignment = { horizontal: 'center', vertical: 'middle' };
+    });
+
+    // ===== Sheet 2: Daily_Dashboard =====
+    const wsDaily = workbook.addWorksheet('Daily_Dashboard');
+    wsDaily.views = [{ showGridLines: false }];
+    wsDaily.pageSetup = { fitToPage: true, fitToWidth: 1, fitToHeight: 0 };
+    
+    wsDaily.getColumn('A').width = 40;
+    wsDaily.getColumn('B').width = 25;
+
+    wsDaily.mergeCells('A2:B2');
+    const titleCell = wsDaily.getCell('A2');
+    titleCell.value = 'CLINIC DAILY REVENUE REPORT';
+    titleCell.font = { name: 'Segoe UI', bold: true, size: 16, color: { argb: 'FF1F4E78' } };
+    titleCell.alignment = { horizontal: 'center' };
+
+    wsDaily.mergeCells('A3:B3');
+    const dateCell = wsDaily.getCell('A3');
+    dateCell.value = targetDailyStr;
+    dateCell.font = { name: 'Segoe UI', bold: true, size: 14 };
+    dateCell.alignment = { horizontal: 'center' };
+
+    wsDaily.getCell('A5').value = 'TOTAL ACTUAL REVENUE';
+    wsDaily.getCell('A5').font = { name: 'Segoe UI', bold: true, size: 12, color: { argb: 'FFC00000' } };
+    wsDaily.getCell('B5').value = { formula: 'SUM(Transactions!H:H)', result: totalRevenue };
+    wsDaily.getCell('B5').font = { name: 'Segoe UI', bold: true, size: 12, color: { argb: 'FFC00000' } };
+    wsDaily.getCell('B5').numFmt = '#,##0" ₫"';
+
+    wsDaily.getCell('A7').value = 'DETAILS BY REVENUE SOURCE (System)';
+    wsDaily.getCell('A7').font = { name: 'Segoe UI', bold: true, size: 12 };
+
+    wsDaily.getCell('A8').value = 'Consultation fees:';
+    wsDaily.getCell('B8').value = { formula: 'SUM(Transactions!D:D)', result: consultationRev };
+    wsDaily.getCell('B8').numFmt = '#,##0" ₫"';
+
+    wsDaily.getCell('A9').value = 'Pharmacy sales:';
+    wsDaily.getCell('B9').value = { formula: 'SUM(Transactions!E:E)', result: pharmacyOnlyRev };
+    wsDaily.getCell('B9').numFmt = '#,##0" ₫"';
+
+    wsDaily.getCell('A10').value = 'Other revenue (Procedures/Tests):';
+    wsDaily.getCell('B10').value = { formula: 'SUM(Transactions!F:F)', result: servicesRev };
+    wsDaily.getCell('B10').numFmt = '#,##0" ₫"';
+
+    wsDaily.getCell('A12').value = 'DETAILS BY PAYMENT METHOD';
+    wsDaily.getCell('A12').font = { name: 'Segoe UI', bold: true, size: 12 };
+
+    wsDaily.getCell('A13').value = 'Cash:';
+    wsDaily.getCell('B13').value = { formula: 'SUMIF(Transactions!G:G, "Cash", Transactions!H:H)', result: totalRevenue };
+    wsDaily.getCell('B13').numFmt = '#,##0" ₫"';
+
+    wsDaily.getCell('A14').value = 'Bank Transfer / Credit Card:';
+    wsDaily.getCell('B14').value = { formula: 'SUMIF(Transactions!G:G, "Bank Transfer / Credit Card", Transactions!H:H)', result: 0 };
+    wsDaily.getCell('B14').numFmt = '#,##0" ₫"';
+
+    wsDaily.getCell('A16').value = 'PATIENT STATISTICS';
+    wsDaily.getCell('A16').font = { name: 'Segoe UI', bold: true, size: 12 };
+
+    wsDaily.getCell('A17').value = 'Total patient visits today:';
+    wsDaily.getCell('B17').value = { formula: 'COUNTA(Transactions!B:B)-1', result: todayInvoices.length };
+
+    wsDaily.eachRow((row) => {
+      row.eachCell((cell) => {
+        if (!cell.font) cell.font = { name: 'Segoe UI' };
+        else cell.font.name = 'Segoe UI';
+      });
+    });
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    saveAs(new Blob([buffer]), `Daily_Revenue_Report_${reportDate}.xlsx`);
+  };
+
+  const handleExportMonthlyExcel = async () => {
+    const workbook = new ExcelJS.Workbook();
+    
+    // ===== Sheet 1: Transactions =====
+    const wsData = workbook.addWorksheet('Transactions');
+    wsData.columns = [
+      { header: 'Date', key: 'ngay', width: 15 },
+      { header: 'Invoice', key: 'invoice', width: 15 },
+      { header: 'Patient', key: 'patient', width: 25 },
+      { header: 'Consultation fees', key: 'consultation', width: 20 },
+      { header: 'Pharmacy sales', key: 'pharmacy', width: 20 },
+      { header: 'Other revenue', key: 'other', width: 20 },
+      { header: 'DETAILS BY PAYMENT', key: 'paymentMethod', width: 25 },
+      { header: 'Total Amount', key: 'total', width: 20 },
+      { header: 'Payment time', key: 'time', width: 15 }
+    ];
+
+    wsData.pageSetup = { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 };
+
+    wsData.columns.forEach(col => {
+      col.font = { name: 'Segoe UI' };
+      col.alignment = { vertical: 'middle' };
+    });
+    wsData.getColumn('ngay').alignment = { horizontal: 'center', vertical: 'middle' };
+    wsData.getColumn('invoice').alignment = { horizontal: 'center', vertical: 'middle' };
+    wsData.getColumn('patient').alignment = { horizontal: 'left', vertical: 'middle' };
+    wsData.getColumn('consultation').alignment = { horizontal: 'right', vertical: 'middle' };
+    wsData.getColumn('pharmacy').alignment = { horizontal: 'right', vertical: 'middle' };
+    wsData.getColumn('other').alignment = { horizontal: 'right', vertical: 'middle' };
+    wsData.getColumn('paymentMethod').alignment = { horizontal: 'center', vertical: 'middle' };
+    wsData.getColumn('total').alignment = { horizontal: 'right', vertical: 'middle' };
+    wsData.getColumn('time').alignment = { horizontal: 'center', vertical: 'middle' };
+
+    wsData.getColumn('consultation').numFmt = '#,##0" ₫"';
+    wsData.getColumn('pharmacy').numFmt = '#,##0" ₫"';
+    wsData.getColumn('other').numFmt = '#,##0" ₫"';
+    wsData.getColumn('total').numFmt = '#,##0" ₫"';
+
+    wsData.getRow(1).font = { name: 'Segoe UI', bold: true, color: { argb: 'FFFFFFFF' } };
+    wsData.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F4E78' } };
+    wsData.getRow(1).alignment = { horizontal: 'center' };
+
+    currentMonthInvoices.forEach(inv => {
+      wsData.addRow({
+        ngay: new Date(inv.paidAt).toLocaleDateString('en-GB'),
+        invoice: inv._id.substring(18).toUpperCase(),
+        patient: inv.patientId?.fullName || '',
+        consultation: inv.consultationTotal || 0,
+        pharmacy: inv.medicinesTotal || 0,
+        other: inv.servicesTotal || 0,
+        paymentMethod: inv.paymentMethod === 'Bank Transfer' ? 'Bank Transfer / Credit Card' : (inv.paymentMethod || 'Cash'),
+        total: inv.computedTotal || inv.totalAmount,
+        time: new Date(inv.paidAt).toLocaleTimeString('en-US')
+      });
+    });
+
+    // Force cell alignments and formats after adding rows
+    wsData.eachRow((row, rowNumber) => {
+      if (rowNumber === 1) return; // skip header
+      row.getCell('ngay').alignment = { horizontal: 'center', vertical: 'middle' };
+      row.getCell('invoice').alignment = { horizontal: 'center', vertical: 'middle' };
+      row.getCell('invoice').numFmt = '@'; // Force text format
+      row.getCell('patient').alignment = { horizontal: 'left', vertical: 'middle' };
+      row.getCell('consultation').alignment = { horizontal: 'right', vertical: 'middle' };
+      row.getCell('pharmacy').alignment = { horizontal: 'right', vertical: 'middle' };
+      row.getCell('other').alignment = { horizontal: 'right', vertical: 'middle' };
+      row.getCell('paymentMethod').alignment = { horizontal: 'center', vertical: 'middle' };
+      row.getCell('total').alignment = { horizontal: 'right', vertical: 'middle' };
+      row.getCell('time').alignment = { horizontal: 'center', vertical: 'middle' };
+    });
+
+    // ===== Sheet 2: Monthly_Dashboard =====
+    const wsMonthly = workbook.addWorksheet('Monthly_Dashboard');
+    wsMonthly.views = [{ showGridLines: false }];
+    wsMonthly.pageSetup = { fitToPage: true, fitToWidth: 1, fitToHeight: 0 };
+    
+    wsMonthly.getColumn('A').width = 40;
+    wsMonthly.getColumn('B').width = 25;
+    wsMonthly.getColumn('C').width = 15;
+
+    wsMonthly.mergeCells('A2:B2');
+    const titleCell = wsMonthly.getCell('A2');
+    titleCell.value = 'CLINIC MONTHLY REVENUE REPORT';
+    titleCell.font = { name: 'Segoe UI', bold: true, size: 16, color: { argb: 'FF1F4E78' } };
+    titleCell.alignment = { horizontal: 'center' };
+
+    wsMonthly.mergeCells('A3:B3');
+    const dateCell = wsMonthly.getCell('A3');
+    dateCell.value = `Month: ${reportMonth}`;
+    dateCell.font = { name: 'Segoe UI', bold: true, size: 14 };
+    dateCell.alignment = { horizontal: 'center' };
+
+    wsMonthly.getCell('A5').value = 'TOTAL MONTHLY REVENUE';
+    wsMonthly.getCell('A5').font = { name: 'Segoe UI', bold: true, size: 12, color: { argb: 'FFC00000' } };
+    wsMonthly.getCell('B5').value = { formula: 'SUM(Transactions!H:H)', result: monthlyTotalRevenue };
+    wsMonthly.getCell('B5').font = { name: 'Segoe UI', bold: true, size: 12, color: { argb: 'FFC00000' } };
+    wsMonthly.getCell('B5').numFmt = '#,##0" ₫"';
+
+    wsMonthly.getCell('A7').value = 'DETAILED REVENUE STRUCTURE';
+    wsMonthly.getCell('A7').font = { name: 'Segoe UI', bold: true, size: 12 };
+    wsMonthly.getCell('C7').value = '%';
+    wsMonthly.getCell('C7').font = { name: 'Segoe UI', bold: true, size: 12 };
+    wsMonthly.getCell('C7').alignment = { horizontal: 'center' };
+
+    wsMonthly.getCell('A8').value = 'Total consultation fees:';
+    wsMonthly.getCell('B8').value = { formula: 'SUM(Transactions!D:D)', result: monthlyConsultationRev };
+    wsMonthly.getCell('B8').numFmt = '#,##0" ₫"';
+    wsMonthly.getCell('C8').value = { formula: 'IF(B5>0, ROUND(B8/B5*100, 1), 0) & "%"', result: `${pctConsultation}%` };
+    wsMonthly.getCell('C8').alignment = { horizontal: 'center' };
+
+    wsMonthly.getCell('A9').value = 'Total pharmacy sales:';
+    wsMonthly.getCell('B9').value = { formula: 'SUM(Transactions!E:E)', result: monthlyPharmacyOnlyRev };
+    wsMonthly.getCell('B9').numFmt = '#,##0" ₫"';
+    wsMonthly.getCell('C9').value = { formula: 'IF(B5>0, ROUND(B9/B5*100, 1), 0) & "%"', result: `${pctPharmacy}%` };
+    wsMonthly.getCell('C9').alignment = { horizontal: 'center' };
+
+    wsMonthly.getCell('A10').value = 'Other services revenue:';
+    wsMonthly.getCell('B10').value = { formula: 'SUM(Transactions!F:F)', result: monthlyServicesRev };
+    wsMonthly.getCell('B10').numFmt = '#,##0" ₫"';
+    wsMonthly.getCell('C10').value = { formula: 'IF(B5>0, ROUND(B10/B5*100, 1), 0) & "%"', result: `${pctServices}%` };
+    wsMonthly.getCell('C10').alignment = { horizontal: 'center' };
+
+    wsMonthly.getCell('A12').value = 'PATIENT STATISTICS';
+    wsMonthly.getCell('A12').font = { name: 'Segoe UI', bold: true, size: 12 };
+
+    wsMonthly.getCell('A13').value = 'Total patient visits this month:';
+    wsMonthly.getCell('B13').value = { formula: 'COUNTA(Transactions!B:B)-1', result: currentMonthInvoices.length };
+
+    wsMonthly.getCell('A14').value = 'Average patients/day:';
+    wsMonthly.getCell('B14').value = avgPatientsPerDay;
+
+    wsMonthly.eachRow((row) => {
+      row.eachCell((cell) => {
+        if (!cell.font) cell.font = { name: 'Segoe UI' };
+        else cell.font.name = 'Segoe UI';
+      });
+    });
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    saveAs(new Blob([buffer]), `Monthly_Revenue_Report_${reportMonth}.xlsx`);
+  };
 
   if (loading) {
     return (
@@ -531,11 +882,11 @@ export default function AccountantDashboard() {
                     </tr>
                     <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
                       <td style={{ padding: '12px 8px 12px 32px' }}>▪️ Cash:</td>
-                      <td style={{ padding: '12px 8px', textAlign: 'right' }}>{formatVND(totalRevenue)} <span style={{ color: '#64748b', fontSize: '16px' }}>(Safed)</span></td>
+                      <td style={{ padding: '12px 8px', textAlign: 'right' }}>{formatVND(dailyCashTotal)} <span style={{ color: '#64748b', fontSize: '16px' }}>(Safed)</span></td>
                     </tr>
                     <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
                       <td style={{ padding: '12px 8px 12px 32px' }}>▪️ Bank Transfer / Credit Card:</td>
-                      <td style={{ padding: '12px 8px', textAlign: 'right' }}>{formatVND(0)}</td>
+                      <td style={{ padding: '12px 8px', textAlign: 'right' }}>{formatVND(dailyBankTotal)}</td>
                     </tr>
 
                     {/* Patient Stats */}
@@ -567,10 +918,12 @@ export default function AccountantDashboard() {
                       <tr>
                         <th style={{ fontSize: '16px', padding: '12px 10px' }}>Invoice</th>
                         <th style={{ fontSize: '16px', padding: '12px 10px' }}>Patient</th>
-                        <th style={{ fontSize: '16px', padding: '12px 10px' }}>Invoice type</th>
-                        <th style={{ fontSize: '16px', padding: '12px 10px' }}>Amount</th>
+                        <th style={{ fontSize: '16px', padding: '12px 10px' }}>Consultation fees</th>
+                        <th style={{ fontSize: '16px', padding: '12px 10px' }}>Pharmacy sales</th>
+                        <th style={{ fontSize: '16px', padding: '12px 10px' }}>Other revenue</th>
+                        <th style={{ fontSize: '16px', padding: '12px 10px' }}>DETAILS BY PAYMENT</th>
+                        <th style={{ fontSize: '16px', padding: '12px 10px' }}>Total Amount</th>
                         <th style={{ fontSize: '16px', padding: '12px 10px' }}>Payment time</th>
-                        <th style={{ fontSize: '16px', padding: '12px 10px' }}>Processed by</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -578,10 +931,12 @@ export default function AccountantDashboard() {
                         <tr key={inv._id}>
                           <td className="monospace font-bold" style={{ padding: '16px 10px', fontSize: '18px' }}>{inv._id.substring(18).toUpperCase()}</td>
                           <td style={{ padding: '16px 10px', fontSize: '20px', fontWeight: 'bold' }}>{inv.patientId?.fullName}</td>
-                          <td style={{ padding: '16px 10px', fontSize: '18px' }}>{inv.isCombined ? 'Combined Fee' : (inv.invoiceType === 'Consultation' ? 'Consultation fee' : 'Prescription medicine')}</td>
+                          <td style={{ padding: '16px 10px', fontSize: '18px' }}>{formatVND(inv.consultationTotal || 0)}</td>
+                          <td style={{ padding: '16px 10px', fontSize: '18px' }}>{formatVND(inv.medicinesTotal || 0)}</td>
+                          <td style={{ padding: '16px 10px', fontSize: '18px' }}>{formatVND(inv.servicesTotal || 0)}</td>
+                          <td style={{ padding: '16px 10px', fontSize: '18px' }}>{inv.paymentMethod === 'Bank Transfer' ? 'Bank Transfer / Credit Card' : 'Cash'}</td>
                           <td className="font-bold text-success" style={{ padding: '16px 10px', fontSize: '20px' }}>{formatVND(inv.computedTotal || inv.totalAmount)}</td>
                           <td style={{ padding: '16px 10px', fontSize: '18px' }}>{new Date(inv.paidAt).toLocaleTimeString('en-US')}</td>
-                          <td style={{ padding: '16px 10px', fontSize: '18px' }}>{inv.processedBy?.fullName || 'System'}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -589,9 +944,12 @@ export default function AccountantDashboard() {
                 </div>
               )}
 
-              <div className="form-actions" style={{ marginTop: 20 }}>
+              <div className="form-actions" style={{ marginTop: 20, display: 'flex', gap: '10px' }}>
                 <button className="btn btn-primary" onClick={() => window.print()}>
                   🖨️ Print report
+                </button>
+                <button className="btn btn-primary" style={{ backgroundColor: '#10b981', borderColor: '#10b981' }} onClick={handleExportDailyExcel}>
+                  📥 Export to Excel
                 </button>
               </div>
             </div>
@@ -708,9 +1066,12 @@ export default function AccountantDashboard() {
                   Report generated by: <strong>{reporterName}</strong>
                 </div>
               </div>
-              <div className="form-actions" style={{ marginTop: 20 }}>
+              <div className="form-actions" style={{ marginTop: 20, display: 'flex', gap: '10px' }}>
                 <button className="btn btn-primary" onClick={() => window.print()}>
                   🖨️ Print report
+                </button>
+                <button className="btn btn-primary" style={{ backgroundColor: '#10b981', borderColor: '#10b981' }} onClick={handleExportMonthlyExcel}>
+                  📥 Export to Excel
                 </button>
               </div>
             </div>
@@ -796,8 +1157,22 @@ export default function AccountantDashboard() {
                         {selectedInvoice.details.map((det, idx) => (
                           <tr key={`med-${idx}`}>
                             <td>
-                              {det.medicineId?.name || det.medicineId?.medicineName}<br />
-                              <small className="text-muted">{det.medicineId?.dosageForm || 'Pill'} | Usage: {det.medicineId?.instruction || 'As directed'}</small>
+                              <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+                                {selectedInvoice.status === 'Unpaid' && (
+                                  <button 
+                                    className="btn btn-sm btn-ghost" 
+                                    style={{ color: '#ef4444', padding: '0 8px', fontSize: '16px', fontWeight: 'bold', marginRight: '8px', marginTop: '-2px' }}
+                                    title="Remove this item"
+                                    onClick={() => handleRemovePrescriptionItem(det._id, det.medicineId?.name || det.medicineId?.medicineName)}
+                                  >
+                                    &times;
+                                  </button>
+                                )}
+                                <div>
+                                  {det.medicineId?.name || det.medicineId?.medicineName}<br />
+                                  <small className="text-muted">{det.medicineId?.dosageForm || 'Pill'} | Usage: {det.medicineId?.instruction || 'As directed'}</small>
+                                </div>
+                              </div>
                             </td>
                             <td className="text-right">{formatVND(det.unitPrice)}</td>
                             <td className="text-right">{det.quantity}</td>

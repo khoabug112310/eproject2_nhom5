@@ -128,10 +128,14 @@ export const billingAPI = {
     apiClient.get('/billing/invoices'),
   createInvoice: (data) =>
     apiClient.post('/billing/invoices', data),
-  processPayment: (invoiceId) =>
-    apiClient.post(`/billing/invoices/${invoiceId}/pay`),
-  payInvoice: (invoiceId) =>
-    apiClient.post(`/billing/invoices/${invoiceId}/pay`),
+  deleteInvoice: (id) =>
+    apiClient.delete(`/billing/invoices/${id}`),
+  deleteInvoiceDetail: (detailId) =>
+    apiClient.delete(`/billing/invoice-details/${detailId}`),
+  processPayment: (invoiceId, paymentMethod) =>
+    apiClient.post(`/billing/invoices/${invoiceId}/pay`, { paymentMethod }),
+  payInvoice: (invoiceId, paymentMethod) =>
+    apiClient.post(`/billing/invoices/${invoiceId}/pay`, { paymentMethod }),
 };
 
 // CMS API

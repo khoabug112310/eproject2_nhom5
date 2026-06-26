@@ -3,13 +3,15 @@ const express = require('express');
 const { authenticateToken } = require('../../middlewares/auth');
 const { authorizeRole } = require('../../middlewares/rbac');
 const { USER_ROLE } = require('../../constants/enums');
-const { createInvoice, getInvoices, updateInvoiceStatus, processPayment } = require('./controller');
+const { createInvoice, getInvoices, updateInvoiceStatus, processPayment, deleteInvoice, deleteInvoiceDetail } = require('./controller');
 
 const router = express.Router();
 
 // Accountant
 router.post('/invoices', authenticateToken, authorizeRole(USER_ROLE.ACCOUNTANT), createInvoice);
 router.put('/invoices/:id', authenticateToken, authorizeRole(USER_ROLE.ACCOUNTANT), updateInvoiceStatus);
+router.delete('/invoices/:id', authenticateToken, authorizeRole(USER_ROLE.ACCOUNTANT), deleteInvoice);
+router.delete('/invoice-details/:detailId', authenticateToken, authorizeRole(USER_ROLE.ACCOUNTANT), deleteInvoiceDetail);
 
 // Authenticated
 router.get('/invoices', authenticateToken, getInvoices);
