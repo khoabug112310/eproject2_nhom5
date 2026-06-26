@@ -2121,8 +2121,8 @@ export default function StaffDashboard() {
                             📅 Details for {selectedDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                           </h3>
                           {(() => {
-                            const apptsForDay = appointments.filter(appt => 
-                              appt.status !== 'Canceled' && 
+                            const apptsForDay = appointments.filter(appt =>
+                              appt.status !== 'Canceled' &&
                               isSameDate(new Date(appt.requestedDate), selectedDate) &&
                               (!scheduleSearchQuery.trim() || (appt.doctorId?.fullName || '').toLowerCase().includes(scheduleSearchQuery.toLowerCase().trim())) &&
                               (!scheduleDeptFilter || (typeof appt.departmentId === 'object' ? appt.departmentId?._id : appt.departmentId) === scheduleDeptFilter) &&
@@ -2138,20 +2138,20 @@ export default function StaffDashboard() {
 
                         {(() => {
                           const shiftsForDay = filteredSchedules.filter(s => isSameDate(new Date(s.workDate), selectedDate));
-                          
+
                           // Find all non-canceled, matching appointments on this day
                           const apptsForDay = appointments.filter(appt => {
                             if (appt.status === 'Canceled') return false;
                             if (!isSameDate(new Date(appt.requestedDate), selectedDate)) return false;
-                            
+
                             const docName = appt.doctorId?.fullName || '';
                             const matchesSearch = !scheduleSearchQuery.trim() || docName.toLowerCase().includes(scheduleSearchQuery.toLowerCase().trim());
-                            
+
                             const deptId = typeof appt.departmentId === 'object' ? appt.departmentId?._id : appt.departmentId;
                             const matchesDept = !scheduleDeptFilter || deptId === scheduleDeptFilter;
-                            
+
                             const matchesDoc = !scheduleDoctorFilter || appt.doctorId?._id === scheduleDoctorFilter;
-                            
+
                             return matchesSearch && matchesDept && matchesDoc;
                           });
 
@@ -2271,9 +2271,9 @@ export default function StaffDashboard() {
                                             </span>
                                           ))}
                                         </div>
-                                        <span style={{ 
-                                          fontSize: 12, 
-                                          fontWeight: '600', 
+                                        <span style={{
+                                          fontSize: 12,
+                                          fontWeight: '600',
                                           color: totalBooked > 0 ? 'var(--color-primary-dark)' : 'var(--color-text-muted)',
                                           background: totalBooked > 0 ? 'var(--color-primary-light)' : '#f1f5f9',
                                           padding: '3px 8px',
@@ -2323,7 +2323,7 @@ export default function StaffDashboard() {
                                                     {s.status}
                                                   </span>
                                                 </div>
-                                                
+
                                                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                                                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
                                                     <span style={{ color: 'var(--color-text-muted)' }}>Capacity / Booked Slots</span>
@@ -2442,7 +2442,7 @@ export default function StaffDashboard() {
                                 const deptObj = depts.find(d => d._id === (typeof group.department === 'object' ? group.department?._id : group.department));
                                 const deptName = deptObj ? (deptObj.departmentName || deptObj.name) : 'General';
                                 const isExpanded = expandedOffShiftDocs.includes(docId);
-                                
+
                                 return (
                                   <div
                                     key={`offshift-${docId}`}
@@ -2479,9 +2479,9 @@ export default function StaffDashboard() {
                                         </p>
                                       </div>
                                       <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                                        <span style={{ 
-                                          fontSize: 12, 
-                                          fontWeight: '600', 
+                                        <span style={{
+                                          fontSize: 12,
+                                          fontWeight: '600',
                                           color: '#c53030',
                                           background: '#fff',
                                           padding: '3px 8px',
@@ -2504,7 +2504,7 @@ export default function StaffDashboard() {
                                         <div style={{ color: '#742a2a', fontSize: 12, marginBottom: 12, fontStyle: 'italic' }}>
                                           Note: There is no active work schedule shift configured for this doctor on this date.
                                         </div>
-                                        
+
                                         <div style={{ background: '#fff', borderRadius: 8, border: '1px solid #feb2b2', overflow: 'hidden' }}>
                                           <div style={{ background: '#fff5f5', padding: '8px 12px', fontSize: 12, fontWeight: 700, borderBottom: '1px solid #feb2b2', color: '#c53030' }}>
                                             Booked Patients ({group.appointments.length})
