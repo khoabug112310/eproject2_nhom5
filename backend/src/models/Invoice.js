@@ -35,6 +35,11 @@ const invoiceSchema = new mongoose.Schema({
     default: Date.now,
   },
   paidAt: Date,
+  paymentMethod: {
+    type: String,
+    enum: ['Cash', 'Bank Transfer'],
+    default: 'Cash'
+  },
   processedBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',

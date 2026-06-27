@@ -110,6 +110,8 @@ const updateInvoiceStatus = async (req, res) => {
 const processPayment = async (req, res) => {
   try {
     const { id } = req.params;
+    const { paymentMethod } = req.body;
+
     const invoice = await Invoice.findById(id);
     if (!invoice) return res.status(404).json({ success: false, message: 'Invoice not found' });
 
@@ -119,6 +121,7 @@ const processPayment = async (req, res) => {
 
     invoice.status = INVOICE_STATUS.PAID;
     invoice.paidAt = new Date();
+    invoice.paymentMethod = paymentMethod || 'Cash';
     invoice.processedBy = req.user.id || req.user._id;
     await invoice.save();
 
@@ -131,4 +134,54 @@ const processPayment = async (req, res) => {
   }
 };
 
-module.exports = { createInvoice, getInvoices, updateInvoiceStatus, processPayment };
+const deleteInvoice = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const invoice = await Invoice.findById(id);
+    if (!invoice) return res.status(404).json({ success: false, message: 'Invoice not found' });
+    
+    await Invoice_Detail.deleteMany({ invoiceId: id });
+    await Invoice.findByIdAndDelete(id);
+
+    const { success: ok } = require('../../utils/response');
+    return ok(res, null, 'Invoice deleted successfully');
+  } catch (err) {
+    console.error('deleteInvoice error', err);
+    const { fail } = require('../../utils/response');
+    return fail(res, 'Error deleting the invoice', 500, err.message);
+  }
+};
+
+const deleteInvoiceDetail = async (req, res) => {
+  try {
+    const { detailId } = req.params;
+    const detail = await Invoice_Detail.findById(detailId);
+    if (!detail) return res.status(404).json({ success: false, message: 'Detail not found' });
+    
+    const invoiceId = detail.invoiceId;
+    const subTotal = detail.subTotal;
+    
+    await Invoice_Detail.findByIdAndDelete(detailId);
+    
+    const invoice = await Invoice.findById(invoiceId);
+    if (invoice) {
+      invoice.totalAmount = Math.max(0, invoice.totalAmount - subTotal);
+      
+      const remainingDetails = await Invoice_Detail.countDocuments({ invoiceId });
+      if (remainingDetails === 0) {
+        await Invoice.findByIdAndDelete(invoiceId);
+      } else {
+        await invoice.save();
+      }
+    }
+    
+    const { success: ok } = require('../../utils/response');
+    return ok(res, null, 'Invoice detail deleted successfully');
+  } catch (err) {
+    console.error('deleteInvoiceDetail error', err);
+    const { fail } = require('../../utils/response');
+    return fail(res, 'Error deleting the invoice detail', 500, err.message);
+  }
+};
+
+module.exports = { createInvoice, getInvoices, updateInvoiceStatus, processPayment, deleteInvoice, deleteInvoiceDetail };
