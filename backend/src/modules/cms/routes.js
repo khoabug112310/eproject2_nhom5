@@ -30,7 +30,7 @@ router.get('/chat/history', getChatHistory);
 router.post('/posts', authenticateToken, authorizeRole(USER_ROLE.ADMIN), createPost);
 router.put('/posts/:id', authenticateToken, authorizeRole(USER_ROLE.ADMIN), updatePost);
 router.delete('/posts/:id', authenticateToken, authorizeRole(USER_ROLE.ADMIN), deletePost);
-router.post('/upload', authenticateToken, authorizeRole(USER_ROLE.ADMIN, USER_ROLE.STAFF, USER_ROLE.PATIENT), uploadImage);
+router.post('/upload', authenticateToken, authorizeRole(USER_ROLE.ADMIN, USER_ROLE.STAFF), uploadImage);
 router.get('/contact-inquiries', authenticateToken, authorizeRole(USER_ROLE.ADMIN, USER_ROLE.STAFF), getContactInquiries);
 router.put('/contact-inquiries/:id/resolve', authenticateToken, authorizeRole(USER_ROLE.ADMIN, USER_ROLE.STAFF), resolveContactInquiry);
 router.get('/chat/sessions', authenticateToken, authorizeRole(USER_ROLE.ADMIN, USER_ROLE.STAFF), getChatSessions);

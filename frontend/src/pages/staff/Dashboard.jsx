@@ -421,7 +421,7 @@ export default function StaffDashboard() {
   }, [activeView]);
 
   useEffect(() => {
-    if (activeTab !== 'chat') {
+    if (activeView !== 'chat') {
       setChatSocket(null);
       return;
     }
@@ -472,7 +472,7 @@ export default function StaffDashboard() {
     return () => {
       socketConn.disconnect();
     };
-  }, [activeTab]);
+  }, [activeView]);
 
   useEffect(() => {
     if (chatEndRef.current) {
@@ -875,8 +875,8 @@ export default function StaffDashboard() {
       setDepts(deptRes.data?.data || []);
       setDocs(docRes.data?.data || []);
 
-      const patData = patRes.data?.data || { normal: [], quickBooking: [] };
-      const mergedList = [...patData.normal, ...patData.quickBooking];
+      const patData = patRes.data?.data || { normal: [], dependents: [], quickBooking: [] };
+      const mergedList = [...patData.normal, ...(patData.dependents || []), ...patData.quickBooking];
       mergedList.sort((a, b) => (a.fullName || '').localeCompare(b.fullName || ''));
       setAllPatientsList(mergedList);
     } catch (err) {

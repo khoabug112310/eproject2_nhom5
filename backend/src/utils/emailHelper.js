@@ -1,6 +1,16 @@
 const nodemailer = require('nodemailer');
 const env = require('../config/env');
 
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 // Clean application password (remove spaces)
 const smtpEmail = env.SMTP_EMAIL;
 const smtpPassword = env.SMTP_PASSWORD ? env.SMTP_PASSWORD.replace(/\s+/g, '') : '';
@@ -45,13 +55,13 @@ async function sendReplyEmail(toEmail, patientName, inquiryMessage, replyMessage
         <!-- Original Inquiry Section -->
         <div style="background-color: #f8fafc; border-left: 4px solid #94a3b8; padding: 15px; border-radius: 4px; margin: 20px 0;">
           <strong style="color: #475569; font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em;">Your Feedback:</strong>
-          <p style="margin: 8px 0 0 0; color: #334155; font-size: 14.5px; line-height: 1.5; font-style: italic; white-space: pre-wrap;">"${inquiryMessage}"</p>
+          <p style="margin: 8px 0 0 0; color: #334155; font-size: 14.5px; line-height: 1.5; font-style: italic; white-space: pre-wrap;">"${escapeHtml(inquiryMessage)}"</p>
         </div>
 
         <!-- Support Reply Section -->
         <div style="background-color: #f0fdfa; border-left: 4px solid #0d9488; padding: 15px; border-radius: 4px; margin: 20px 0;">
           <strong style="color: #0f766e; font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em;">Support Response:</strong>
-          <p style="margin: 8px 0 0 0; color: #115e59; font-size: 15px; line-height: 1.6; font-weight: 500; white-space: pre-wrap;">${replyMessage}</p>
+          <p style="margin: 8px 0 0 0; color: #115e59; font-size: 15px; line-height: 1.6; font-weight: 500; white-space: pre-wrap;">${escapeHtml(replyMessage)}</p>
         </div>
 
         <!-- Contact/Footer Info -->

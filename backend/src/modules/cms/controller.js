@@ -223,7 +223,6 @@ const getChatHistory = async (req, res) => {
       return res.status(400).json({ success: false, message: 'sessionId or userId is required' });
     }
 
-<<<<<<< HEAD
     const conditions = [];
     if (sessionId) conditions.push({ guestSessionId: sessionId });
     if (userId) {
@@ -368,6 +367,10 @@ const replyContactInquiry = async (req, res) => {
     const inquiry = await Contact_Inquiry.findById(id);
     if (!inquiry) {
       return res.status(404).json({ success: false, message: 'Inquiry not found' });
+    }
+
+    if (inquiry.isResolved) {
+      return res.status(409).json({ success: false, message: 'This inquiry has already been resolved and replied to' });
     }
 
     if (!inquiry.senderEmail) {

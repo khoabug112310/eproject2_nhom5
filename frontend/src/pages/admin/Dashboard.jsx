@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { profilesAPI, schedulingAPI, cmsAPI, billingAPI, authAPI, clinicalAPI } from '../../services/api';
 import { useAuth } from '../../store/authContext';
 import Swal from 'sweetalert2';
@@ -6,7 +7,7 @@ import {
   BarChart3, Activity, Users, Newspaper, CalendarDays, Pill,
   Building2, Cpu, LogOut, TrendingUp, Clock, Zap, BarChart2,
   CalendarCheck, Shield, FileText, RefreshCw, Plus, X, Search,
-  ChevronRight, Send, HeartPulse
+  ChevronRight, Send, HeartPulse, Download, Upload
 } from 'lucide-react';
 import './AdminDashboard.css';
 import DoctorScheduleModal from '../../components/DoctorScheduleModal';
@@ -33,6 +34,19 @@ export default function AdminDashboard() {
   const [chartPeriod, setChartPeriod] = useState('week'); // 'week' | 'month' | 'year'
   const [hoveredIdx, setHoveredIdx] = useState(null);
 
+  // YoY Comparison State
+  const [compareMode, setCompareMode] = useState('yoy'); // 'yoy' | 'mom'
+  const [yoyMetric, setYoyMetric] = useState('revenue'); // 'revenue' | 'patients'
+  const [hoveredYoyIdx, setHoveredYoyIdx] = useState(null);
+
+  // Report filter & data state
+  const curYear = new Date().getFullYear();
+  const [reportFilters, setReportFilters] = useState({ year: curYear, month: 0, compareYear: curYear - 1, showRevenue: true, showPatients: true, showRegistrations: true });
+  const [reportData, setReportData] = useState(null);
+  const [reportLoading, setReportLoading] = useState(false);
+  const [hoveredRptRev, setHoveredRptRev] = useState(null);
+  const [hoveredRptPts, setHoveredRptPts] = useState(null);
+
   // Timeline Filters State
   const [timelineSearch, setTimelineSearch] = useState('');
   const [timelineFilter, setTimelineFilter] = useState('all');
@@ -45,6 +59,10 @@ export default function AdminDashboard() {
   const [userSubTab, setUserSubTab] = useState('list'); // 'list' | 'create'
   const [userSearch, setUserSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
+  const [importing, setImporting] = useState(false);
+  const [importResults, setImportResults] = useState(null);
+  const [importingMedicines, setImportingMedicines] = useState(false);
+  const [importMedicineResults, setImportMedicineResults] = useState(null);
 
   // User Edit State
   const [editingUser, setEditingUser] = useState(null);
@@ -113,6 +131,16 @@ Hello Administrator! I am the AI assistant integrated directly to monitor clinic
   const [scheduleForm, setScheduleForm] = useState({ doctorId: '', workDate: '', startTime: '07:30', endTime: '11:30', maxPatients: 20 });
   const [scheduleSearch, setScheduleSearch] = useState('');
 
+  // Quick Schedule (Series) State
+  const [showQuickSchedule, setShowQuickSchedule] = useState(false);
+  const [quickForm, setQuickForm] = useState({
+    doctorId: '', fromDate: '', toDate: '',
+    weekdays: [1, 2, 3, 4, 5], // Mon–Fri default
+    startTime: '08:00', endTime: '17:30', maxPatients: 20,
+  });
+  const [quickCreating, setQuickCreating] = useState(false);
+  const [quickResult, setQuickResult] = useState(null);
+
   // Department CRUD State
   const [deptForm, setDeptForm] = useState({ departmentName: '', description: '', contactPhone: '' });
   const [editingDept, setEditingDept] = useState(null);
@@ -130,8 +158,15 @@ Hello Administrator! I am the AI assistant integrated directly to monitor clinic
   const [postSearch, setPostSearch] = useState('');
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
 
+  // AI Post Content Generation State
+  const [aiPostTopic, setAiPostTopic] = useState('');
+  const [aiPostLang, setAiPostLang] = useState('en');
+  const [aiPostGenerating, setAiPostGenerating] = useState(false);
+  const [showAiPanel, setShowAiPanel] = useState(false);
+
   useEffect(() => {
     fetchAdminData();
+    fetchReportData(reportFilters);
   }, []);
 
   useEffect(() => {
@@ -204,6 +239,19 @@ Hello Administrator! I am the AI assistant integrated directly to monitor clinic
       setErrorMessage('Error loading admin dashboard data.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchReportData = async (filters) => {
+    try {
+      setReportLoading(true);
+      const f = filters || reportFilters;
+      const res = await profilesAPI.getReportData({ year: f.year, month: f.month, compareYear: f.compareYear });
+      setReportData(res.data?.data || null);
+    } catch (err) {
+      console.error('fetchReportData error', err);
+    } finally {
+      setReportLoading(false);
     }
   };
 
@@ -551,6 +599,68 @@ Hello Administrator! I am the AI assistant integrated directly to monitor clinic
     } catch (err) { setErrorMessage('Could not delete the shift.'); }
   };
 
+  // Compute preview count for Quick Schedule
+  const quickPreviewDates = (() => {
+    const { fromDate, toDate, weekdays } = quickForm;
+    if (!fromDate || !toDate || weekdays.length === 0) return [];
+    const dates = [];
+    const cur = new Date(fromDate + 'T12:00:00');
+    const end = new Date(toDate + 'T12:00:00');
+    if (cur > end) return [];
+    while (cur <= end) {
+      if (weekdays.includes(cur.getDay())) dates.push(new Date(cur));
+      cur.setDate(cur.getDate() + 1);
+    }
+    return dates;
+  })();
+
+  const handleQuickSchedule = async () => {
+    const { doctorId, fromDate, toDate, weekdays, startTime, endTime, maxPatients } = quickForm;
+    const raiseSwal = () => {
+      const c = document.querySelector('.swal2-container');
+      if (c) c.style.zIndex = '10001';
+    };
+    if (!doctorId || !fromDate || !toDate || weekdays.length === 0) {
+      Swal.fire({ title: 'Notice', text: 'Please fill in all required fields and select at least one weekday.', icon: 'info', didOpen: raiseSwal });
+      return;
+    }
+    if (quickPreviewDates.length === 0) {
+      Swal.fire({ title: 'Notice', text: 'No dates match the selected weekdays in the given range.', icon: 'info', didOpen: raiseSwal });
+      return;
+    }
+    const doctorName = doctorsList.find(d => (d._id || d.id) === doctorId)?.fullName || 'this doctor';
+    const confirmed = await Swal.fire({
+      title: `Create ${quickPreviewDates.length} shifts?`,
+      html: `For <strong>${doctorName}</strong><br/>${fromDate} → ${toDate}<br/>${startTime} – ${endTime}<br/><small style="color:#94a3b8">Existing shifts on the same day/time will be skipped.</small>`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#1d4ed8',
+      confirmButtonText: 'Create all',
+      cancelButtonText: 'Cancel',
+      didOpen: raiseSwal,
+    });
+    if (!confirmed.isConfirmed) return;
+
+    setQuickCreating(true);
+    setQuickResult(null);
+    let success = 0, skipped = 0, errors = 0;
+
+    for (const date of quickPreviewDates) {
+      const dateStr = date.toISOString().split('T')[0];
+      try {
+        await schedulingAPI.createDoctorSchedule({ doctorId, workDate: dateStr, startTime, endTime, maxPatients: Number(maxPatients) });
+        success++;
+      } catch (err) {
+        if (err.response?.status === 409) skipped++;
+        else errors++;
+      }
+    }
+
+    setQuickResult({ total: quickPreviewDates.length, success, skipped, errors });
+    setQuickCreating(false);
+    if (success > 0) fetchAdminData();
+  };
+
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -855,6 +965,57 @@ Ready to analyze your clinic data. Select a category or type a specific question
   const consultationPct = totalBreakdown > 0 ? ((stats.breakdown.consultation / totalBreakdown) * 100).toFixed(0) : 50;
   const pharmacyPct = totalBreakdown > 0 ? ((stats.breakdown.pharmacy / totalBreakdown) * 100).toFixed(0) : 50;
 
+  // YoY comparison computations
+  const yoyLabels = stats?.yoy?.labels || ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const yoyThisRevenue = stats?.yoy?.thisYear?.revenue || Array(12).fill(0);
+  const yoyLastRevenue = stats?.yoy?.lastYear?.revenue || Array(12).fill(0);
+  const yoyThisTraffic = stats?.yoy?.thisYear?.traffic || Array(12).fill(0);
+  const yoyLastTraffic = stats?.yoy?.lastYear?.traffic || Array(12).fill(0);
+  const yoyCurrentYear = stats?.yoy?.currentYear || new Date().getFullYear();
+  const yoyPreviousYear = stats?.yoy?.previousYear || (new Date().getFullYear() - 1);
+  const cmpPrevData = compareMode === 'yoy' ? stats?.comparison?.sameMonthLastYear : stats?.comparison?.lastMonth;
+  const cmpCurData = stats?.comparison?.thisMonth;
+  const getDelta = (curr, prev) => (!prev || prev === 0) ? (curr > 0 ? 100 : 0) : Math.round(((curr - prev) / prev) * 100);
+  const deltaReg = getDelta(cmpCurData?.registrations, cmpPrevData?.registrations);
+  const deltaExam = getDelta(cmpCurData?.examinations, cmpPrevData?.examinations);
+  const deltaRev = getDelta(cmpCurData?.revenue, cmpPrevData?.revenue);
+  const yoyThis = yoyMetric === 'revenue' ? yoyThisRevenue : yoyThisTraffic;
+  const yoyLast = yoyMetric === 'revenue' ? yoyLastRevenue : yoyLastTraffic;
+  const yoyMax = Math.max(...yoyThis, ...yoyLast, yoyMetric === 'revenue' ? 1000000 : 5);
+  const yCW = 680, yCH = 230, yPL = 62, yPR = 20, yPT = 22, yPB = 32;
+  const yIW = yCW - yPL - yPR;
+  const yIH = yCH - yPT - yPB;
+  const getYX = (i) => yPL + (i + 0.5) * (yIW / 12);
+  const getYY = (val) => yPT + yIH - (val / yoyMax) * yIH;
+  const thisYearPts = yoyThis.map((v, i) => `${getYX(i)},${getYY(v)}`).join(' ');
+  const lastYearPts = yoyLast.map((v, i) => `${getYX(i)},${getYY(v)}`).join(' ');
+
+  // Report chart computations (from getReportData API)
+  const rptLabels = reportData?.labels || [];
+  const rptN = rptLabels.length || 12;
+  const rptCurRev = reportData?.current?.revenue || Array(rptN).fill(0);
+  const rptCmpRev = reportData?.compare?.revenue || Array(rptN).fill(0);
+  const rptCurPts = reportData?.current?.patients || Array(rptN).fill(0);
+  const rptCmpPts = reportData?.compare?.patients || Array(rptN).fill(0);
+  const rptCurReg = reportData?.current?.registrations || Array(rptN).fill(0);
+  const rptCmpReg = reportData?.compare?.registrations || Array(rptN).fill(0);
+  const rptCurCxl = reportData?.current?.cancellations || Array(rptN).fill(0);
+  const rptCmpCxl = reportData?.compare?.cancellations || Array(rptN).fill(0);
+  const rptTotals = reportData?.totals || { current: {}, compare: {} };
+  const rCW = 680, rCH = 180, rPL = 62, rPR = 20, rPT = 16, rPB = 28;
+  const rIW = rCW - rPL - rPR; const rIH = rCH - rPT - rPB;
+  const getRX = (i) => rPL + (i + 0.5) * (rIW / Math.max(rptN, 1));
+  const makeRY = (max) => (val) => rPT + rIH - (val / Math.max(max, 1)) * rIH;
+  const rptMaxRev = Math.max(...rptCurRev, ...rptCmpRev, 1000000);
+  const rptMaxPts = Math.max(...rptCurPts, ...rptCmpPts, 5);
+  const rptMaxReg = Math.max(...rptCurReg, ...rptCmpReg, 5);
+  const getRYRev = makeRY(rptMaxRev);
+  const getRYPts = makeRY(rptMaxPts);
+  const getRYReg = makeRY(rptMaxReg);
+  const rptDelta = (cur, cmp) => (!cmp || cmp === 0) ? (cur > 0 ? 100 : 0) : Math.round(((cur - cmp) / cmp) * 100);
+  const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const availableYears = Array.from({ length: 5 }, (_, i) => curYear - 4 + i);
+
   // Filtered Appointments for Timeline Audit
   const filteredAppointments = appointments.filter(appt => {
     // 1. Search Filter
@@ -894,20 +1055,334 @@ Ready to analyze your clinic data. Select a category or type a specific question
     return true;
   });
 
+  // --- AI Post Content Generator ---
+  const handleGeneratePostContent = async () => {
+    const topic = aiPostTopic.trim() || postForm.title.trim();
+    if (!topic) {
+      Swal.fire('Notice', 'Please enter an article title or topic before generating content.', 'info');
+      return;
+    }
+    setAiPostGenerating(true);
+    try {
+      const res = await profilesAPI.generatePostContent({ title: topic, language: aiPostLang });
+      setPostForm(prev => ({ ...prev, content: res.data.data.html }));
+      setShowAiPanel(false);
+    } catch (err) {
+      Swal.fire('Error', err.response?.data?.message || 'Could not generate content. Please try again.', 'error');
+    } finally {
+      setAiPostGenerating(false);
+    }
+  };
+
+  // --- Excel Export: export current filtered user list ---
+  const handleExportUsers = async () => {
+    try {
+      const ExcelJS = (await import('exceljs')).default;
+      const { saveAs } = await import('file-saver');
+
+      const workbook = new ExcelJS.Workbook();
+      workbook.creator = 'Hopsontai Clinic Admin';
+      const sheet = workbook.addWorksheet('Users');
+
+      sheet.columns = [
+        { header: 'Username (Phone)', key: 'username', width: 22 },
+        { header: 'Full Name',        key: 'fullName',  width: 28 },
+        { header: 'Role',             key: 'role',      width: 15 },
+        { header: 'Email',            key: 'email',     width: 28 },
+        { header: 'Phone',            key: 'phone',     width: 16 },
+        { header: 'Specialty / Position', key: 'position', width: 26 },
+        { header: 'Status',           key: 'status',    width: 10 },
+      ];
+
+      const headerRow = sheet.getRow(1);
+      headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+      headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1d4ed8' } };
+      headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
+      headerRow.height = 22;
+
+      const filtered = usersList
+        .filter(u => roleFilter === 'all' || u.role === roleFilter)
+        .filter(u => {
+          const name = u.profile?.fullName || '';
+          return name.toLowerCase().includes(userSearch.toLowerCase()) || (u.username || '').includes(userSearch);
+        });
+
+      filtered.forEach((u, idx) => {
+        const position = u.role === 'doctor'
+          ? (u.profile?.specialization || '')
+          : (u.profile?.position || '');
+        const row = sheet.addRow({
+          username: u.username,
+          fullName:  u.profile?.fullName || (u.role === 'admin' ? 'Admin' : ''),
+          role:      u.role,
+          email:     u.email || '',
+          phone:     u.phone || '',
+          position,
+          status:    u.isActive ? 'Active' : 'Locked',
+        });
+        row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: idx % 2 === 0 ? 'FFF8FAFC' : 'FFFFFFFF' } };
+      });
+
+      sheet.autoFilter = { from: 'A1', to: 'G1' };
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      saveAs(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
+        `users_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    } catch (err) {
+      Swal.fire('Error', 'Could not export file.', 'error');
+    }
+  };
+
+  // --- Excel Template: download blank import template ---
+  const handleDownloadTemplate = async () => {
+    try {
+      const ExcelJS = (await import('exceljs')).default;
+      const { saveAs } = await import('file-saver');
+
+      const workbook = new ExcelJS.Workbook();
+      const sheet = workbook.addWorksheet('Import Template');
+
+      sheet.columns = [
+        { header: 'username',       key: 'username',       width: 20 },
+        { header: 'password',       key: 'password',       width: 18 },
+        { header: 'roleName',       key: 'roleName',       width: 16 },
+        { header: 'fullName',       key: 'fullName',       width: 28 },
+        { header: 'email',          key: 'email',          width: 28 },
+        { header: 'phone',          key: 'phone',          width: 16 },
+        { header: 'specialization', key: 'specialization', width: 22 },
+        { header: 'position',       key: 'position',       width: 22 },
+      ];
+
+      const headerRow = sheet.getRow(1);
+      headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+      headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1d4ed8' } };
+      headerRow.height = 22;
+
+      const exampleRow = sheet.addRow({
+        username: '0911234567', password: 'Pass@1234', roleName: 'doctor',
+        fullName: 'Nguyen Van A', email: 'doctor@clinic.com', phone: '0911234567',
+        specialization: 'Cardiology', position: '',
+      });
+      exampleRow.font = { italic: true, color: { argb: 'FF475569' } };
+
+      const noteRow = sheet.addRow({
+        username: '', password: '', roleName: 'doctor | staff | accountant',
+        fullName: '', email: '', phone: '',
+        specialization: '(doctors only)', position: '(staff/accountant only)',
+      });
+      noteRow.font = { italic: true, color: { argb: 'FF94a3b8' }, size: 10 };
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      saveAs(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
+        'import_users_template.xlsx');
+    } catch (err) {
+      Swal.fire('Error', 'Could not generate template.', 'error');
+    }
+  };
+
+  // --- Excel Import: parse file and batch-create users ---
+  const handleImportUsers = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setImporting(true);
+    setImportResults(null);
+
+    try {
+      const ExcelJS = (await import('exceljs')).default;
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(await file.arrayBuffer());
+
+      const sheet = workbook.worksheets[0];
+      const rows = [];
+      sheet.eachRow((row, rowNum) => {
+        if (rowNum === 1) return;
+        const v = row.values; // 1-indexed
+        const username       = v[1] != null ? String(v[1]).trim() : '';
+        const password       = v[2] != null ? String(v[2]).trim() : '';
+        const roleName       = v[3] != null ? String(v[3]).trim() : '';
+        const fullName       = v[4] != null ? String(v[4]).trim() : '';
+        const email          = v[5] != null ? String(v[5]).trim() : '';
+        const phone          = v[6] != null ? String(v[6]).trim() : '';
+        const specialization = v[7] != null ? String(v[7]).trim() : 'General';
+        const position       = v[8] != null ? String(v[8]).trim() : '';
+        if (username && password && roleName && fullName) {
+          rows.push({ username, password, roleName, fullName, email, phone, specialization, position });
+        }
+      });
+
+      if (rows.length === 0) {
+        Swal.fire('Warning', 'No valid data rows found. Please check the template.', 'warning');
+        setImporting(false);
+        e.target.value = '';
+        return;
+      }
+
+      let successCount = 0;
+      const errors = [];
+      for (const row of rows) {
+        try {
+          await profilesAPI.createUser(row);
+          successCount++;
+        } catch (err) {
+          errors.push(`${row.username} — ${err.response?.data?.message || 'Unknown error'}`);
+        }
+      }
+
+      setImportResults({ total: rows.length, success: successCount, errors });
+      if (successCount > 0) {
+        const usersRes = await profilesAPI.getUsers();
+        setUsersList(usersRes.data.data);
+      }
+    } catch (err) {
+      Swal.fire('Error', 'Cannot read file. Please use the correct template.', 'error');
+    } finally {
+      setImporting(false);
+      e.target.value = '';
+    }
+  };
+
+  // --- Medicine Excel Export ---
+  const handleExportMedicines = async () => {
+    try {
+      const ExcelJS = (await import('exceljs')).default;
+      const { saveAs } = await import('file-saver');
+      const workbook = new ExcelJS.Workbook();
+      workbook.creator = 'Hopsontai Clinic Admin';
+      const sheet = workbook.addWorksheet('Medicines');
+      sheet.columns = [
+        { header: 'Code',              key: 'medicineCode',    width: 16 },
+        { header: 'Medicine Name',     key: 'medicineName',    width: 30 },
+        { header: 'Active Ingredient', key: 'activeIngredient',width: 26 },
+        { header: 'Route',             key: 'usageRoute',      width: 12 },
+        { header: 'Unit',              key: 'unit',            width: 12 },
+        { header: 'Unit Price (VND)',  key: 'unitPrice',       width: 18 },
+        { header: 'Stock',             key: 'stockQuantity',   width: 10 },
+        { header: 'Status',            key: 'status',          width: 10 },
+      ];
+      const headerRow = sheet.getRow(1);
+      headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+      headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF059669' } };
+      headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
+      headerRow.height = 22;
+      const filtered = medicinesList.filter(m =>
+        !medicineSearch || m.medicineName?.toLowerCase().includes(medicineSearch.toLowerCase()) || m.medicineCode?.toLowerCase().includes(medicineSearch.toLowerCase())
+      );
+      filtered.forEach((m, idx) => {
+        const row = sheet.addRow({
+          medicineCode:     m.medicineCode,
+          medicineName:     m.medicineName,
+          activeIngredient: m.activeIngredient || '',
+          usageRoute:       m.usageRoute,
+          unit:             m.unit,
+          unitPrice:        m.unitPrice,
+          stockQuantity:    m.stockQuantity,
+          status:           m.isActive !== false ? 'Active' : 'Inactive',
+        });
+        row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: idx % 2 === 0 ? 'FFF0FDF4' : 'FFFFFFFF' } };
+      });
+      sheet.autoFilter = { from: 'A1', to: 'H1' };
+      const buffer = await workbook.xlsx.writeBuffer();
+      saveAs(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
+        `medicines_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    } catch (err) {
+      Swal.fire('Error', 'Could not export file.', 'error');
+    }
+  };
+
+  // --- Medicine Excel Template ---
+  const handleDownloadMedicineTemplate = async () => {
+    try {
+      const ExcelJS = (await import('exceljs')).default;
+      const { saveAs } = await import('file-saver');
+      const workbook = new ExcelJS.Workbook();
+      const sheet = workbook.addWorksheet('Import Template');
+      sheet.columns = [
+        { header: 'medicineCode',     key: 'medicineCode',    width: 16 },
+        { header: 'medicineName',     key: 'medicineName',    width: 30 },
+        { header: 'activeIngredient', key: 'activeIngredient',width: 26 },
+        { header: 'usageRoute',       key: 'usageRoute',      width: 14 },
+        { header: 'unit',             key: 'unit',            width: 12 },
+        { header: 'unitPrice',        key: 'unitPrice',       width: 16 },
+        { header: 'stockQuantity',    key: 'stockQuantity',   width: 14 },
+      ];
+      const headerRow = sheet.getRow(1);
+      headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+      headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF059669' } };
+      headerRow.height = 22;
+      const exRow = sheet.addRow({
+        medicineCode: 'MED001', medicineName: 'Paracetamol 500mg',
+        activeIngredient: 'Paracetamol', usageRoute: 'Uống',
+        unit: 'tablet', unitPrice: 500, stockQuantity: 200,
+      });
+      exRow.font = { italic: true, color: { argb: 'FF475569' } };
+      const noteRow = sheet.addRow({
+        medicineCode: '', medicineName: '', activeIngredient: '',
+        usageRoute: 'Uống | Bôi | Tiêm', unit: 'tablet / vial / sachet', unitPrice: '', stockQuantity: '',
+      });
+      noteRow.font = { italic: true, color: { argb: 'FF94a3b8' }, size: 10 };
+      const buffer = await workbook.xlsx.writeBuffer();
+      saveAs(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
+        'import_medicines_template.xlsx');
+    } catch (err) {
+      Swal.fire('Error', 'Could not generate template.', 'error');
+    }
+  };
+
+  // --- Medicine Excel Import ---
+  const handleImportMedicines = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setImportingMedicines(true);
+    setImportMedicineResults(null);
+    try {
+      const ExcelJS = (await import('exceljs')).default;
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(await file.arrayBuffer());
+      const sheet = workbook.worksheets[0];
+      const rows = [];
+      sheet.eachRow((row, rowNum) => {
+        if (rowNum === 1) return;
+        const v = row.values;
+        const medicineCode     = v[1] != null ? String(v[1]).trim() : '';
+        const medicineName     = v[2] != null ? String(v[2]).trim() : '';
+        const activeIngredient = v[3] != null ? String(v[3]).trim() : '';
+        const usageRoute       = v[4] != null ? String(v[4]).trim() : 'Uống';
+        const unit             = v[5] != null ? String(v[5]).trim() : 'tablet';
+        const unitPrice        = v[6] != null ? Number(v[6]) : 0;
+        const stockQuantity    = v[7] != null ? Number(v[7]) : 0;
+        if (medicineCode && medicineName) rows.push({ medicineCode, medicineName, activeIngredient, usageRoute, unit, unitPrice, stockQuantity });
+      });
+      if (rows.length === 0) {
+        Swal.fire('Warning', 'No valid rows found. Please use the template.', 'warning');
+        setImportingMedicines(false);
+        e.target.value = '';
+        return;
+      }
+      let successCount = 0;
+      const errors = [];
+      for (const row of rows) {
+        try {
+          await clinicalAPI.createMedicine(row);
+          successCount++;
+        } catch (err) {
+          errors.push(`${row.medicineCode} — ${err.response?.data?.message || 'Error'}`);
+        }
+      }
+      setImportMedicineResults({ total: rows.length, success: successCount, errors });
+      if (successCount > 0) fetchAdminData();
+    } catch (err) {
+      Swal.fire('Error', 'Cannot read file. Please use the correct template.', 'error');
+    } finally {
+      setImportingMedicines(false);
+      e.target.value = '';
+    }
+  };
+
   return (
     <div className="admin-dashboard-container">
       {/* Sidebar Nav */}
       <aside className="admin-sidebar">
-        {/* Logo */}
-        <div className="admin-sidebar-logo">
-          <div className="admin-sidebar-logo-icon">
-            <Plus size={18} color="#fff" strokeWidth={2.5} />
-          </div>
-          <div>
-            <div className="admin-sidebar-logo-text">MediCare</div>
-            <div className="admin-sidebar-logo-sub">Admin Console</div>
-          </div>
-        </div>
+
 
         {/* User profile */}
         <div className="admin-user-profile">
@@ -1013,357 +1488,384 @@ Ready to analyze your clinic data. Select a category or type a specific question
 
           {/* Tab: Analytics */}
           {activeTab === 'analytics' && (
-            <div className="admin-card animate-fade-in">
-              <div className="card-header md-row flex-column" style={{ marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 15 }}>
+            <div className="admin-card animate-fade-in" style={{ padding: 0 }}>
+              {/* Header */}
+              <div style={{ padding: '18px 24px 14px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
                 <div>
-                  <h2 style={{ margin: 0 }}>Clinic overview report</h2>
-                  <p className="subtitle" style={{ margin: '4px 0 0 0' }}>Statistics on registrations, examinations, and actual revenue.</p>
+                  <h2 style={{ margin: 0 }}>Reports &amp; Statistics</h2>
+                  <p className="subtitle" style={{ margin: '3px 0 0' }}>Detailed clinic performance analysis with customizable period and metric comparison.</p>
                 </div>
-                <div className="stats-period-toggles">
-                  <button
-                    onClick={() => setStatsPeriod('day')}
-                    className={statsPeriod === 'day' ? 'active' : ''}
-                  >
-                    Today
-                  </button>
-                  <button
-                    onClick={() => setStatsPeriod('week')}
-                    className={statsPeriod === 'week' ? 'active' : ''}
-                  >
-                    This week
-                  </button>
-                  <button
-                    onClick={() => setStatsPeriod('month')}
-                    className={statsPeriod === 'month' ? 'active' : ''}
-                  >
-                    This month
-                  </button>
-                </div>
+                <button onClick={() => { fetchAdminData(); fetchReportData(reportFilters); }}
+                  style={{ background: 'none', border: '1px solid #e2e8f0', borderRadius: 6, padding: '5px 8px', cursor: 'pointer', color: '#64748b', display: 'flex', alignItems: 'center' }}>
+                  <RefreshCw size={13} />
+                </button>
               </div>
 
-              {/* Stat Cards */}
-              <div className="admin-stats-grid">
-                <div className="admin-stat-card">
-                  <div className="admin-stat-icon-wrap"><CalendarCheck size={20} /></div>
-                  <div className="admin-stat-info">
-                    <h3>{activeRegistrations}</h3>
-                    <p>Appointment registrations</p>
+              {/* 2-column body */}
+              <div style={{ display: 'flex', alignItems: 'flex-start', minHeight: 'calc(100vh - 220px)' }}>
+                {/* LEFT: Filter Panel */}
+                <div style={{ width: 188, flexShrink: 0, padding: '18px 14px', borderRight: '1px solid #f1f5f9', position: 'sticky', top: 0, alignSelf: 'flex-start' }}>
+                  <p style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8', letterSpacing: '0.08em', textTransform: 'uppercase', margin: '0 0 10px' }}>Period</p>
+                  <div style={{ marginBottom: 10 }}>
+                    <label style={{ fontSize: 11, color: '#475569', fontWeight: 600, display: 'block', marginBottom: 4 }}>Year</label>
+                    <select value={reportFilters.year} onChange={e => setReportFilters(f => ({ ...f, year: Number(e.target.value) }))}
+                      style={{ width: '100%', padding: '6px 8px', border: '1px solid #e2e8f0', borderRadius: 6, fontSize: 12, backgroundColor: '#fff', color: '#0f172a' }}>
+                      {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
+                    </select>
                   </div>
-                </div>
-                <div className="admin-stat-card">
-                  <div className="admin-stat-icon-wrap" style={{ backgroundColor: 'rgba(22,163,74,0.08)', color: '#16a34a' }}><HeartPulse size={20} /></div>
-                  <div className="admin-stat-info">
-                    <h3>{activeExaminations}</h3>
-                    <p>Completed examinations</p>
+                  <div style={{ marginBottom: 16 }}>
+                    <label style={{ fontSize: 11, color: '#475569', fontWeight: 600, display: 'block', marginBottom: 4 }}>Month</label>
+                    <select value={reportFilters.month} onChange={e => setReportFilters(f => ({ ...f, month: Number(e.target.value) }))}
+                      style={{ width: '100%', padding: '6px 8px', border: '1px solid #e2e8f0', borderRadius: 6, fontSize: 12, backgroundColor: '#fff', color: '#0f172a' }}>
+                      <option value={0}>All months</option>
+                      {MONTHS_SHORT.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
+                    </select>
                   </div>
-                </div>
-                <div className="admin-stat-card">
-                  <div className="admin-stat-icon-wrap" style={{ backgroundColor: 'rgba(8,145,178,0.08)', color: '#0891b2' }}><TrendingUp size={20} /></div>
-                  <div className="admin-stat-info">
-                    <h3>{formatVND(activeRevenue)}</h3>
-                    <p>Total revenue collected</p>
-                  </div>
-                </div>
-              </div>
 
-              {/* Quality & Efficiency Metrics */}
-              <div className="admin-stats-grid" style={{ marginBottom: 24 }}>
-                <div className="admin-stat-card">
-                  <div className="admin-stat-icon-wrap"><Clock size={20} /></div>
-                  <div className="admin-stat-info">
-                    <h3>{stats?.qualityMetrics?.avgConfirmationTime || 15} min</h3>
-                    <p>Avg. approval time</p>
+                  <div style={{ height: 1, backgroundColor: '#f1f5f9', margin: '0 0 16px' }} />
+                  <p style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8', letterSpacing: '0.08em', textTransform: 'uppercase', margin: '0 0 10px' }}>Compare with</p>
+                  <div style={{ marginBottom: 6 }}>
+                    <label style={{ fontSize: 11, color: '#475569', fontWeight: 600, display: 'block', marginBottom: 4 }}>Year</label>
+                    <select value={reportFilters.compareYear} onChange={e => setReportFilters(f => ({ ...f, compareYear: Number(e.target.value) }))}
+                      style={{ width: '100%', padding: '6px 8px', border: '1px solid #e2e8f0', borderRadius: 6, fontSize: 12, backgroundColor: '#fff', color: '#0f172a' }}>
+                      {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
+                    </select>
+                  </div>
+                  <p style={{ fontSize: '10px', color: '#94a3b8', margin: '0 0 16px' }}>
+                    Same {reportFilters.month === 0 ? 'year' : MONTHS_SHORT[reportFilters.month - 1]} will be compared
+                  </p>
+
+                  <div style={{ height: 1, backgroundColor: '#f1f5f9', margin: '0 0 16px' }} />
+                  <p style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8', letterSpacing: '0.08em', textTransform: 'uppercase', margin: '0 0 10px' }}>Show metrics</p>
+                  {[['showRevenue', 'Revenue'], ['showPatients', 'Patients examined'], ['showRegistrations', 'Registrations']].map(([key, label]) => (
+                    <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: '#374151', marginBottom: 8, cursor: 'pointer' }}>
+                      <input type="checkbox" checked={reportFilters[key]} onChange={e => setReportFilters(f => ({ ...f, [key]: e.target.checked }))}
+                        style={{ width: 14, height: 14, accentColor: '#2563eb' }} />
+                      {label}
+                    </label>
+                  ))}
+
+                  <div style={{ marginTop: 20 }}>
+                    <button onClick={() => fetchReportData(reportFilters)} disabled={reportLoading}
+                      style={{ width: '100%', padding: '8px 12px', backgroundColor: '#2563eb', color: '#fff', border: 'none', borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: reportLoading ? 'not-allowed' : 'pointer', opacity: reportLoading ? 0.7 : 1 }}>
+                      {reportLoading ? 'Loading…' : 'Apply Filters'}
+                    </button>
                   </div>
                 </div>
 
-                <div className="admin-stat-card">
-                  <div className="admin-stat-icon-wrap" style={{ backgroundColor: 'rgba(22,163,74,0.08)', color: '#16a34a' }}><BarChart2 size={20} /></div>
-                  <div className="admin-stat-info" style={{ width: '100%' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                      <span className="admin-progress-text">Completed: <strong style={{ color: '#16a34a' }}>{stats?.qualityMetrics?.rates?.success || 0}%</strong></span>
-                      <span className="admin-progress-text">Cancelled: <strong style={{ color: '#dc2626' }}>{stats?.qualityMetrics?.rates?.canceled || 0}%</strong></span>
+                {/* RIGHT: Main content */}
+                <div style={{ flex: 1, padding: '18px 20px', minWidth: 0, minHeight: 600 }}>
+                  {reportLoading && (
+                    <div style={{ textAlign: 'center', padding: '60px 0', color: '#94a3b8', fontSize: 13 }}>
+                      <div className="spinner" style={{ margin: '0 auto 12px' }} />Loading report data…
                     </div>
-                    <div className="admin-progress-track" style={{ height: '6px', borderRadius: '3px', overflow: 'hidden', display: 'flex' }}>
-                      <div style={{ width: `${stats?.qualityMetrics?.rates?.success || 0}%`, backgroundColor: '#16a34a', height: '100%' }}></div>
-                      <div style={{ width: `${stats?.qualityMetrics?.rates?.canceled || 0}%`, backgroundColor: '#dc2626', height: '100%' }}></div>
-                      <div style={{ width: `${stats?.qualityMetrics?.rates?.pending || 0}%`, backgroundColor: '#d97706', height: '100%' }}></div>
-                    </div>
-                    <p style={{ margin: '4px 0 0 0', fontSize: '11px', color: '#64748b' }}>
-                      {stats?.qualityMetrics?.rates?.counts?.success || 0} completed · {stats?.qualityMetrics?.rates?.counts?.canceled || 0} cancelled
-                    </p>
-                  </div>
-                </div>
+                  )}
 
-                <div className="admin-stat-card">
-                  <div className="admin-stat-icon-wrap" style={{ backgroundColor: 'rgba(217,119,6,0.08)', color: '#d97706' }}><Zap size={20} /></div>
-                  <div className="admin-stat-info">
-                    <h3>
-                      {stats?.qualityMetrics?.peakHours?.[0]?.time || 'N/A'}
-                      {stats?.qualityMetrics?.peakHours?.[0]?.count ? (
-                        <span style={{ fontSize: '12px', color: '#64748b', fontWeight: '500', marginLeft: '6px' }}>
-                          {stats.qualityMetrics.peakHours[0].count} cases
-                        </span>
-                      ) : null}
-                    </h3>
-                    <p>Peak examination hours</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Interactive CSS/SVG Widgets */}
-              <div className="analytics-visuals-grid">
-                {/* SVG Revenue & Traffic Graph */}
-                <div className="admin-chart-panel">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, flexWrap: 'wrap', gap: 10 }}>
-                    <div>
-                      <h3 className="admin-chart-title">Clinic performance chart</h3>
-                      <p className="subtitle" style={{ margin: 0, fontSize: '12px' }}>Revenue (bars) · Patients (line)</p>
-                    </div>
-                    <div className="stats-period-toggles" style={{ display: 'flex' }}>
-                      <button
-                        onClick={() => setChartPeriod('week')}
-                        className={chartPeriod === 'week' ? 'active' : ''}
-                        style={{ padding: '4px 10px', fontSize: 11 }}
-                      >
-                        Week
-                      </button>
-                      <button
-                        onClick={() => setChartPeriod('month')}
-                        className={chartPeriod === 'month' ? 'active' : ''}
-                        style={{ padding: '4px 10px', fontSize: 11 }}
-                      >
-                        Month
-                      </button>
-                      <button
-                        onClick={() => setChartPeriod('year')}
-                        className={chartPeriod === 'year' ? 'active' : ''}
-                        style={{ padding: '4px 10px', fontSize: 11 }}
-                      >
-                        Year
-                      </button>
-                    </div>
-                  </div>
-                  
-                  <div className="chart-wrapper" style={{ position: 'relative', minHeight: 300 }}>
-                    <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="svg-chart" style={{ width: '100%', height: 'auto' }}>
-                      {/* Grid Lines */}
-                      {[0, 0.33, 0.66, 1].map((ratio, index) => {
-                        const y = paddingTop + innerHeight - ratio * innerHeight;
-                        return (
-                          <g key={index}>
-                            <line x1={paddingLeft} y1={y} x2={chartWidth - paddingRight} y2={y} className="admin-chart-gridline" strokeDasharray="3,3" />
-                            {/* Left Axis: Revenue */}
-                            <text x={paddingLeft - 8} y={y + 3} textAnchor="end" fontSize="10" className="admin-chart-axis-text">
-                              {formatCompactVND(ratio * maxRevenue)}
-                            </text>
-                            {/* Right Axis: Patients */}
-                            <text x={chartWidth - paddingRight + 8} y={y + 3} textAnchor="start" fontSize="10" className="admin-chart-axis-text-cyan">
-                              {Math.round(ratio * maxTraffic)}
-                            </text>
-                          </g>
-                        );
-                      })}
-
-                      {/* Columns (Revenue) */}
-                      {chartRevenue.map((val, idx) => {
-                        const lx = paddingLeft + (idx + 0.5) * (innerWidth / chartLabels.length);
-                        const colHeight = (val / maxRevenue) * innerHeight;
-                        const colY = paddingTop + innerHeight - colHeight;
-                        return (
-                          <rect
-                            key={idx}
-                            x={lx - colWidth / 2}
-                            y={colY}
-                            width={colWidth}
-                            height={Math.max(2, colHeight)}
-                            fill="url(#grad-revenue)"
-                            rx="2"
-                            onMouseEnter={() => setHoveredIdx(idx)}
-                            onMouseLeave={() => setHoveredIdx(null)}
-                            style={{ cursor: 'pointer', transition: 'all 0.2s' }}
-                          />
-                        );
-                      })}
-
-                      {/* Line Chart (Traffic) */}
-                      {chartTraffic.length > 0 && (
-                        <>
-                          <polyline
-                            fill="none"
-                            stroke="url(#grad-line-cyan)"
-                            strokeWidth="2"
-                            points={linePoints}
-                          />
-                          {chartTraffic.map((t, idx) => {
-                            const lx = paddingLeft + (idx + 0.5) * (innerWidth / chartLabels.length);
-                            const ly = paddingTop + innerHeight - (t / maxTraffic) * innerHeight;
-                            return (
-                              <g key={idx} onMouseEnter={() => setHoveredIdx(idx)} onMouseLeave={() => setHoveredIdx(null)}>
-                                <circle
-                                  cx={lx}
-                                  cy={ly}
-                                  r={hoveredIdx === idx ? "5" : "3.5"}
-                                  fill="#fff"
-                                  stroke="#0891b2"
-                                  strokeWidth="1.5"
-                                  style={{ cursor: 'pointer', transition: 'all 0.2s' }}
-                                />
-                              </g>
-                            );
-                          })}
-                        </>
-                      )}
-
-                      {/* X Axis Labels */}
-                      {chartLabels.map((lbl, idx) => {
-                        const lx = paddingLeft + (idx + 0.5) * (innerWidth / chartLabels.length);
-                        return (
-                          <text key={idx} x={lx} y={chartHeight - 8} textAnchor="middle" fontSize="10" className="admin-chart-axis-text">
-                            {lbl}
-                          </text>
-                        );
-                      })}
-
-                      {/* Gradients Definitions */}
-                      <defs>
-                        <linearGradient id="grad-revenue" x1="0%" y1="0%" x2="0%" y2="100%">
-                          <stop offset="0%" stopColor="#3b82f6" />
-                          <stop offset="100%" stopColor="#2563eb" />
-                        </linearGradient>
-                        <linearGradient id="grad-line-cyan" x1="0%" y1="0%" x2="100%" y2="0%">
-                          <stop offset="0%" stopColor="#0891b2" />
-                          <stop offset="100%" stopColor="#0369a1" />
-                        </linearGradient>
-                      </defs>
-                    </svg>
-
-                    {/* Tooltip Overlay */}
-                    {hoveredIdx !== null && (
-                      <div
-                        style={{
-                          position: 'absolute',
-                          top: '-10px',
-                          left: '50%',
-                          transform: 'translateX(-50%)',
-                          backgroundColor: 'rgba(15, 23, 42, 0.95)',
-                          color: '#fff',
-                          padding: '6px 12px',
-                          borderRadius: '6px',
-                          fontSize: '11px',
-                          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-                          zIndex: 10,
-                          pointerEvents: 'none',
-                          display: 'flex',
-                          gap: '12px',
-                          border: '1px solid #334155'
-                        }}
-                      >
-                        <div>
-                          <strong>Time:</strong> <span style={{ color: '#06b6d4' }}>{chartLabels[hoveredIdx]}</span>
+                  {!reportLoading && reportData && (<>
+                    {/* KPI Cards — always 4, checkboxes only affect charts/table */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, marginBottom: 20 }}>
+                      <div className="admin-stat-card" style={{ padding: '14px 16px', minHeight: 'unset', gap: 12 }}>
+                        <div className="admin-stat-icon-wrap" style={{ backgroundColor: 'rgba(37,99,235,0.08)', color: '#2563eb', width: 34, height: 34, minWidth: 34, borderRadius: 9 }}><TrendingUp size={16} /></div>
+                        <div className="admin-stat-info">
+                          <h3 style={{ fontSize: 14, margin: 0, fontWeight: 700, letterSpacing: '-0.3px' }}>{formatVND(rptTotals.current?.revenue ?? 0)}</h3>
+                          <p style={{ margin: '2px 0 0', fontSize: 11 }}>Revenue</p>
+                          {(() => { const d = rptDelta(rptTotals.current?.revenue, rptTotals.compare?.revenue); return (<><div style={{ display:'inline-flex',alignItems:'center',gap:3,padding:'2px 6px',borderRadius:10,fontSize:10,fontWeight:600,marginTop:4,backgroundColor:d>=0?'rgba(22,163,74,0.1)':'rgba(220,38,38,0.1)',color:d>=0?'#16a34a':'#dc2626' }}>{d>=0?'↑':'↓'} {Math.abs(d)}% vs {reportFilters.compareYear}</div><p style={{margin:'2px 0 0',fontSize:10,color:'#94a3b8'}}>Prev: {formatVND(rptTotals.compare?.revenue??0)}</p></>); })()}
                         </div>
-                        <div>
-                          <strong>Revenue:</strong> <span style={{ color: '#10b981' }}>{formatVND(chartRevenue[hoveredIdx]).replace(/,00\s₫/g, ' VND')}</span>
+                      </div>
+                      <div className="admin-stat-card" style={{ padding: '14px 16px', minHeight: 'unset', gap: 12 }}>
+                        <div className="admin-stat-icon-wrap" style={{ backgroundColor: 'rgba(5,150,105,0.08)', color: '#059669', width: 34, height: 34, minWidth: 34, borderRadius: 9 }}><HeartPulse size={16} /></div>
+                        <div className="admin-stat-info">
+                          <h3 style={{ fontSize: 14, margin: 0, fontWeight: 700, letterSpacing: '-0.3px' }}>{rptTotals.current?.patients ?? 0}</h3>
+                          <p style={{ margin: '2px 0 0', fontSize: 11 }}>Patients examined</p>
+                          {(() => { const d = rptDelta(rptTotals.current?.patients, rptTotals.compare?.patients); return (<><div style={{ display:'inline-flex',alignItems:'center',gap:3,padding:'2px 6px',borderRadius:10,fontSize:10,fontWeight:600,marginTop:4,backgroundColor:d>=0?'rgba(22,163,74,0.1)':'rgba(220,38,38,0.1)',color:d>=0?'#16a34a':'#dc2626' }}>{d>=0?'↑':'↓'} {Math.abs(d)}% vs {reportFilters.compareYear}</div><p style={{margin:'2px 0 0',fontSize:10,color:'#94a3b8'}}>Prev: {rptTotals.compare?.patients??0}</p></>); })()}
                         </div>
-                        <div>
-                          <strong>Patients:</strong> <span style={{ color: '#3b82f6' }}>{chartTraffic[hoveredIdx]} visits</span>
+                      </div>
+                      <div className="admin-stat-card" style={{ padding: '14px 16px', minHeight: 'unset', gap: 12 }}>
+                        <div className="admin-stat-icon-wrap" style={{ backgroundColor: 'rgba(8,145,178,0.08)', color: '#0891b2', width: 34, height: 34, minWidth: 34, borderRadius: 9 }}><CalendarCheck size={16} /></div>
+                        <div className="admin-stat-info">
+                          <h3 style={{ fontSize: 14, margin: 0, fontWeight: 700, letterSpacing: '-0.3px' }}>{rptTotals.current?.registrations ?? 0}</h3>
+                          <p style={{ margin: '2px 0 0', fontSize: 11 }}>Registrations</p>
+                          {(() => { const d = rptDelta(rptTotals.current?.registrations, rptTotals.compare?.registrations); return (<><div style={{ display:'inline-flex',alignItems:'center',gap:3,padding:'2px 6px',borderRadius:10,fontSize:10,fontWeight:600,marginTop:4,backgroundColor:d>=0?'rgba(22,163,74,0.1)':'rgba(220,38,38,0.1)',color:d>=0?'#16a34a':'#dc2626' }}>{d>=0?'↑':'↓'} {Math.abs(d)}% vs {reportFilters.compareYear}</div><p style={{margin:'2px 0 0',fontSize:10,color:'#94a3b8'}}>Prev: {rptTotals.compare?.registrations??0}</p></>); })()}
+                        </div>
+                      </div>
+                      <div className="admin-stat-card" style={{ padding: '14px 16px', minHeight: 'unset', gap: 12 }}>
+                        <div className="admin-stat-icon-wrap" style={{ backgroundColor: 'rgba(220,38,38,0.08)', color: '#dc2626', width: 34, height: 34, minWidth: 34, borderRadius: 9 }}><X size={16} /></div>
+                        <div className="admin-stat-info">
+                          <h3 style={{ fontSize: 14, margin: 0, fontWeight: 700, letterSpacing: '-0.3px' }}>{rptTotals.current?.cancellations ?? 0}</h3>
+                          <p style={{ margin: '2px 0 0', fontSize: 11 }}>Cancellations</p>
+                          {(() => { const d = rptDelta(rptTotals.current?.cancellations, rptTotals.compare?.cancellations); return (<><div style={{ display:'inline-flex',alignItems:'center',gap:3,padding:'2px 6px',borderRadius:10,fontSize:10,fontWeight:600,marginTop:4,backgroundColor:d<=0?'rgba(22,163,74,0.1)':'rgba(220,38,38,0.1)',color:d<=0?'#16a34a':'#dc2626' }}>{d>=0?'↑':'↓'} {Math.abs(d)}% vs {reportFilters.compareYear}</div><p style={{margin:'2px 0 0',fontSize:10,color:'#94a3b8'}}>Prev: {rptTotals.compare?.cancellations??0}</p></>); })()}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Revenue Chart */}
+                    {reportFilters.showRevenue && (
+                      <div className="admin-chart-panel" style={{ marginBottom: 14 }}>
+                        <div style={{ marginBottom: 10 }}>
+                          <h3 className="admin-chart-title">Revenue</h3>
+                          <p className="subtitle" style={{ margin: 0, fontSize: 11 }}>
+                            <span style={{ color: '#3b82f6' }}>&mdash; {reportFilters.year}</span>
+                            <span style={{ marginLeft: 12, color: '#94a3b8' }}>- - {reportFilters.compareYear}</span>
+                            {reportFilters.month > 0 && <span style={{ marginLeft: 12, color: '#64748b' }}>({MONTHS_SHORT[reportFilters.month - 1]}, week by week)</span>}
+                          </p>
+                        </div>
+                        <div style={{ position: 'relative' }}>
+                          <svg viewBox={`0 0 ${rCW} ${rCH}`} style={{ width: '100%', height: 'auto', display: 'block' }}>
+                            <defs>
+                              <linearGradient id="grad-rpt-rev" x1="0%" y1="0%" x2="0%" y2="100%">
+                                <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.12" />
+                                <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
+                              </linearGradient>
+                            </defs>
+                            {[0, 0.25, 0.5, 0.75, 1].map((r, i) => {
+                              const gy = rPT + rIH - r * rIH;
+                              return (
+                                <g key={i}>
+                                  <line x1={rPL} y1={gy} x2={rCW - rPR} y2={gy} stroke="#e2e8f0" strokeDasharray="3,3" strokeWidth="1" />
+                                  <text x={rPL - 5} y={gy + 4} textAnchor="end" fontSize="9" fill="#94a3b8">{formatCompactVND(r * rptMaxRev)}</text>
+                                </g>
+                              );
+                            })}
+                            {rptCurRev.length > 0 && <polygon points={`${getRX(0)},${rPT + rIH} ${rptCurRev.map((v, i) => `${getRX(i)},${getRYRev(v)}`).join(' ')} ${getRX(rptN - 1)},${rPT + rIH}`} fill="url(#grad-rpt-rev)" />}
+                            <polyline fill="none" stroke="#94a3b8" strokeWidth="1.5" strokeDasharray="5,4" points={rptCmpRev.map((v, i) => `${getRX(i)},${getRYRev(v)}`).join(' ')} />
+                            <polyline fill="none" stroke="#3b82f6" strokeWidth="2.5" points={rptCurRev.map((v, i) => `${getRX(i)},${getRYRev(v)}`).join(' ')} />
+                            {hoveredRptRev !== null && <line x1={getRX(hoveredRptRev)} y1={rPT} x2={getRX(hoveredRptRev)} y2={rPT + rIH} stroke="#cbd5e1" strokeWidth="1" strokeDasharray="3,2" />}
+                            {rptCmpRev.map((v, i) => <circle key={`cmp-${i}`} cx={getRX(i)} cy={getRYRev(v)} r={hoveredRptRev === i ? 4 : 2.5} fill="#fff" stroke="#94a3b8" strokeWidth="1.5" onMouseEnter={() => setHoveredRptRev(i)} onMouseLeave={() => setHoveredRptRev(null)} style={{ cursor: 'pointer' }} />)}
+                            {rptCurRev.map((v, i) => <circle key={`cur-${i}`} cx={getRX(i)} cy={getRYRev(v)} r={hoveredRptRev === i ? 5 : 3.5} fill="#fff" stroke="#3b82f6" strokeWidth="2" onMouseEnter={() => setHoveredRptRev(i)} onMouseLeave={() => setHoveredRptRev(null)} style={{ cursor: 'pointer' }} />)}
+                            {rptLabels.map((lbl, i) => <text key={i} x={getRX(i)} y={rCH - 6} textAnchor="middle" fontSize="10" fill="#64748b">{lbl}</text>)}
+                          </svg>
+                          {hoveredRptRev !== null && (
+                            <div style={{ position: 'absolute', top: 0, left: `${(getRX(hoveredRptRev) / rCW) * 100}%`, transform: 'translateX(-50%)', backgroundColor: 'rgba(15,23,42,0.95)', color: '#fff', padding: '7px 12px', borderRadius: 7, fontSize: 11, zIndex: 10, pointerEvents: 'none', border: '1px solid #334155', whiteSpace: 'nowrap' }}>
+                              <div style={{ fontWeight: 600, marginBottom: 4, color: '#06b6d4' }}>{rptLabels[hoveredRptRev]}</div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 14 }}><span style={{ color: '#93c5fd' }}>{reportFilters.year}:</span><span>{formatVND(rptCurRev[hoveredRptRev])}</span></div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 14 }}><span style={{ color: '#94a3b8' }}>{reportFilters.compareYear}:</span><span>{formatVND(rptCmpRev[hoveredRptRev])}</span></div>
+                              {(() => { const d = rptDelta(rptCurRev[hoveredRptRev], rptCmpRev[hoveredRptRev]); return <div style={{ marginTop: 4, color: d >= 0 ? '#4ade80' : '#f87171', fontSize: 10, fontWeight: 600 }}>{d >= 0 ? '↑' : '↓'} {Math.abs(d)}% YoY</div>; })()}
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}
-                  </div>
-                </div>
 
-                {/* Pie/Gauge Revenue breakdown */}
-                <div className="admin-chart-panel">
-                  <h3 className="admin-chart-title">Revenue breakdown (This month)</h3>
-                  <p className="subtitle" style={{ margin: '4px 0 16px 0', fontSize: '12px' }}>Revenue split between consultations & pharmacy</p>
-
-                  <div className="breakdown-gauge-container">
-                    <div className="horizontal-gauge">
-                      <div className="gauge-segment consult" style={{ width: `${consultationPct}%` }}>
-                        {consultationPct}% Consultation
+                    {/* Patients Chart */}
+                    {reportFilters.showPatients && (
+                      <div className="admin-chart-panel" style={{ marginBottom: 14 }}>
+                        <div style={{ marginBottom: 10 }}>
+                          <h3 className="admin-chart-title">Patients examined</h3>
+                          <p className="subtitle" style={{ margin: 0, fontSize: 11 }}>
+                            <span style={{ color: '#059669' }}>&mdash; {reportFilters.year}</span>
+                            <span style={{ marginLeft: 12, color: '#94a3b8' }}>- - {reportFilters.compareYear}</span>
+                          </p>
+                        </div>
+                        <div style={{ position: 'relative' }}>
+                          <svg viewBox={`0 0 ${rCW} ${rCH}`} style={{ width: '100%', height: 'auto', display: 'block' }}>
+                            <defs>
+                              <linearGradient id="grad-rpt-pts" x1="0%" y1="0%" x2="0%" y2="100%">
+                                <stop offset="0%" stopColor="#059669" stopOpacity="0.12" />
+                                <stop offset="100%" stopColor="#059669" stopOpacity="0" />
+                              </linearGradient>
+                            </defs>
+                            {[0, 0.25, 0.5, 0.75, 1].map((r, i) => {
+                              const gy = rPT + rIH - r * rIH;
+                              return (
+                                <g key={i}>
+                                  <line x1={rPL} y1={gy} x2={rCW - rPR} y2={gy} stroke="#e2e8f0" strokeDasharray="3,3" strokeWidth="1" />
+                                  <text x={rPL - 5} y={gy + 4} textAnchor="end" fontSize="9" fill="#94a3b8">{Math.round(r * rptMaxPts)}</text>
+                                </g>
+                              );
+                            })}
+                            {rptCurPts.length > 0 && <polygon points={`${getRX(0)},${rPT + rIH} ${rptCurPts.map((v, i) => `${getRX(i)},${getRYPts(v)}`).join(' ')} ${getRX(rptN - 1)},${rPT + rIH}`} fill="url(#grad-rpt-pts)" />}
+                            <polyline fill="none" stroke="#94a3b8" strokeWidth="1.5" strokeDasharray="5,4" points={rptCmpPts.map((v, i) => `${getRX(i)},${getRYPts(v)}`).join(' ')} />
+                            <polyline fill="none" stroke="#059669" strokeWidth="2.5" points={rptCurPts.map((v, i) => `${getRX(i)},${getRYPts(v)}`).join(' ')} />
+                            {hoveredRptPts !== null && <line x1={getRX(hoveredRptPts)} y1={rPT} x2={getRX(hoveredRptPts)} y2={rPT + rIH} stroke="#cbd5e1" strokeWidth="1" strokeDasharray="3,2" />}
+                            {rptCmpPts.map((v, i) => <circle key={`cmp-${i}`} cx={getRX(i)} cy={getRYPts(v)} r={hoveredRptPts === i ? 4 : 2.5} fill="#fff" stroke="#94a3b8" strokeWidth="1.5" onMouseEnter={() => setHoveredRptPts(i)} onMouseLeave={() => setHoveredRptPts(null)} style={{ cursor: 'pointer' }} />)}
+                            {rptCurPts.map((v, i) => <circle key={`cur-${i}`} cx={getRX(i)} cy={getRYPts(v)} r={hoveredRptPts === i ? 5 : 3.5} fill="#fff" stroke="#059669" strokeWidth="2" onMouseEnter={() => setHoveredRptPts(i)} onMouseLeave={() => setHoveredRptPts(null)} style={{ cursor: 'pointer' }} />)}
+                            {rptLabels.map((lbl, i) => <text key={i} x={getRX(i)} y={rCH - 6} textAnchor="middle" fontSize="10" fill="#64748b">{lbl}</text>)}
+                          </svg>
+                          {hoveredRptPts !== null && (
+                            <div style={{ position: 'absolute', top: 0, left: `${(getRX(hoveredRptPts) / rCW) * 100}%`, transform: 'translateX(-50%)', backgroundColor: 'rgba(15,23,42,0.95)', color: '#fff', padding: '7px 12px', borderRadius: 7, fontSize: 11, zIndex: 10, pointerEvents: 'none', border: '1px solid #334155', whiteSpace: 'nowrap' }}>
+                              <div style={{ fontWeight: 600, marginBottom: 4, color: '#06b6d4' }}>{rptLabels[hoveredRptPts]}</div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 14 }}><span style={{ color: '#6ee7b7' }}>{reportFilters.year}:</span><span>{rptCurPts[hoveredRptPts]} pts</span></div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 14 }}><span style={{ color: '#94a3b8' }}>{reportFilters.compareYear}:</span><span>{rptCmpPts[hoveredRptPts]} pts</span></div>
+                              {(() => { const d = rptDelta(rptCurPts[hoveredRptPts], rptCmpPts[hoveredRptPts]); return <div style={{ marginTop: 4, color: d >= 0 ? '#4ade80' : '#f87171', fontSize: 10, fontWeight: 600 }}>{d >= 0 ? '↑' : '↓'} {Math.abs(d)}% YoY</div>; })()}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <div className="gauge-segment pharmacy" style={{ width: `${pharmacyPct}%` }}>
-                        {pharmacyPct}% Pharmacy
-                      </div>
-                    </div>
+                    )}
 
-                    <div className="gauge-legend">
-                      <div>
-                        <span className="dot dot-consult"></span>
-                        <strong>Consultation: </strong>
-                        <span>{formatVND(stats?.breakdown?.consultation)}</span>
-                      </div>
-                      <div>
-                        <span className="dot dot-pharmacy"></span>
-                        <strong>Pharmacy: </strong>
-                        <span>{formatVND(stats?.breakdown?.pharmacy)}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Staff Performance Panel */}
-                <div className="admin-chart-panel admin-full-width-panel">
-                  <h3 className="admin-chart-title">Staff performance comparison</h3>
-                  <p className="subtitle" style={{ margin: '4px 0 16px 0', fontSize: '12px' }}>Measures completed examinations by doctors and approved appointments by care staff</p>
-
-                  <div className="admin-performance-comparison-grid">
-                    {/* Doctors Column */}
-                    <div>
-                      <h4 className="admin-performance-header">
-                        Top Doctors — Completed Examinations
-                      </h4>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                        {!stats?.qualityMetrics?.performance?.doctors || stats.qualityMetrics.performance.doctors.length === 0 ? (
-                          <p className="admin-performance-empty">No completed examinations yet.</p>
-                        ) : (
-                          stats.qualityMetrics.performance.doctors.map((doc, i) => {
-                            const maxVal = Math.max(...stats.qualityMetrics.performance.doctors.map(d => d.count), 1);
-                            const pct = Math.round((doc.count / maxVal) * 100);
+                    {/* Registrations Chart */}
+                    {reportFilters.showRegistrations && (
+                      <div className="admin-chart-panel" style={{ marginBottom: 14 }}>
+                        <div style={{ marginBottom: 10 }}>
+                          <h3 className="admin-chart-title">Appointment registrations</h3>
+                          <p className="subtitle" style={{ margin: 0, fontSize: 11 }}>
+                            <span style={{ color: '#0891b2' }}>&mdash; {reportFilters.year}</span>
+                            <span style={{ marginLeft: 12, color: '#94a3b8' }}>- - {reportFilters.compareYear}</span>
+                          </p>
+                        </div>
+                        <svg viewBox={`0 0 ${rCW} ${rCH}`} style={{ width: '100%', height: 'auto', display: 'block' }}>
+                          <defs>
+                            <linearGradient id="grad-rpt-reg" x1="0%" y1="0%" x2="0%" y2="100%">
+                              <stop offset="0%" stopColor="#0891b2" stopOpacity="0.12" />
+                              <stop offset="100%" stopColor="#0891b2" stopOpacity="0" />
+                            </linearGradient>
+                          </defs>
+                          {[0, 0.25, 0.5, 0.75, 1].map((r, i) => {
+                            const gy = rPT + rIH - r * rIH;
                             return (
-                              <div key={i}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
-                                  <span className="admin-performance-name">{doc.name}</span>
-                                  <span style={{ color: '#2563eb', fontWeight: '600' }}>{doc.count} {doc.count === 1 ? 'case' : 'cases'}</span>
-                                </div>
-                                <div className="admin-performance-bar-track">
-                                  <div style={{ width: `${pct}%`, backgroundColor: '#2563eb', height: '100%', borderRadius: '3px' }}></div>
-                                </div>
-                              </div>
+                              <g key={i}>
+                                <line x1={rPL} y1={gy} x2={rCW - rPR} y2={gy} stroke="#e2e8f0" strokeDasharray="3,3" strokeWidth="1" />
+                                <text x={rPL - 5} y={gy + 4} textAnchor="end" fontSize="9" fill="#94a3b8">{Math.round(r * rptMaxReg)}</text>
+                              </g>
                             );
-                          })
-                        )}
+                          })}
+                          {rptCurReg.length > 0 && <polygon points={`${getRX(0)},${rPT + rIH} ${rptCurReg.map((v, i) => `${getRX(i)},${getRYReg(v)}`).join(' ')} ${getRX(rptN - 1)},${rPT + rIH}`} fill="url(#grad-rpt-reg)" />}
+                          <polyline fill="none" stroke="#94a3b8" strokeWidth="1.5" strokeDasharray="5,4" points={rptCmpReg.map((v, i) => `${getRX(i)},${getRYReg(v)}`).join(' ')} />
+                          <polyline fill="none" stroke="#0891b2" strokeWidth="2.5" points={rptCurReg.map((v, i) => `${getRX(i)},${getRYReg(v)}`).join(' ')} />
+                          {rptLabels.map((lbl, i) => <text key={i} x={getRX(i)} y={rCH - 6} textAnchor="middle" fontSize="10" fill="#64748b">{lbl}</text>)}
+                        </svg>
+                      </div>
+                    )}
+
+                    {/* Detailed Data Table */}
+                    <div className="admin-chart-panel" style={{ marginBottom: 22 }}>
+                      <h3 className="admin-chart-title" style={{ marginBottom: 4 }}>Detailed data table</h3>
+                      <p className="subtitle" style={{ margin: '0 0 12px', fontSize: 11 }}>
+                        {reportFilters.year} vs {reportFilters.compareYear}{reportFilters.month > 0 ? ` · ${MONTHS_SHORT[reportFilters.month - 1]}, week by week` : ' · All months'}
+                      </p>
+                      <div style={{ overflowX: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11.5 }}>
+                          <thead>
+                            <tr style={{ borderBottom: '2px solid #e2e8f0', backgroundColor: '#f8fafc' }}>
+                              <th style={{ padding: '7px 10px', textAlign: 'left', color: '#475569', fontWeight: 600 }}>Period</th>
+                              {reportFilters.showRevenue && (<>
+                                <th style={{ padding: '7px 8px', textAlign: 'right', color: '#3b82f6', fontWeight: 600 }}>Rev {reportFilters.year}</th>
+                                <th style={{ padding: '7px 8px', textAlign: 'right', color: '#94a3b8', fontWeight: 600 }}>Rev {reportFilters.compareYear}</th>
+                                <th style={{ padding: '7px 8px', textAlign: 'center', fontWeight: 600, color: '#475569' }}>&Delta; Rev</th>
+                              </>)}
+                              {reportFilters.showPatients && (<>
+                                <th style={{ padding: '7px 8px', textAlign: 'right', color: '#059669', fontWeight: 600 }}>Pts {reportFilters.year}</th>
+                                <th style={{ padding: '7px 8px', textAlign: 'right', color: '#94a3b8', fontWeight: 600 }}>Pts {reportFilters.compareYear}</th>
+                                <th style={{ padding: '7px 8px', textAlign: 'center', fontWeight: 600, color: '#475569' }}>&Delta; Pts</th>
+                              </>)}
+                              {reportFilters.showRegistrations && (<>
+                                <th style={{ padding: '7px 8px', textAlign: 'right', color: '#0891b2', fontWeight: 600 }}>Reg {reportFilters.year}</th>
+                                <th style={{ padding: '7px 8px', textAlign: 'right', color: '#94a3b8', fontWeight: 600 }}>Reg {reportFilters.compareYear}</th>
+                                <th style={{ padding: '7px 8px', textAlign: 'center', fontWeight: 600, color: '#475569' }}>&Delta; Reg</th>
+                              </>)}
+                              <th style={{ padding: '7px 8px', textAlign: 'right', color: '#dc2626', fontWeight: 600 }}>Cancel {reportFilters.year}</th>
+                              <th style={{ padding: '7px 8px', textAlign: 'right', color: '#94a3b8', fontWeight: 600 }}>Cancel {reportFilters.compareYear}</th>
+                              <th style={{ padding: '7px 8px', textAlign: 'center', fontWeight: 600, color: '#475569' }}>&Delta; Cxl</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr style={{ borderBottom: '2px solid #e2e8f0', backgroundColor: 'rgba(37,99,235,0.04)', fontWeight: 700 }}>
+                              <td style={{ padding: '7px 10px', color: '#2563eb' }}>TOTAL</td>
+                              {reportFilters.showRevenue && (<>
+                                <td style={{ padding: '7px 8px', textAlign: 'right', color: '#2563eb' }}>{formatCompactVND(rptTotals.current?.revenue ?? 0)}</td>
+                                <td style={{ padding: '7px 8px', textAlign: 'right', color: '#94a3b8' }}>{formatCompactVND(rptTotals.compare?.revenue ?? 0)}</td>
+                                <td style={{ padding: '7px 8px', textAlign: 'center' }}>{(() => { const d = rptDelta(rptTotals.current?.revenue, rptTotals.compare?.revenue); return <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 8, backgroundColor: d >= 0 ? 'rgba(22,163,74,0.1)' : 'rgba(220,38,38,0.1)', color: d >= 0 ? '#16a34a' : '#dc2626' }}>{d >= 0 ? '+' : ''}{d}%</span>; })()}</td>
+                              </>)}
+                              {reportFilters.showPatients && (<>
+                                <td style={{ padding: '7px 8px', textAlign: 'right', color: '#059669' }}>{rptTotals.current?.patients ?? 0}</td>
+                                <td style={{ padding: '7px 8px', textAlign: 'right', color: '#94a3b8' }}>{rptTotals.compare?.patients ?? 0}</td>
+                                <td style={{ padding: '7px 8px', textAlign: 'center' }}>{(() => { const d = rptDelta(rptTotals.current?.patients, rptTotals.compare?.patients); return <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 8, backgroundColor: d >= 0 ? 'rgba(22,163,74,0.1)' : 'rgba(220,38,38,0.1)', color: d >= 0 ? '#16a34a' : '#dc2626' }}>{d >= 0 ? '+' : ''}{d}%</span>; })()}</td>
+                              </>)}
+                              {reportFilters.showRegistrations && (<>
+                                <td style={{ padding: '7px 8px', textAlign: 'right', color: '#0891b2' }}>{rptTotals.current?.registrations ?? 0}</td>
+                                <td style={{ padding: '7px 8px', textAlign: 'right', color: '#94a3b8' }}>{rptTotals.compare?.registrations ?? 0}</td>
+                                <td style={{ padding: '7px 8px', textAlign: 'center' }}>{(() => { const d = rptDelta(rptTotals.current?.registrations, rptTotals.compare?.registrations); return <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 8, backgroundColor: d >= 0 ? 'rgba(22,163,74,0.1)' : 'rgba(220,38,38,0.1)', color: d >= 0 ? '#16a34a' : '#dc2626' }}>{d >= 0 ? '+' : ''}{d}%</span>; })()}</td>
+                              </>)}
+                              <td style={{ padding: '7px 8px', textAlign: 'right', color: '#dc2626' }}>{rptTotals.current?.cancellations ?? 0}</td>
+                              <td style={{ padding: '7px 8px', textAlign: 'right', color: '#94a3b8' }}>{rptTotals.compare?.cancellations ?? 0}</td>
+                              <td style={{ padding: '7px 8px', textAlign: 'center' }}>{(() => { const d = rptDelta(rptTotals.current?.cancellations, rptTotals.compare?.cancellations); return <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 8, backgroundColor: d <= 0 ? 'rgba(22,163,74,0.1)' : 'rgba(220,38,38,0.1)', color: d <= 0 ? '#16a34a' : '#dc2626' }}>{d >= 0 ? '+' : ''}{d}%</span>; })()}</td>
+                            </tr>
+                            {rptLabels.map((lbl, i) => {
+                              const isCur = reportFilters.month === 0 && i === new Date().getMonth() && reportFilters.year === curYear;
+                              const revD = rptDelta(rptCurRev[i], rptCmpRev[i]);
+                              const ptsD = rptDelta(rptCurPts[i], rptCmpPts[i]);
+                              const regD = rptDelta(rptCurReg[i], rptCmpReg[i]);
+                              const cxlD = rptDelta(rptCurCxl[i], rptCmpCxl[i]);
+                              const dBadge = (d, inv) => <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 5px', borderRadius: 8, backgroundColor: (inv ? d <= 0 : d >= 0) ? 'rgba(22,163,74,0.1)' : 'rgba(220,38,38,0.1)', color: (inv ? d <= 0 : d >= 0) ? '#16a34a' : '#dc2626' }}>{d >= 0 ? '+' : ''}{d}%</span>;
+                              return (
+                                <tr key={i} style={{ borderBottom: '1px solid #f1f5f9', backgroundColor: isCur ? 'rgba(59,130,246,0.04)' : 'transparent' }}>
+                                  <td style={{ padding: '6px 10px', fontWeight: isCur ? 700 : 400, color: isCur ? '#2563eb' : '#374151' }}>{lbl}{isCur ? ' ◄' : ''}</td>
+                                  {reportFilters.showRevenue && (<>
+                                    <td style={{ padding: '6px 8px', textAlign: 'right', color: '#0f172a', fontWeight: 500 }}>{formatCompactVND(rptCurRev[i])}</td>
+                                    <td style={{ padding: '6px 8px', textAlign: 'right', color: '#94a3b8' }}>{formatCompactVND(rptCmpRev[i])}</td>
+                                    <td style={{ padding: '6px 8px', textAlign: 'center' }}>{dBadge(revD, false)}</td>
+                                  </>)}
+                                  {reportFilters.showPatients && (<>
+                                    <td style={{ padding: '6px 8px', textAlign: 'right', color: '#0f172a', fontWeight: 500 }}>{rptCurPts[i]}</td>
+                                    <td style={{ padding: '6px 8px', textAlign: 'right', color: '#94a3b8' }}>{rptCmpPts[i]}</td>
+                                    <td style={{ padding: '6px 8px', textAlign: 'center' }}>{dBadge(ptsD, false)}</td>
+                                  </>)}
+                                  {reportFilters.showRegistrations && (<>
+                                    <td style={{ padding: '6px 8px', textAlign: 'right', color: '#0f172a', fontWeight: 500 }}>{rptCurReg[i]}</td>
+                                    <td style={{ padding: '6px 8px', textAlign: 'right', color: '#94a3b8' }}>{rptCmpReg[i]}</td>
+                                    <td style={{ padding: '6px 8px', textAlign: 'center' }}>{dBadge(regD, false)}</td>
+                                  </>)}
+                                  <td style={{ padding: '6px 8px', textAlign: 'right', color: '#0f172a', fontWeight: 500 }}>{rptCurCxl[i]}</td>
+                                  <td style={{ padding: '6px 8px', textAlign: 'right', color: '#94a3b8' }}>{rptCmpCxl[i]}</td>
+                                  <td style={{ padding: '6px 8px', textAlign: 'center' }}>{dBadge(cxlD, true)}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
                       </div>
                     </div>
 
-                    {/* CSKH Column */}
-                    <div>
-                      <h4 className="admin-performance-header">
-                        Top Care Staff — Approved Appointments
-                      </h4>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                        {!stats?.qualityMetrics?.performance?.cskh || stats.qualityMetrics.performance.cskh.length === 0 ? (
-                          <p className="admin-performance-empty">No appointments approved yet.</p>
-                        ) : (
-                          stats.qualityMetrics.performance.cskh.map((staff, i) => {
-                            const maxVal = Math.max(...stats.qualityMetrics.performance.cskh.map(s => s.count), 1);
-                            const pct = Math.round((staff.count / maxVal) * 100);
-                            return (
-                              <div key={i}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
-                                  <span className="admin-performance-name">{staff.name}</span>
-                                  <span style={{ color: '#0891b2', fontWeight: '600' }}>{staff.count} appts</span>
+                    {/* Staff Performance */}
+                    <div className="admin-chart-panel">
+                      <h3 className="admin-chart-title">Staff performance</h3>
+                      <p className="subtitle" style={{ margin: '4px 0 16px', fontSize: 12 }}>All-time: top doctors by examinations &middot; top care staff by approvals</p>
+                      <div className="admin-performance-comparison-grid">
+                        <div>
+                          <h4 className="admin-performance-header">Top Doctors &mdash; Completed Examinations</h4>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                            {!stats?.qualityMetrics?.performance?.doctors?.length ? (
+                              <p className="admin-performance-empty">No data yet.</p>
+                            ) : stats.qualityMetrics.performance.doctors.map((doc, i) => {
+                              const maxV = Math.max(...stats.qualityMetrics.performance.doctors.map(d => d.count), 1);
+                              return (
+                                <div key={i}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
+                                    <span className="admin-performance-name">{doc.name}</span>
+                                    <span style={{ color: '#2563eb', fontWeight: 600 }}>{doc.count} cases</span>
+                                  </div>
+                                  <div className="admin-performance-bar-track">
+                                    <div style={{ width: `${Math.round((doc.count / maxV) * 100)}%`, backgroundColor: '#2563eb', height: '100%', borderRadius: 3 }} />
+                                  </div>
                                 </div>
-                                <div className="admin-performance-bar-track">
-                                  <div style={{ width: `${pct}%`, backgroundColor: '#0891b2', height: '100%', borderRadius: '3px' }}></div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                        <div>
+                          <h4 className="admin-performance-header">Top Care Staff &mdash; Approved Appointments</h4>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                            {!stats?.qualityMetrics?.performance?.cskh?.length ? (
+                              <p className="admin-performance-empty">No data yet.</p>
+                            ) : stats.qualityMetrics.performance.cskh.map((s, i) => {
+                              const maxV = Math.max(...stats.qualityMetrics.performance.cskh.map(x => x.count), 1);
+                              return (
+                                <div key={i}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
+                                    <span className="admin-performance-name">{s.name}</span>
+                                    <span style={{ color: '#0891b2', fontWeight: 600 }}>{s.count} appts</span>
+                                  </div>
+                                  <div className="admin-performance-bar-track">
+                                    <div style={{ width: `${Math.round((s.count / maxV) * 100)}%`, backgroundColor: '#0891b2', height: '100%', borderRadius: 3 }} />
+                                  </div>
                                 </div>
-                              </div>
-                            );
-                          })
-                        )}
+                              );
+                            })}
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  </>)}
                 </div>
               </div>
             </div>
@@ -1551,20 +2053,57 @@ Ready to analyze your clinic data. Select a category or type a specific question
                   <h2>Internal account management</h2>
                   <p className="subtitle" style={{ margin: 0 }}>View clinic staff, assign permissions, and manage accounts.</p>
                 </div>
-                <div className="stats-period-toggles" style={{ display: 'flex' }}>
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <div className="stats-period-toggles" style={{ display: 'flex' }}>
+                    <button
+                      onClick={() => setUserSubTab('list')}
+                      className={userSubTab === 'list' ? 'active' : ''}
+                      style={{ padding: '6px 12px', fontSize: 13 }}
+                    >
+                      Staff list
+                    </button>
+                    <button
+                      onClick={() => setUserSubTab('create')}
+                      className={userSubTab === 'create' ? 'active' : ''}
+                      style={{ padding: '6px 12px', fontSize: 13 }}
+                    >
+                      + New account
+                    </button>
+                  </div>
                   <button
-                    onClick={() => setUserSubTab('list')}
-                    className={userSubTab === 'list' ? 'active' : ''}
-                    style={{ padding: '6px 12px', fontSize: 13 }}
+                    className="admin-btn-secondary"
+                    onClick={handleExportUsers}
+                    title="Export current filtered list to Excel"
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', fontSize: 13 }}
                   >
-                    Staff list
+                    <Download size={14} /> Export Excel
                   </button>
-                  <button
-                    onClick={() => setUserSubTab('create')}
-                    className={userSubTab === 'create' ? 'active' : ''}
-                    style={{ padding: '6px 12px', fontSize: 13 }}
+                  <label
+                    title="Import users from Excel file"
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 6,
+                      padding: '6px 12px', fontSize: 13, cursor: importing ? 'not-allowed' : 'pointer',
+                      background: 'var(--color-success, #16a34a)', color: '#fff',
+                      border: 'none', borderRadius: 6, fontWeight: 500,
+                      opacity: importing ? 0.6 : 1,
+                    }}
                   >
-                    + New account
+                    <Upload size={14} /> {importing ? 'Importing...' : 'Import Excel'}
+                    <input
+                      type="file"
+                      accept=".xlsx,.xls"
+                      style={{ display: 'none' }}
+                      onChange={handleImportUsers}
+                      disabled={importing}
+                    />
+                  </label>
+                  <button
+                    className="admin-btn-secondary"
+                    onClick={handleDownloadTemplate}
+                    title="Download blank import template"
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', fontSize: 13 }}
+                  >
+                    <FileText size={14} /> Template
                   </button>
                 </div>
               </div>
@@ -1937,6 +2476,45 @@ Ready to analyze your clinic data. Select a category or type a specific question
                   </div>
                 </form>
               )}
+
+              {/* Import Results Modal */}
+              {importResults && (
+                <div className="admin-modal-overlay" onClick={() => setImportResults(null)}>
+                  <div className="admin-modal-content" style={{ maxWidth: 500 }} onClick={e => e.stopPropagation()}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+                      <h3 style={{ margin: 0 }}>Import Results</h3>
+                      <button className="admin-close-modal-btn" onClick={() => setImportResults(null)}>×</button>
+                    </div>
+                    <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
+                      <div style={{ flex: 1, background: 'var(--color-surface)', borderRadius: 8, padding: '12px 16px', textAlign: 'center' }}>
+                        <div style={{ fontSize: 24, fontWeight: 700 }}>{importResults.total}</div>
+                        <div style={{ fontSize: 12, color: 'var(--color-muted)' }}>Total rows</div>
+                      </div>
+                      <div style={{ flex: 1, background: '#dcfce7', borderRadius: 8, padding: '12px 16px', textAlign: 'center' }}>
+                        <div style={{ fontSize: 24, fontWeight: 700, color: '#16a34a' }}>{importResults.success}</div>
+                        <div style={{ fontSize: 12, color: '#16a34a' }}>Created</div>
+                      </div>
+                      <div style={{ flex: 1, background: '#fee2e2', borderRadius: 8, padding: '12px 16px', textAlign: 'center' }}>
+                        <div style={{ fontSize: 24, fontWeight: 700, color: '#dc2626' }}>{importResults.errors.length}</div>
+                        <div style={{ fontSize: 12, color: '#dc2626' }}>Failed</div>
+                      </div>
+                    </div>
+                    {importResults.errors.length > 0 && (
+                      <div style={{ background: 'var(--color-surface)', borderRadius: 8, padding: 12, maxHeight: 200, overflowY: 'auto' }}>
+                        <p style={{ margin: '0 0 8px', fontWeight: 600, fontSize: 13 }}>Error details:</p>
+                        {importResults.errors.map((err, i) => (
+                          <div key={i} style={{ fontSize: 12, color: '#dc2626', padding: '4px 0', borderBottom: '1px solid var(--color-border)' }}>
+                            {err}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <div style={{ marginTop: 16, textAlign: 'right' }}>
+                      <button className="btn-primary" onClick={() => setImportResults(null)}>Done</button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -2017,14 +2595,88 @@ Ready to analyze your clinic data. Select a category or type a specific question
                         </div>
                       </div>
 
+                      {/* AI Content Generator Panel */}
+                      <div style={{ marginBottom: 16, border: '1px solid var(--color-border, #334155)', borderRadius: 10, overflow: 'hidden' }}>
+                        <button
+                          type="button"
+                          onClick={() => setShowAiPanel(p => !p)}
+                          style={{
+                            width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+                            padding: '10px 14px', background: 'linear-gradient(90deg,#1d4ed8,#7c3aed)',
+                            color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: 14,
+                          }}
+                        >
+                          <Zap size={15} />
+                          Generate content with AI
+                          <span style={{ marginLeft: 'auto', fontSize: 12, opacity: 0.8 }}>
+                            {showAiPanel ? '▲ Hide' : '▼ Expand'}
+                          </span>
+                        </button>
+
+                        {showAiPanel && (
+                          <div style={{ padding: 16, background: 'var(--color-surface, #1e293b)', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                            <p style={{ margin: 0, fontSize: 13, color: 'var(--color-muted, #94a3b8)' }}>
+                              AI will generate a complete HTML article based on your topic. The result will be filled directly into the content box below.
+                            </p>
+                            <div style={{ display: 'flex', gap: 10 }}>
+                              <input
+                                type="text"
+                                placeholder="Topic / keyword (e.g. 'How to prevent dengue fever')"
+                                value={aiPostTopic}
+                                onChange={(e) => setAiPostTopic(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleGeneratePostContent())}
+                                style={{ flex: 1, padding: '8px 12px', borderRadius: 6, border: '1px solid var(--color-border, #334155)', background: 'var(--color-bg, #0f172a)', color: 'inherit', fontSize: 13 }}
+                              />
+                              <select
+                                value={aiPostLang}
+                                onChange={(e) => setAiPostLang(e.target.value)}
+                                style={{ width: 130, padding: '8px 10px', borderRadius: 6, border: '1px solid var(--color-border, #334155)', background: 'var(--color-bg, #0f172a)', color: 'inherit', fontSize: 13, cursor: 'pointer' }}
+                              >
+                                <option value="en">English</option>
+                                <option value="vi">Tiếng Việt</option>
+                              </select>
+                              <button
+                                type="button"
+                                onClick={handleGeneratePostContent}
+                                disabled={aiPostGenerating}
+                                style={{
+                                  padding: '8px 18px', borderRadius: 6, border: 'none', cursor: aiPostGenerating ? 'not-allowed' : 'pointer',
+                                  background: aiPostGenerating ? '#475569' : '#7c3aed', color: '#fff', fontWeight: 600, fontSize: 13,
+                                  display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap',
+                                }}
+                              >
+                                {aiPostGenerating ? (
+                                  <><RefreshCw size={14} style={{ animation: 'spin 1s linear infinite' }} /> Generating...</>
+                                ) : (
+                                  <><Zap size={14} /> Generate</>
+                                )}
+                              </button>
+                            </div>
+                            {postForm.title && !aiPostTopic && (
+                              <p style={{ margin: 0, fontSize: 12, color: 'var(--color-muted, #94a3b8)' }}>
+                                Tip: Leave topic blank to use the article title above as the prompt.
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
                       <div className="form-group">
-                        <label>Article content (Markdown or text) *</label>
+                        <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span>Article content (HTML) *</span>
+                          {postForm.content && (
+                            <span style={{ fontSize: 12, color: 'var(--color-muted, #94a3b8)', fontWeight: 400 }}>
+                              {postForm.content.length} chars
+                            </span>
+                          )}
+                        </label>
                         <textarea
-                          rows="8"
+                          rows="12"
                           value={postForm.content}
                           onChange={(e) => setPostForm({ ...postForm, content: e.target.value })}
-                          placeholder="Enter the health article content here..."
+                          placeholder="Enter HTML content here, or use the AI generator above..."
                           required
+                          style={{ fontFamily: 'monospace', fontSize: 13 }}
                         />
                       </div>
 
@@ -2135,7 +2787,187 @@ Ready to analyze your clinic data. Select a category or type a specific question
                   <h2 style={{ margin: 0 }}>Doctor shifts</h2>
                   <p className="subtitle" style={{ margin: '4px 0 0 0' }}>Assign work shifts to each doctor by day.</p>
                 </div>
+                <button
+                  type="button"
+                  className="btn-primary"
+                  onClick={() => { setShowQuickSchedule(true); setQuickResult(null); }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+                >
+                  <Zap size={15} /> Quick Schedule (Series)
+                </button>
               </div>
+
+              {/* Quick Schedule Modal (portal — bypasses parent CSS constraints) */}
+              {showQuickSchedule && createPortal(
+                <div className="admin-modal-overlay" role="dialog" aria-modal="true" aria-label="Quick Schedule Series" onClick={() => !quickCreating && setShowQuickSchedule(false)}>
+                  <div className="admin-modal-content" style={{ maxWidth: 600 }} onClick={e => e.stopPropagation()}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                      <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <Zap size={18} color="#7c3aed" /> Quick Schedule (Series)
+                      </h3>
+                      {!quickCreating && (
+                        <button className="admin-close-modal-btn" onClick={() => setShowQuickSchedule(false)}>×</button>
+                      )}
+                    </div>
+
+                    {quickResult ? (
+                      /* Result screen */
+                      <div>
+                        <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
+                          <div style={{ flex: 1, background: 'var(--color-surface)', borderRadius: 8, padding: '14px', textAlign: 'center' }}>
+                            <div style={{ fontSize: 28, fontWeight: 700 }}>{quickResult.total}</div>
+                            <div style={{ fontSize: 12, color: 'var(--color-muted)' }}>Total</div>
+                          </div>
+                          <div style={{ flex: 1, background: '#dcfce7', borderRadius: 8, padding: '14px', textAlign: 'center' }}>
+                            <div style={{ fontSize: 28, fontWeight: 700, color: '#16a34a' }}>{quickResult.success}</div>
+                            <div style={{ fontSize: 12, color: '#16a34a' }}>Created</div>
+                          </div>
+                          <div style={{ flex: 1, background: '#fefce8', borderRadius: 8, padding: '14px', textAlign: 'center' }}>
+                            <div style={{ fontSize: 28, fontWeight: 700, color: '#ca8a04' }}>{quickResult.skipped}</div>
+                            <div style={{ fontSize: 12, color: '#ca8a04' }}>Skipped (exists)</div>
+                          </div>
+                          <div style={{ flex: 1, background: '#fee2e2', borderRadius: 8, padding: '14px', textAlign: 'center' }}>
+                            <div style={{ fontSize: 28, fontWeight: 700, color: '#dc2626' }}>{quickResult.errors}</div>
+                            <div style={{ fontSize: 12, color: '#dc2626' }}>Errors</div>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                          <button className="admin-btn-secondary" onClick={() => setQuickResult(null)}>Create another series</button>
+                          <button className="btn-primary" onClick={() => setShowQuickSchedule(false)}>Done</button>
+                        </div>
+                      </div>
+                    ) : (
+                      /* Form screen */
+                      <div className="admin-dark-form">
+                        {/* Doctor */}
+                        <div className="form-group" style={{ marginBottom: 14 }}>
+                          <label>Doctor *</label>
+                          <select value={quickForm.doctorId} onChange={e => setQuickForm(f => ({ ...f, doctorId: e.target.value }))} required>
+                            <option value="">-- Select doctor --</option>
+                            {doctorsList.map(d => <option key={d._id || d.id} value={d._id || d.id}>{d.fullName}{d.specialization ? ` — ${d.specialization}` : ''}</option>)}
+                          </select>
+                        </div>
+
+                        {/* Date range */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+                          <div className="form-group">
+                            <label>From date *</label>
+                            <input type="date" value={quickForm.fromDate} min={new Date().toISOString().split('T')[0]}
+                              onChange={e => setQuickForm(f => ({ ...f, fromDate: e.target.value }))} />
+                          </div>
+                          <div className="form-group">
+                            <label>To date *</label>
+                            <input type="date" value={quickForm.toDate} min={quickForm.fromDate || new Date().toISOString().split('T')[0]}
+                              onChange={e => setQuickForm(f => ({ ...f, toDate: e.target.value }))} />
+                          </div>
+                        </div>
+
+                        {/* Weekday selector */}
+                        <div style={{ marginBottom: 14 }}>
+                          <label style={{ display: 'block', marginBottom: 8, fontSize: 13, fontWeight: 500 }}>Days of the week *</label>
+                          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                            {[
+                              { label: 'Sun', value: 0 }, { label: 'Mon', value: 1 }, { label: 'Tue', value: 2 },
+                              { label: 'Wed', value: 3 }, { label: 'Thu', value: 4 }, { label: 'Fri', value: 5 }, { label: 'Sat', value: 6 },
+                            ].map(day => {
+                              const active = quickForm.weekdays.includes(day.value);
+                              return (
+                                <button
+                                  key={day.value}
+                                  type="button"
+                                  onClick={() => setQuickForm(f => ({
+                                    ...f,
+                                    weekdays: active
+                                      ? f.weekdays.filter(d => d !== day.value)
+                                      : [...f.weekdays, day.value].sort(),
+                                  }))}
+                                  style={{
+                                    padding: '6px 14px', borderRadius: 20, border: '2px solid',
+                                    borderColor: active ? '#1d4ed8' : 'var(--color-border, #334155)',
+                                    background: active ? '#1d4ed8' : 'transparent',
+                                    color: active ? '#fff' : 'var(--color-muted, #94a3b8)',
+                                    cursor: 'pointer', fontWeight: 600, fontSize: 13, transition: 'all 0.15s',
+                                  }}
+                                >
+                                  {day.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                          <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
+                            <button type="button" style={{ fontSize: 12, color: '#1d4ed8', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                              onClick={() => setQuickForm(f => ({ ...f, weekdays: [1, 2, 3, 4, 5] }))}>Mon–Fri</button>
+                            <span style={{ color: 'var(--color-muted)' }}>|</span>
+                            <button type="button" style={{ fontSize: 12, color: '#1d4ed8', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                              onClick={() => setQuickForm(f => ({ ...f, weekdays: [1, 2, 3, 4, 5, 6] }))}>Mon–Sat</button>
+                            <span style={{ color: 'var(--color-muted)' }}>|</span>
+                            <button type="button" style={{ fontSize: 12, color: '#1d4ed8', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                              onClick={() => setQuickForm(f => ({ ...f, weekdays: [0, 1, 2, 3, 4, 5, 6] }))}>All</button>
+                            <span style={{ color: 'var(--color-muted)' }}>|</span>
+                            <button type="button" style={{ fontSize: 12, color: '#94a3b8', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                              onClick={() => setQuickForm(f => ({ ...f, weekdays: [] }))}>Clear</button>
+                          </div>
+                        </div>
+
+                        {/* Time & max patients */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 16 }}>
+                          <div className="form-group">
+                            <label>Start time *</label>
+                            <input type="time" value={quickForm.startTime} onChange={e => setQuickForm(f => ({ ...f, startTime: e.target.value }))} />
+                          </div>
+                          <div className="form-group">
+                            <label>End time *</label>
+                            <input type="time" value={quickForm.endTime} onChange={e => setQuickForm(f => ({ ...f, endTime: e.target.value }))} />
+                          </div>
+                          <div className="form-group">
+                            <label>Max patients</label>
+                            <input type="number" min={1} max={100} value={quickForm.maxPatients} onChange={e => setQuickForm(f => ({ ...f, maxPatients: e.target.value }))} />
+                          </div>
+                        </div>
+
+                        {/* Preview */}
+                        <div style={{
+                          padding: '12px 16px', borderRadius: 8, marginBottom: 16,
+                          background: quickPreviewDates.length > 0 ? 'rgba(29,78,216,0.08)' : 'var(--color-surface)',
+                          border: `1px solid ${quickPreviewDates.length > 0 ? '#1d4ed8' : 'var(--color-border)'}`,
+                        }}>
+                          {quickPreviewDates.length > 0 ? (
+                            <span style={{ fontSize: 14, fontWeight: 600, color: '#1d4ed8' }}>
+                              📅 Will create <strong>{quickPreviewDates.length}</strong> shifts
+                              {quickForm.fromDate && quickForm.toDate && (
+                                <span style={{ fontWeight: 400, color: 'var(--color-muted)', fontSize: 13 }}>
+                                  {' '}({quickForm.fromDate} → {quickForm.toDate})
+                                </span>
+                              )}
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: 13, color: 'var(--color-muted)' }}>
+                              Select a date range and weekdays to see a preview.
+                            </span>
+                          )}
+                        </div>
+
+                        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                          <button type="button" className="admin-btn-secondary" onClick={() => setShowQuickSchedule(false)}>Cancel</button>
+                          <button
+                            type="button"
+                            className="btn-primary"
+                            onClick={handleQuickSchedule}
+                            disabled={quickCreating || quickPreviewDates.length === 0}
+                            style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 140 }}
+                          >
+                            {quickCreating ? (
+                              <><RefreshCw size={14} style={{ animation: 'spin 1s linear infinite' }} /> Creating shifts...</>
+                            ) : (
+                              <><Zap size={14} /> Create {quickPreviewDates.length > 0 ? quickPreviewDates.length : ''} shifts</>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              , document.body)}
 
               {/* Create schedule form */}
               <form onSubmit={handleCreateSchedule} className="admin-inner-form" style={{ marginBottom: 20 }}>
@@ -2223,9 +3055,21 @@ Ready to analyze your clinic data. Select a category or type a specific question
                   <h2 style={{ margin: 0 }}>Medicine inventory</h2>
                   <p className="subtitle" style={{ margin: '4px 0 0 0' }}>Add, edit, and update medicine stock.</p>
                 </div>
-                <button className="btn btn-primary" onClick={() => { setEditingMedicine(null); setMedicineForm({ medicineName: '', medicineCode: '', activeIngredient: '', usageRoute: 'Uống', unit: 'tablet', unitPrice: 0, stockQuantity: 0 }); setIsMedicineModalOpen(true); }}>
-                  + Add new medicine
-                </button>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <button className="btn btn-ghost" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }} onClick={handleExportMedicines}>
+                    <Download size={14} /> Export Excel
+                  </button>
+                  <label className="btn btn-ghost" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer', margin: 0 }}>
+                    {importingMedicines ? 'Importing...' : <><Upload size={14} /> Import Excel</>}
+                    <input type="file" accept=".xlsx,.xls" style={{ display: 'none' }} onChange={handleImportMedicines} disabled={importingMedicines} />
+                  </label>
+                  <button className="btn btn-ghost" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }} onClick={handleDownloadMedicineTemplate}>
+                    <FileText size={14} /> Template
+                  </button>
+                  <button className="btn btn-primary" onClick={() => { setEditingMedicine(null); setMedicineForm({ medicineName: '', medicineCode: '', activeIngredient: '', usageRoute: 'Uống', unit: 'tablet', unitPrice: 0, stockQuantity: 0 }); setIsMedicineModalOpen(true); }}>
+                    + Add new medicine
+                  </button>
+                </div>
               </div>
 
               <div style={{ marginBottom: 12 }}>
@@ -2273,6 +3117,20 @@ Ready to analyze your clinic data. Select a category or type a specific question
                   </tbody>
                 </table>
               </div>
+
+              {importMedicineResults && (
+                <div style={{ marginTop: 16, padding: '14px 18px', borderRadius: 10, background: importMedicineResults.errors.length > 0 ? '#fef9c3' : '#f0fdf4', border: `1px solid ${importMedicineResults.errors.length > 0 ? '#fde047' : '#86efac'}` }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <strong style={{ fontSize: 14 }}>Import Results — {importMedicineResults.success}/{importMedicineResults.total} medicines added</strong>
+                    <button onClick={() => setImportMedicineResults(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: '#94a3b8' }}>×</button>
+                  </div>
+                  {importMedicineResults.errors.length > 0 && (
+                    <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, color: '#92400e' }}>
+                      {importMedicineResults.errors.map((e, i) => <li key={i}>{e}</li>)}
+                    </ul>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -2585,12 +3443,13 @@ Ready to analyze your clinic data. Select a category or type a specific question
         </div>
       )}
         {/* Modals for Create/Edit */}
-      <DoctorScheduleModal
-        isOpen={showDoctorScheduleModal}
-        onClose={() => setShowDoctorScheduleModal(false)}
-        appointmentData={appointmentToAssignDoctor}
-        onConfirm={handleDoctorAssigned}
-      />
+      {showDoctorScheduleModal && appointmentToAssignDoctor && (
+        <DoctorScheduleModal
+          appointment={appointmentToAssignDoctor}
+          onClose={() => setShowDoctorScheduleModal(false)}
+          onConfirm={handleDoctorAssigned}
+        />
+      )}
     </div>
   );
 }

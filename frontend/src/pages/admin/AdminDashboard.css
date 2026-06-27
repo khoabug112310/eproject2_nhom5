@@ -237,6 +237,9 @@ html, body {
   overflow-y: auto;
   background-color: #f1f5f9;
   box-sizing: border-box;
+  max-width: none !important;
+  margin: 0 !important;
+  width: 100% !important;
 }
 
 .admin-workspace::-webkit-scrollbar { width: 6px; }

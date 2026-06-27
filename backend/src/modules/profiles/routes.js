@@ -10,7 +10,9 @@ const {
   createDoctor,
   getPatients,
   getAdminStats,
+  getReportData,
   queryClinicAI,
+  generatePostContent,
   editUserAdmin,
   deleteUserAdmin,
   deleteAppointmentAdmin,
@@ -46,7 +48,9 @@ router.get('/users', authenticateToken, authorizeRole(USER_ROLE.ADMIN), getAllUs
 router.post('/users', authenticateToken, authorizeRole(USER_ROLE.ADMIN), createDoctor);
 router.post('/doctors', authenticateToken, authorizeRole(USER_ROLE.ADMIN), createDoctor);
 router.get('/admin/stats', authenticateToken, authorizeRole(USER_ROLE.ADMIN), getAdminStats);
+router.get('/admin/report', authenticateToken, authorizeRole(USER_ROLE.ADMIN), getReportData);
 router.post('/admin/ai-query', authenticateToken, authorizeRole(USER_ROLE.ADMIN), queryClinicAI);
+router.post('/admin/generate-post', authenticateToken, authorizeRole(USER_ROLE.ADMIN), generatePostContent);
 
 // Admin operations
 router.put('/admin/users/:id', authenticateToken, authorizeRole(USER_ROLE.ADMIN), editUserAdmin);

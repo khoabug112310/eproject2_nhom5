@@ -489,6 +489,51 @@ const getAdminStats = async (req, res) => {
       yearTraffic.push(monthlyPatients);
     }
 
+    // === YEAR-OVER-YEAR COMPARISON DATA ===
+    const prevYearNum = now.getFullYear() - 1;
+    const prevYearRevenue = [];
+    const prevYearTraffic = [];
+    const prevYearRegistrations = [];
+
+    for (let m = 0; m < 12; m++) {
+      const mStart = new Date(prevYearNum, m, 1, 0, 0, 0, 0);
+      const mEnd = new Date(prevYearNum, m + 1, 0, 23, 59, 59, 999);
+
+      const prevRevRes = await Invoice.aggregate([
+        { $match: { status: 'Paid', paidAt: { $gte: mStart, $lte: mEnd } } },
+        { $group: { _id: null, total: { $sum: '$totalAmount' } } }
+      ]);
+      prevYearRevenue.push(prevRevRes.length > 0 ? prevRevRes[0].total : 0);
+
+      const prevTraffic = await Appointment.countDocuments({ requestedDate: { $gte: mStart, $lte: mEnd } });
+      prevYearTraffic.push(prevTraffic);
+
+      const prevRegs = await Appointment.countDocuments({ createdAt: { $gte: mStart, $lte: mEnd } });
+      prevYearRegistrations.push(prevRegs);
+    }
+
+    // Same month last year
+    const sameMonthPrevYearStart = new Date(prevYearNum, now.getMonth(), 1);
+    const sameMonthPrevYearEnd = new Date(prevYearNum, now.getMonth() + 1, 0, 23, 59, 59, 999);
+    const smlyRevRes = await Invoice.aggregate([
+      { $match: { status: 'Paid', paidAt: { $gte: sameMonthPrevYearStart, $lte: sameMonthPrevYearEnd } } },
+      { $group: { _id: null, total: { $sum: '$totalAmount' } } }
+    ]);
+    const smlyRev = smlyRevRes.length > 0 ? smlyRevRes[0].total : 0;
+    const smlyExams = await Appointment.countDocuments({ status: 'Completed', requestedDate: { $gte: sameMonthPrevYearStart, $lte: sameMonthPrevYearEnd } });
+    const smlyRegs = await Appointment.countDocuments({ createdAt: { $gte: sameMonthPrevYearStart, $lte: sameMonthPrevYearEnd } });
+
+    // Last month
+    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+    const lmRevRes = await Invoice.aggregate([
+      { $match: { status: 'Paid', paidAt: { $gte: lastMonthStart, $lte: lastMonthEnd } } },
+      { $group: { _id: null, total: { $sum: '$totalAmount' } } }
+    ]);
+    const lmRev = lmRevRes.length > 0 ? lmRevRes[0].total : 0;
+    const lmExams = await Appointment.countDocuments({ status: 'Completed', requestedDate: { $gte: lastMonthStart, $lte: lastMonthEnd } });
+    const lmRegs = await Appointment.countDocuments({ createdAt: { $gte: lastMonthStart, $lte: lastMonthEnd } });
+
     // === CALCULATE QUALITY METRICS ===
     const Doctor = require('../../models/Doctor');
     const Staff = require('../../models/Staff');
@@ -602,12 +647,93 @@ const getAdminStats = async (req, res) => {
         week: { labels: weekLabels, revenue: weekRevenue, traffic: weekTraffic },
         month: { labels: monthLabels, revenue: monthRevenue, traffic: monthTraffic },
         year: { labels: yearLabels, revenue: yearRevenue, traffic: yearTraffic }
+      },
+      yoy: {
+        labels: yearLabels,
+        thisYear: { revenue: yearRevenue, traffic: yearTraffic, registrations: yearRevenue.map((_, i) => yearTraffic[i]) },
+        lastYear: { revenue: prevYearRevenue, traffic: prevYearTraffic, registrations: prevYearRegistrations },
+        currentYear: now.getFullYear(),
+        previousYear: prevYearNum
+      },
+      comparison: {
+        thisMonth: { revenue: revThisMonth, examinations: examThisMonth, registrations: regThisMonth },
+        sameMonthLastYear: { revenue: smlyRev, examinations: smlyExams, registrations: smlyRegs },
+        lastMonth: { revenue: lmRev, examinations: lmExams, registrations: lmRegs }
       }
     }, 'Statistics loaded successfully');
   } catch (err) {
     console.error('getAdminStats error', err);
     const { fail } = require('../../utils/response');
     return fail(res, 'Error loading statistics', 500, err.message);
+  }
+};
+
+const getReportData = async (req, res) => {
+  try {
+    const Appointment = require('../../models/Appointment');
+    const Invoice = require('../../models/Invoice');
+
+    const now = new Date();
+    const year = parseInt(req.query.year) || now.getFullYear();
+    const month = parseInt(req.query.month) || 0; // 0 = all months (yearly view)
+    const compareYear = parseInt(req.query.compareYear) || (year - 1);
+
+    const sumArr = (arr) => arr.reduce((a, b) => a + b, 0);
+
+    const getSliceData = async (yr, mo) => {
+      const revenue = [], patients = [], registrations = [], cancellations = [];
+      const slices = mo === 0 ? 12 : 4;
+
+      for (let i = 0; i < slices; i++) {
+        let sStart, sEnd;
+        if (mo === 0) {
+          sStart = new Date(yr, i, 1, 0, 0, 0, 0);
+          sEnd = new Date(yr, i + 1, 0, 23, 59, 59, 999);
+        } else {
+          sStart = new Date(yr, mo - 1, i * 7 + 1, 0, 0, 0, 0);
+          sEnd = i === 3
+            ? new Date(yr, mo, 0, 23, 59, 59, 999)
+            : new Date(yr, mo - 1, (i + 1) * 7, 23, 59, 59, 999);
+        }
+
+        const revRes = await Invoice.aggregate([
+          { $match: { status: 'Paid', paidAt: { $gte: sStart, $lte: sEnd } } },
+          { $group: { _id: null, total: { $sum: '$totalAmount' } } }
+        ]);
+        revenue.push(revRes[0]?.total || 0);
+        patients.push(await Appointment.countDocuments({ status: 'Completed', requestedDate: { $gte: sStart, $lte: sEnd } }));
+        registrations.push(await Appointment.countDocuments({ createdAt: { $gte: sStart, $lte: sEnd } }));
+        cancellations.push(await Appointment.countDocuments({ status: 'Canceled', updatedAt: { $gte: sStart, $lte: sEnd } }));
+      }
+      return { revenue, patients, registrations, cancellations };
+    };
+
+    const labels = month === 0
+      ? ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+      : ['Week 1','Week 2','Week 3','Week 4'];
+
+    const [currentData, compareData] = await Promise.all([
+      getSliceData(year, month),
+      getSliceData(compareYear, month)
+    ]);
+
+    const totals = {
+      current: { revenue: sumArr(currentData.revenue), patients: sumArr(currentData.patients), registrations: sumArr(currentData.registrations), cancellations: sumArr(currentData.cancellations) },
+      compare: { revenue: sumArr(compareData.revenue), patients: sumArr(compareData.patients), registrations: sumArr(compareData.registrations), cancellations: sumArr(compareData.cancellations) }
+    };
+
+    const { success: ok } = require('../../utils/response');
+    return ok(res, {
+      labels,
+      period: { year, month, compareYear, granularity: month === 0 ? 'monthly' : 'weekly' },
+      current: currentData,
+      compare: compareData,
+      totals
+    }, 'Report data loaded');
+  } catch (err) {
+    console.error('getReportData error', err);
+    const { fail } = require('../../utils/response');
+    return fail(res, 'Error loading report data', 500, err.message);
   }
 };
 
@@ -1334,7 +1460,7 @@ const createPatientByStaff = async (req, res) => {
       const tempPwd = Math.random().toString(36) + Date.now();
       user = await User.create({
         username: phoneNumber,
-        passwordHash: tempPwd,
+        passwordHash: await bcrypt.hash(tempPwd, 10),
         roleId: patientRole._id,
         phone: phoneNumber,
         email: email || undefined,
@@ -1435,6 +1561,76 @@ const markAllNotificationsRead = async (req, res) => {
   }
 };
 
-module.exports = { getAllUsers, getUserById, updateUser, createDoctor, getPatients, getAdminStats, queryClinicAI, editUserAdmin, deleteUserAdmin, deleteAppointmentAdmin, updateTimelineStepAdmin, getMyPatientProfile, createMyPatientProfile, updateMyPatientProfile, getSubAccounts, createSubAccount, updateSubAccount, deleteSubAccount, createPatientByStaff, getMyNotifications, markNotificationRead, markAllNotificationsRead };
+// Generate HTML blog post content via Gemini AI
+const generatePostContent = async (req, res) => {
+  const { success: ok, fail } = require('../../utils/response');
+  try {
+    const { title, topic, language = 'en' } = req.body;
+    const subject = (title || topic || '').trim();
+    if (!subject) return fail(res, 'Please provide a title or topic for the article.', 400);
+
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey || apiKey.startsWith('your_')) return fail(res, 'Gemini API key is not configured.', 503);
+
+    const isVi = language === 'vi';
+    const prompt = `You are a professional medical content writer for Hopsontai Clinic (Ho Chi Minh City, Vietnam).
+
+Write a complete, well-structured health article about: "${subject}"
+
+STRICT OUTPUT RULES:
+- Output ONLY valid HTML fragment (no <!DOCTYPE>, no <html>, no <head>, no <body> wrapper tags).
+- Use semantic HTML only: <h2> for main section headings, <h3> for sub-headings, <p> for paragraphs, <ul><li> for bullet lists, <strong> for key terms, <em> for emphasis.
+- Article length: 600–900 words.
+- Language: ${isVi ? 'Vietnamese (Tiếng Việt)' : 'English'}.
+- Structure must include:
+  1. An engaging opening <p> that introduces the topic and its importance.
+  2. <h2> section on causes or background (what causes it / how it works).
+  3. <h2> section on symptoms or key signs to watch for.
+  4. <h2> section with practical prevention or treatment tips (use <ul><li>).
+  5. A short closing <p> encouraging readers to schedule an appointment at Hopsontai Clinic.
+- End with: <p><em>${isVi ? 'Nguồn: Đội ngũ Y tế Phòng khám Hopsontai' : 'Source: Hopsontai Clinic Medical Team'}</em></p>
+- DO NOT include markdown, code fences (\`\`\`), or any text outside the HTML tags.`;
+
+    const https = require('https');
+    const callGemini = (promptText, key) => new Promise((resolve, reject) => {
+      const payload = JSON.stringify({ contents: [{ parts: [{ text: promptText }] }] });
+      const options = {
+        hostname: 'generativelanguage.googleapis.com',
+        port: 443,
+        path: `/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) },
+      };
+      const req = https.request(options, (response) => {
+        let body = '';
+        response.on('data', (chunk) => { body += chunk; });
+        response.on('end', () => {
+          try {
+            if (response.statusCode !== 200) return reject(new Error(`Gemini HTTP ${response.statusCode}: ${body}`));
+            const json = JSON.parse(body);
+            const text = json.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (text) resolve(text);
+            else reject(new Error(json.error?.message || 'Cannot parse Gemini response'));
+          } catch (e) { reject(e); }
+        });
+      });
+      req.on('error', (e) => reject(e));
+      req.write(payload);
+      req.end();
+    });
+
+    let html = await callGemini(prompt, apiKey);
+    // Strip markdown code fences if Gemini wrapped the output
+    html = html.replace(/^```html\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+
+    return ok(res, { html }, 'Content generated successfully');
+  } catch (err) {
+    console.error('generatePostContent error', err);
+    const { fail: f } = require('../../utils/response');
+    return f(res, 'Error generating content with AI', 500, err.message);
+  }
+};
+
+module.exports = { getAllUsers, getUserById, updateUser, createDoctor, getPatients, getAdminStats, getReportData, queryClinicAI, generatePostContent, editUserAdmin, deleteUserAdmin, deleteAppointmentAdmin, updateTimelineStepAdmin, getMyPatientProfile, createMyPatientProfile, updateMyPatientProfile, getSubAccounts, createSubAccount, updateSubAccount, deleteSubAccount, createPatientByStaff, getMyNotifications, markNotificationRead, markAllNotificationsRead };
 
 

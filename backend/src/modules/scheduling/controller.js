@@ -300,6 +300,9 @@ const updateAppointmentStatus = async (req, res) => {
     const oldDoctorId = appt.doctorId;
     const { APPOINTMENT_STATUS, INVOICE_TYPE, INVOICE_STATUS } = require('../../constants/enums');
 
+    // Capture original values BEFORE mutating appt fields
+    const originalRequestedDate = appt.requestedDate;
+
     // Update fields if provided
     if (requestedDate) {
       appt.requestedDate = new Date(requestedDate);
@@ -335,7 +338,7 @@ const updateAppointmentStatus = async (req, res) => {
 
       const scheduleChanged = (status && oldStatus !== APPOINTMENT_STATUS.CONFIRMED) || 
                               (scheduleId && String(scheduleId) !== String(oldScheduleId)) ||
-                              (requestedDate && new Date(requestedDate).getTime() !== new Date(appt.requestedDate).getTime()) ||
+                              (requestedDate && new Date(requestedDate).getTime() !== new Date(originalRequestedDate).getTime()) ||
                               (doctorId && String(doctorId) !== String(oldDoctorId));
 
       if (scheduleChanged) {
@@ -351,25 +354,30 @@ const updateAppointmentStatus = async (req, res) => {
             return res.status(409).json({ success: false, message: 'The requested time is outside this work shift.' });
           }
 
-          if (typeof schedule.currentBooked !== 'number') schedule.currentBooked = 0;
-
           const isSameSchedule = oldScheduleId && String(oldScheduleId) === String(schedule._id) && oldStatus === APPOINTMENT_STATUS.CONFIRMED;
-          if (!isSameSchedule && schedule.maxPatients && schedule.currentBooked >= schedule.maxPatients) {
-            return res.status(409).json({ success: false, message: 'This shift is full; no more appointments can be confirmed.' });
-          }
 
-          // Decrement old schedule if already confirmed
-          if (oldStatus === APPOINTMENT_STATUS.CONFIRMED && oldScheduleId) {
-            const oldSchedule = await Doctor_Schedule.findById(oldScheduleId);
-            if (oldSchedule && typeof oldSchedule.currentBooked === 'number' && oldSchedule.currentBooked > 0) {
-              oldSchedule.currentBooked = Math.max(0, oldSchedule.currentBooked - 1);
-              await oldSchedule.save();
+          if (!isSameSchedule) {
+            // Decrement old schedule first if already confirmed on a different slot
+            if (oldStatus === APPOINTMENT_STATUS.CONFIRMED && oldScheduleId) {
+              await Doctor_Schedule.findByIdAndUpdate(oldScheduleId, { $inc: { currentBooked: -1 } });
+            }
+
+            // Atomically check capacity and increment to prevent race conditions
+            const capacityFilter = schedule.maxPatients
+              ? { _id: schedule._id, $expr: { $lt: ['$currentBooked', '$maxPatients'] } }
+              : { _id: schedule._id };
+            const bookedSchedule = await Doctor_Schedule.findOneAndUpdate(
+              capacityFilter,
+              { $inc: { currentBooked: 1 } },
+              { new: true }
+            );
+            if (!bookedSchedule) {
+              if (oldStatus === APPOINTMENT_STATUS.CONFIRMED && oldScheduleId) {
+                await Doctor_Schedule.findByIdAndUpdate(oldScheduleId, { $inc: { currentBooked: 1 } });
+              }
+              return res.status(409).json({ success: false, message: 'This shift is full; no more appointments can be confirmed.' });
             }
           }
-
-          // Increment new schedule
-          schedule.currentBooked = (schedule.currentBooked || 0) + 1;
-          await schedule.save();
           appt.scheduleId = schedule._id;
         } else {
           return res.status(409).json({ success: false, message: 'The selected doctor has no working schedule shift on this day.' });
@@ -402,6 +410,9 @@ const updateAppointmentStatus = async (req, res) => {
       }
     }
 
+    // Capture oldAttendance BEFORE the cancel block may mutate appt.attendance
+    const oldAttendance = appt.attendance || 'Unknown';
+
     // If cancelling after confirmed, decrement currentBooked and actualAttended
     if (oldStatus === APPOINTMENT_STATUS.CONFIRMED && status === APPOINTMENT_STATUS.CANCELED) {
       let schedule = null;
@@ -422,7 +433,6 @@ const updateAppointmentStatus = async (req, res) => {
     }
 
     // Process attendance changes directly if provided
-    const oldAttendance = appt.attendance || 'Unknown';
     if (attendance !== undefined && attendance !== oldAttendance) {
       let schedule = null;
       if (appt.scheduleId) schedule = await Doctor_Schedule.findById(appt.scheduleId);
@@ -446,7 +456,7 @@ const updateAppointmentStatus = async (req, res) => {
     }
 
     if (status) appt.status = status;
-    if (req.user && (req.user.id || req.user._id)) appt.confirmedBy = req.user.id || req.user._id;
+    if (status === APPOINTMENT_STATUS.CONFIRMED && req.user && (req.user.id || req.user._id)) appt.confirmedBy = req.user.id || req.user._id;
     await appt.save();
 
     // Send notifications if status changed
