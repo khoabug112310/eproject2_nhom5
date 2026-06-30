@@ -161,8 +161,8 @@ Frontend: `http://localhost:5173` (default Vite port)
 - [ ] Role-based access control
 
 ## Tech Stack
-- **Backend**: Node.js, Express, MySQL, JWT
+- **Backend**: Node.js, Express, MongoDB, JWT
 - **Frontend**: React, Vite, React Router, Axios
-- **Database**: MySQL
+- **Database**: MongoDB
 - **State Management**: Context API (or Redux/Zustand)
 
